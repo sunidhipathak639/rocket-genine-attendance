@@ -16,6 +16,9 @@ import { WorkSettings } from './globals/WorkSettings'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// In production (Vercel), set PAYLOAD_SECRET and POSTGRES_URL in Project → Settings → Environment Variables.
+// If they are missing, you'll see a server error and the real message in Vercel → Logs.
+
 export default buildConfig({
   admin: {
     user: Users.slug,
