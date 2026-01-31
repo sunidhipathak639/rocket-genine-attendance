@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -140,12 +141,12 @@ export function StaffLoginForm() {
                 />
                 <span className="text-gray-600">Remember me</span>
               </label>
-              <a
+              <Link
                 href="/admin/login"
                 className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
               >
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <Button
@@ -166,12 +167,12 @@ export function StaffLoginForm() {
             <div className="text-center pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-600">
                 Admin?{' '}
-                <a
+                <Link
                   href="/admin/login"
                   className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
                 >
                   Login here
-                </a>
+                </Link>
               </p>
             </div>
           </form>
