@@ -20,6 +20,7 @@ const dirname = path.dirname(filename)
 // If they are missing, you'll see a server error and the real message in Vercel → Logs.
 
 export default buildConfig({
+  serverURL: process.env.NEXT_PUBLIC_SERVER_URL || '',
   admin: {
     user: Users.slug,
     importMap: {
