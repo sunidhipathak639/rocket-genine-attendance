@@ -15,6 +15,20 @@ export const metadata = {
 
 export default async function DashboardPage() {
   try {
+    // Runtime check: show clear message in Vercel → Logs if env vars are missing
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.PAYLOAD_SECRET?.trim()) {
+        const msg = '[Dashboard] PAYLOAD_SECRET is missing. Add it in Vercel: Settings → Environment Variables.'
+        console.error(msg)
+        throw new Error(msg)
+      }
+      if (!process.env.POSTGRES_URL?.trim()) {
+        const msg = '[Dashboard] POSTGRES_URL is missing. Add it in Vercel: Settings → Environment Variables.'
+        console.error(msg)
+        throw new Error(msg)
+      }
+    }
+
     const payload = await getPayload({ config: configPromise })
     const { user } = await payload.auth({ headers: await headers() })
 
