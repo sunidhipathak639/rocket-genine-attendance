@@ -5,6 +5,8 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { DashboardClient } from '@/components/dashboard-client'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Holidays | Rocket Genine',
   description: 'View company holidays and public holidays',
