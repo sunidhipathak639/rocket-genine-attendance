@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function middleware(_request: NextRequest) {
   // Middleware runs in Edge Runtime, so we can't use getPayload here
   // Protection is handled by:
   // 1. Collection access control (prevents staff from accessing admin panel)

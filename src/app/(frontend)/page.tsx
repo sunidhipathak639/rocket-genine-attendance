@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import type { Attendance } from '@/payload-types'
 import { DashboardClient } from '@/components/dashboard-client'
 
 export const dynamic = 'force-dynamic'
@@ -49,7 +50,7 @@ export default async function DashboardPage() {
   })
 
   // For staff: fetch their attendance for the last 30 days (for weekly summary)
-  let userAttendance: any[] | undefined
+  let userAttendance: Attendance[] | undefined
   if (user.role === 'staff' && user.id) {
     const start = new Date()
     start.setDate(start.getDate() - 30)

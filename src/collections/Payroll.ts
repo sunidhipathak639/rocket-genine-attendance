@@ -23,7 +23,7 @@ export const Payroll: CollectionConfig = {
   },
   hooks: {
     beforeChange: [
-      async ({ data, req, operation }) => {
+      async ({ data, req, operation: _operation }) => {
         // Auto-calculate payroll fields
         if (data.user && data.month && data.baseSalary) {
           const rawUser = data.user

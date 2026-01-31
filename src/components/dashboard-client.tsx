@@ -8,9 +8,7 @@ import {
     LogOut, 
     History, 
     Calendar as CalendarIcon, 
-    DollarSign, 
     ChevronRight, 
-    User,
     Briefcase,
     Clock,
     PartyPopper,
@@ -25,21 +23,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { usePathname } from 'next/navigation'
 
+import type { Attendance, User } from '@/payload-types'
 import { AdminDashboardView } from './admin-dashboard-view'
 import { MyLeaveStatusList } from './my-leave-status-list'
 import { formatTime } from '@/lib/utils'
 
 interface DashboardClientProps {
-    user: any
+    user: { id: string | number; name?: string | null; email?: string | null; role?: string | null; salary?: number | null }
     initialTab?: 'dashboard' | 'history' | 'leaves' | 'holidays'
-    allUsers?: any[]
-    allAttendance?: any[]
+    allUsers?: User[]
+    allAttendance?: Attendance[]
     workSettings?: {
       saturdayWorkingDay?: boolean | null
       workStartTime?: string | null
       workEndTime?: string | null
     }
-    userAttendance?: any[]
+    userAttendance?: Attendance[]
 }
 
 // Working days in a month (Mon–Fri, optionally Sat)
@@ -87,7 +86,7 @@ function approvedLeaveDaysInMonth(
 export function DashboardClient({ user, initialTab = 'dashboard', allUsers, allAttendance, workSettings: workSettingsProp, userAttendance = [] }: DashboardClientProps) {
     const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
     const [logoutLoading, setLogoutLoading] = useState(false)
-    const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] = useState<any[]>([])
+    const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] = useState<{ startDate: string; endDate: string; type?: string }[]>([])
     const [workSettingsLocal, setWorkSettingsLocal] = useState<typeof workSettingsProp>(undefined)
     const pathname = usePathname()
 
@@ -149,12 +148,12 @@ export function DashboardClient({ user, initialTab = 'dashboard', allUsers, allA
     weekStart.setDate(now.getDate() + mondayOffset)
     const weekStartStr = weekStart.toISOString().split('T')[0]
     const thisWeekRecords = (userAttendance || []).filter(
-      (a: any) => a.date >= weekStartStr && a.date <= todayStr
+      (a: Attendance) => a.date >= weekStartStr && a.date <= todayStr
     )
-    const todayRecord = (userAttendance || []).find((a: any) => a.date === todayStr)
-    const weekPresent = thisWeekRecords.filter((a: any) => ['present', 'late', 'half-day'].includes(a.status)).length
-    const weekLate = thisWeekRecords.filter((a: any) => a.status === 'late').length
-    const weekHalfDay = thisWeekRecords.filter((a: any) => a.status === 'half-day').length
+    const todayRecord = (userAttendance || []).find((a: Attendance) => a.date === todayStr)
+    const weekPresent = thisWeekRecords.filter((a: Attendance) => ['present', 'late', 'half-day'].includes(a.status)).length
+    const weekLate = thisWeekRecords.filter((a: Attendance) => a.status === 'late').length
+    const weekHalfDay = thisWeekRecords.filter((a: Attendance) => a.status === 'half-day').length
 
     const toggleTimeFormat = (checked: boolean) => {
         setTimeFormat(checked ? '24h' : '12h')

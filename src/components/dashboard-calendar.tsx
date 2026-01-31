@@ -14,7 +14,7 @@ import { CalendarDays, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface DashboardCalendarProps {
-    user: any
+    user: { id: string | number }
     workSettings?: {
       saturdayWorkingDay?: boolean | null
       workStartTime?: string | null
@@ -41,7 +41,7 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
   
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
-  const [workSettings, setWorkSettings] = useState<{ saturdayWorkingDay?: boolean | null; workStartTime?: string | null; workEndTime?: string | null } | null>(propsWorkSettings || null)
+  const [_workSettings, setWorkSettings] = useState<{ saturdayWorkingDay?: boolean | null; workStartTime?: string | null; workEndTime?: string | null } | null>(propsWorkSettings || null)
   const [leaveError, setLeaveError] = useState<string | null>(null)
   const [leaveSubmitting, setLeaveSubmitting] = useState(false)
 
@@ -79,7 +79,7 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
       if (user?.id) {
           fetchData()
       }
-  }, [user])
+  }, [user?.id, propsWorkSettings])
 
   // Function to render custom day content
   const modifiers = {

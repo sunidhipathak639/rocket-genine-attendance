@@ -21,24 +21,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-
-interface User {
-  id: number
-  name: string
-  email: string
-  role: string
-  department?: string
-  salary?: number
-}
-
-interface Attendance {
-  id: number
-  user: User | number
-  date: string
-  status: string
-  timeIn?: string
-  timeOut?: string
-}
+import type { User, Attendance } from '@/payload-types'
 
 interface AdminDashboardViewProps {
   allUsers: User[]

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RefreshCw, FileText, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
@@ -16,7 +15,7 @@ interface LeaveDoc {
 }
 
 interface MyLeaveStatusListProps {
-  user: { id: string }
+  user: { id: string | number }
 }
 
 const typeLabels: Record<string, string> = {

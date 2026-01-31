@@ -20,7 +20,7 @@ export const Users: CollectionConfig = {
   },
   hooks: {
     afterLogin: [
-      async ({ user, req }) => {
+      async ({ user, req: _req }) => {
         // Redirect based on role after login
         // This is handled client-side via the login redirect component
         // and server-side via middleware

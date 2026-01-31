@@ -34,7 +34,7 @@ export const Attendance: CollectionConfig = {
       async ({ data, req, operation, originalDoc }) => {
         // On new check-in: mark any previous days where user forgot to check out as absent
         if (operation === 'create' && req.user && data.timeIn) {
-          const userId = typeof data.user === 'string' ? data.user : (data.user as any)?.id ?? req.user.id
+          const userId = typeof data.user === 'string' ? data.user : (data.user as { id?: string | number })?.id ?? req.user.id
           const today = new Date(data.date || new Date())
           const todayStr = today.toISOString().split('T')[0]
 
@@ -142,8 +142,7 @@ export const Attendance: CollectionConfig = {
 
             const userId = typeof data.user === 'string' ? data.user : data.user?.id || req.user.id
             const recordDate = new Date(data.date || new Date())
-            const recordDateStr = recordDate.toISOString().split('T')[0]
-            
+
             // Check if previous day was also late or half-day (consecutive late days)
             const previousDay = new Date(recordDate)
             previousDay.setDate(previousDay.getDate() - 1)
@@ -177,8 +176,9 @@ export const Attendance: CollectionConfig = {
         }
 
         // When timeOut is set: full working day = 9 hours. If worked < 4.5h → absent; if >= 4.5h but < 9h → half-day
-        const timeIn = data.timeIn ?? (originalDoc as any)?.timeIn
-        const timeOut = data.timeOut ?? (originalDoc as any)?.timeOut
+        const doc = originalDoc as { timeIn?: string; timeOut?: string; date?: string } | undefined
+        const timeIn = data.timeIn ?? doc?.timeIn
+        const timeOut = data.timeOut ?? doc?.timeOut
 
         if (timeIn && timeOut) {
           const FULL_WORKING_HOURS = 9
