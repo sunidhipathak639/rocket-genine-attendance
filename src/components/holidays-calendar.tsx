@@ -10,10 +10,10 @@ import { CalendarDays, Info, Sparkles } from 'lucide-react'
 
 interface HolidaysCalendarProps {
   user?: {
-    id: number
-    name?: string
-    email?: string
-    role?: string
+    id: string | number
+    name?: string | null
+    email?: string | null
+    role?: string | null
   }
 }
 
