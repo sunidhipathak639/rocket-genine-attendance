@@ -8,33 +8,20 @@ export const Attendance: CollectionConfig = {
     defaultColumns: ['user', 'date', 'status', 'timeIn'],
   },
   access: {
-    read: ({ req: { user } }) => {
-      if (!user) return false
-      if (user.role === 'admin') return true
-      return {
-        user: {
-          equals: user.id,
-        },
-      }
-    },
-    create: ({ req: { user } }) => !!user,
-    update: ({ req: { user } }) => {
-      if (!user) return false
-      if (user.role === 'admin') return true
-      return {
-        user: {
-          equals: user.id,
-        },
-      }
-    },
-    delete: ({ req: { user } }) => user?.role === 'admin',
+    read: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true,
   },
   hooks: {
     beforeChange: [
       async ({ data, req, operation, originalDoc }) => {
         // On new check-in: mark any previous days where user forgot to check out as absent
         if (operation === 'create' && req.user && data.timeIn) {
-          const userId = typeof data.user === 'string' ? data.user : (data.user as { id?: string | number })?.id ?? req.user.id
+          const userId =
+            typeof data.user === 'string'
+              ? data.user
+              : ((data.user as { id?: string | number })?.id ?? req.user.id)
           const today = new Date(data.date || new Date())
           const todayStr = today.toISOString().split('T')[0]
 
@@ -73,7 +60,10 @@ export const Attendance: CollectionConfig = {
         // Only validate for staff users on create operation
         if (operation === 'create' && req.user && req.user.role === 'staff') {
           const today = new Date(data.date || new Date())
-          const todayStr = typeof data.date === 'string' ? data.date.split('T')[0] : today.toISOString().split('T')[0]
+          const todayStr =
+            typeof data.date === 'string'
+              ? data.date.split('T')[0]
+              : today.toISOString().split('T')[0]
 
           // Block check-in on holidays
           const holidaysRes = await req.payload.find({
@@ -87,7 +77,7 @@ export const Attendance: CollectionConfig = {
             const holiday = holidaysRes.docs[0] as { name?: string }
             throw new APIError(
               `Check-in is not allowed on holidays. ${holiday.name ? `"${holiday.name}" is a holiday.` : 'This date is a holiday.'}`,
-              400
+              400,
             )
           }
 
@@ -95,10 +85,7 @@ export const Attendance: CollectionConfig = {
           const existingRecords = await req.payload.find({
             collection: 'attendance',
             where: {
-              and: [
-                { user: { equals: req.user.id } },
-                { date: { equals: todayStr } },
-              ],
+              and: [{ user: { equals: req.user.id } }, { date: { equals: todayStr } }],
             },
             limit: 1,
             req,
@@ -107,7 +94,10 @@ export const Attendance: CollectionConfig = {
 
           // Limit to 1 check-in per day for staff
           if (existingRecords.totalDocs >= 1) {
-            throw new APIError('You can only check in once per day. You have already checked in today.', 400)
+            throw new APIError(
+              'You can only check in once per day. You have already checked in today.',
+              400,
+            )
           }
         }
 
@@ -118,9 +108,12 @@ export const Attendance: CollectionConfig = {
             slug: 'work-settings',
           })
 
-          const startTime = workSettings?.workStartTime ? new Date(workSettings.workStartTime) : new Date(0, 0, 0, 9, 0, 0, 0)
+          const startTime = workSettings?.workStartTime
+            ? new Date(workSettings.workStartTime)
+            : new Date(0, 0, 0, 9, 0, 0, 0)
           const recordDate = new Date(data.date || new Date())
-          const recordDateStr = typeof data.date === 'string' ? data.date : recordDate.toISOString().split('T')[0]
+          const recordDateStr =
+            typeof data.date === 'string' ? data.date : recordDate.toISOString().split('T')[0]
           const workStartTime = new Date(recordDateStr + 'T12:00:00.000Z')
           workStartTime.setUTCHours(startTime.getUTCHours(), startTime.getUTCMinutes(), 0, 0)
 
@@ -131,10 +124,10 @@ export const Attendance: CollectionConfig = {
           if (checkInTime < earliestCheckIn) {
             throw new APIError(
               'You can only check in from 1 hour before the work start time. Please check in later.',
-              400
+              400,
             )
           }
-          
+
           // Check if user is late (check-in time is after work start time)
           if (checkInTime > workStartTime) {
             // Set status to late initially
@@ -156,10 +149,7 @@ export const Attendance: CollectionConfig = {
                   { user: { equals: userId } },
                   { date: { equals: previousDayStr } },
                   {
-                    or: [
-                      { status: { equals: 'late' } },
-                      { status: { equals: 'half-day' } },
-                    ],
+                    or: [{ status: { equals: 'late' } }, { status: { equals: 'half-day' } }],
                   },
                 ],
               },

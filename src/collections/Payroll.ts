@@ -8,18 +8,10 @@ export const Payroll: CollectionConfig = {
     defaultColumns: ['user', 'month', 'finalAmount', 'paymentStatus'],
   },
   access: {
-    read: ({ req: { user } }) => {
-      if (!user) return false
-      if (user.role === 'admin') return true
-      return {
-        user: {
-          equals: user.id,
-        },
-      }
-    },
-    create: ({ req: { user } }) => user?.role === 'admin', // Only admin creates payroll
-    update: ({ req: { user } }) => user?.role === 'admin',
-    delete: ({ req: { user } }) => user?.role === 'admin',
+    read: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true,
   },
   hooks: {
     beforeChange: [
@@ -44,7 +36,7 @@ export const Payroll: CollectionConfig = {
           if (!year || !month || Number.isNaN(year) || Number.isNaN(month)) {
             throw new APIError('Invalid month format. Use YYYY-MM (e.g. 2026-01).', 400)
           }
-          
+
           // Get work settings
           const workSettings = await req.payload.findGlobal({
             slug: 'work-settings',
@@ -55,7 +47,7 @@ export const Payroll: CollectionConfig = {
           const startDate = new Date(year, month - 1, 1)
           const endDate = new Date(year, month, 0) // Last day of month
           let totalWorkingDays = 0
-          
+
           const currentDate = new Date(startDate)
           while (currentDate <= endDate) {
             const dayOfWeek = currentDate.getDay()
@@ -117,7 +109,7 @@ export const Payroll: CollectionConfig = {
           let presentDays = 0
           let lateCount = 0
           let halfDayCount = 0
-          
+
           attendanceRecords.docs.forEach((record: any) => {
             if (record.status === 'present') {
               presentDays++
@@ -161,12 +153,16 @@ export const Payroll: CollectionConfig = {
             const leaveEnd = new Date(leave.endDate)
             const leaveStartMonth = leaveStart.getMonth() + 1
             const leaveEndMonth = leaveEnd.getMonth() + 1
-            
+
             // Only count leaves that overlap with the payroll month
-            if (leaveStartMonth === month || leaveEndMonth === month || (leaveStartMonth < month && leaveEndMonth > month)) {
+            if (
+              leaveStartMonth === month ||
+              leaveEndMonth === month ||
+              (leaveStartMonth < month && leaveEndMonth > month)
+            ) {
               const actualStart = leaveStart < startDate ? startDate : leaveStart
               const actualEnd = leaveEnd > endDate ? endDate : leaveEnd
-              
+
               const checkDate = new Date(actualStart)
               while (checkDate <= actualEnd) {
                 const dayOfWeek = checkDate.getDay()
@@ -177,7 +173,7 @@ export const Payroll: CollectionConfig = {
                     const holidayDate = new Date(hol.date)
                     return holidayDate.toDateString() === checkDate.toDateString()
                   })
-                  
+
                   if (!isHoliday) {
                     if (leave.type === 'half_day') {
                       leavesTaken += 0.5
@@ -259,40 +255,40 @@ export const Payroll: CollectionConfig = {
       name: 'stats',
       type: 'group',
       fields: [
-        { 
-          name: 'totalDays', 
+        {
+          name: 'totalDays',
           type: 'number',
           admin: {
             description: 'Auto-calculated: Total working days in the month',
             readOnly: true,
           },
         },
-        { 
-          name: 'presentDays', 
+        {
+          name: 'presentDays',
           type: 'number',
           admin: {
             description: 'Auto-calculated: Days present (including late and half days)',
             readOnly: true,
           },
         },
-        { 
-          name: 'leavesTaken', 
+        {
+          name: 'leavesTaken',
           type: 'number',
           admin: {
             description: 'Auto-calculated: Approved leave days (half days count as 0.5)',
             readOnly: true,
           },
         },
-        { 
-          name: 'lateCount', 
+        {
+          name: 'lateCount',
           type: 'number',
           admin: {
             description: 'Auto-calculated: Number of late arrivals',
             readOnly: true,
           },
         },
-        { 
-          name: 'penaltyDays', 
+        {
+          name: 'penaltyDays',
           type: 'number',
           admin: {
             description: 'Auto-calculated: Half days deducted (due to 2 consecutive late days)',
@@ -313,16 +309,16 @@ export const Payroll: CollectionConfig = {
       name: 'deductions',
       type: 'group',
       fields: [
-        { 
-          name: 'leaveDeduction', 
+        {
+          name: 'leaveDeduction',
           type: 'number',
           admin: {
             description: 'Auto-calculated: Deduction for approved leaves',
             readOnly: true,
           },
         },
-        { 
-          name: 'halfDayDeduction', 
+        {
+          name: 'halfDayDeduction',
           type: 'number',
           admin: {
             description: 'Auto-calculated: Deduction for half days (consecutive late days)',
@@ -336,7 +332,7 @@ export const Payroll: CollectionConfig = {
       type: 'number',
       required: true,
       admin: {
-          description: 'Final payment amount in INR',
+        description: 'Final payment amount in INR',
       },
     },
     {

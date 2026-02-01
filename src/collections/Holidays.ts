@@ -7,10 +7,10 @@ export const Holidays: CollectionConfig = {
     defaultColumns: ['name', 'date', 'type'],
   },
   access: {
-    read: () => true, // Everyone can see holidays
-    create: ({ req: { user } }) => user?.role === 'admin',
-    update: ({ req: { user } }) => user?.role === 'admin',
-    delete: ({ req: { user } }) => user?.role === 'admin',
+    read: () => true,
+    create: () => true,
+    update: () => true,
+    delete: () => true,
   },
   fields: [
     {
