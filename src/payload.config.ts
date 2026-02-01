@@ -34,6 +34,8 @@ export default buildConfig({
   globals: [WorkSettings],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
+  cors: [process.env.NEXT_PUBLIC_SERVER_URL || '', process.env.CORS_ORIGINS || ''].filter(Boolean),
+  csrf: [process.env.NEXT_PUBLIC_SERVER_URL || '', process.env.CORS_ORIGINS || ''].filter(Boolean),
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
