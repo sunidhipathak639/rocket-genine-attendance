@@ -259,7 +259,7 @@ export interface Payroll {
   id: number;
   user: number | User;
   /**
-   * Format: YYYY-MM (e.g. 2024-01)
+   * Format: YYYY-MM (e.g. 2026-01)
    */
   month: string;
   /**

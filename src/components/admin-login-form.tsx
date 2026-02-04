@@ -10,7 +10,7 @@ import { Loader2, Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucid
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 
-export function StaffLoginForm() {
+export default function AdminLoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -39,7 +39,7 @@ export function StaffLoginForm() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/api/auth/admin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -51,15 +51,15 @@ export function StaffLoginForm() {
         throw new Error(data.message || 'Login failed')
       }
 
-      if (data.user?.role === 'admin') {
-        setError('Please use the admin login page for admin accounts.')
+      if (data.user?.role === 'staff') {
+        setError('Please use the staff login page for staff accounts.')
         setIsLoading(false)
         return
       }
 
-      if (data.user?.role === 'staff') {
+      if (data.user?.role === 'admin') {
         setTimeout(() => {
-          window.location.href = '/'
+          window.location.href = '/admin'
         }, 100)
       } else {
         throw new Error('Invalid user role')
@@ -71,7 +71,7 @@ export function StaffLoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-black font-sans text-slate-900 selection:bg-indigo-100 flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-black font-sans text-white selection:bg-indigo-100 flex flex-col relative overflow-hidden">
       {/* Optimized Video Background */}
       <div className="absolute inset-0 z-0">
         <motion.div
@@ -127,7 +127,9 @@ export function StaffLoginForm() {
                 />
               </div>
             </div>
-            <h1 className="text-xl font-bold tracking-tight mb-1 text-white/90">Staff Login</h1>
+            <h1 className="text-xl font-bold tracking-tight mb-1 text-white/90">
+              Super Admin Login
+            </h1>
             <p className="text-white/50 font-medium text-sm"></p>
           </div>
 
@@ -213,10 +215,10 @@ export function StaffLoginForm() {
 
             <div className="text-center pt-6 border-t border-white/10 flex flex-col gap-4">
               <Link
-                href="/admin/login"
+                href="/login"
                 className="text-sm text-white/70 font-black hover:text-white transition-colors uppercase tracking-[0.2em]"
               >
-                Login as Super Admin
+                Login as Staff
               </Link>
             </div>
           </form>

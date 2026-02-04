@@ -46,6 +46,11 @@ export default buildConfig({
         Logo: '/components/graphics/Logo',
         Icon: '/components/graphics/Icon',
       },
+      views: {
+        Login: {
+          Component: '/components/admin-login-form',
+        },
+      },
     },
   },
   collections: [Users, Media, Attendance, Leaves, Payroll, Holidays],

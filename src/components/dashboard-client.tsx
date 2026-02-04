@@ -24,6 +24,10 @@ import { AdminDashboardView } from './admin-dashboard-view'
 import { MyLeaveStatusList } from './my-leave-status-list'
 import { formatTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { motion, AnimatePresence } from 'framer-motion'
+import gsap from 'gsap'
+import { FluidCursor } from 'cursor-styles'
+import 'cursor-styles/dist/style.css'
 
 interface DashboardClientProps {
   user: {
@@ -134,6 +138,49 @@ export function DashboardClient({
       })
       .catch(() => {})
   }, [workSettingsProp])
+
+  const bgRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!bgRef.current) return
+
+    const ctx = gsap.context(() => {
+      gsap.to('.bg-blob-1', {
+        x: '+=60',
+        y: '+=40',
+        rotation: 45,
+        scale: 1.1,
+        duration: 12,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      })
+      gsap.to('.bg-blob-2', {
+        x: '-=50',
+        y: '+=70',
+        rotation: -30,
+        scale: 1.2,
+        duration: 15,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        delay: 1,
+      })
+      gsap.to('.bg-blob-3', {
+        x: '+=30',
+        y: '-=50',
+        rotation: 15,
+        scale: 1.15,
+        duration: 9,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        delay: 2,
+      })
+    }, bgRef)
+
+    return () => ctx.revert()
+  }, [])
 
   // Monthly earnings: base salary minus approved leave days (live)
   const baseSalary = user.salary || 0
@@ -384,7 +431,15 @@ export function DashboardClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]/50 text-slate-900 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen bg-slate-50 relative" ref={bgRef}>
+      <FluidCursor color="#523df6" />
+      {/* Dynamic Background Blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="bg-blob-1 absolute -top-24 -left-24 w-96 h-96 bg-indigo-200/20 rounded-full blur-[100px]" />
+        <div className="bg-blob-2 absolute top-1/2 -right-24 w-[500px] h-[500px] bg-blue-200/10 rounded-full blur-[120px]" />
+        <div className="bg-blob-3 absolute -bottom-24 left-1/3 w-80 h-80 bg-violet-200/20 rounded-full blur-[90px]" />
+      </div>
+
       {/* Activity Check Popup */}
       <Dialog
         open={showActivityPopup}
@@ -428,8 +483,12 @@ export function DashboardClient({
       </Dialog>
 
       {/* Premium Navigation */}
-      <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 md:gap-4 group cursor-pointer">
+      <header className="fixed top-0 inset-x-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-200/50 px-4 md:px-8 py-3 flex items-center justify-between">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center gap-3 md:gap-4 group cursor-pointer"
+        >
           <div className="w-8 h-8 md:w-10 md:h-10 relative">
             <Image
               src="/rocket-genie-logo.webp"
@@ -441,9 +500,14 @@ export function DashboardClient({
           <span className="font-black text-xl md:text-2xl tracking-tighter text-slate-900">
             Rocket <span className="text-indigo-600">Genie</span>
           </span>
-        </div>
+        </motion.div>
 
-        <nav className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
+        <motion.nav
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50"
+        >
           {[
             { label: 'Dashboard', href: '/', id: 'overview' },
             { label: 'History', href: '/history', id: 'history' },
@@ -458,7 +522,7 @@ export function DashboardClient({
               {item.label}
             </Link>
           ))}
-        </nav>
+        </motion.nav>
 
         {/* Mobile Navigation Trigger */}
         <div className="lg:hidden">
@@ -472,7 +536,7 @@ export function DashboardClient({
                 <Menu className="w-5 h-5 text-slate-600" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[85vw] left-[7.5vw] top-4 translate-y-0 rounded-2xl border-none shadow-2xl p-6 lg:hidden">
+            <DialogContent className="max-w-[90vw] w-full left-1/2 -translate-x-1/2 top-4 translate-y-0 rounded-2xl border-none shadow-2xl p-6 lg:hidden">
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-black text-xl tracking-tighter text-slate-900">
@@ -537,11 +601,16 @@ export function DashboardClient({
         </div>
       </header>
 
-      <main className="container mx-auto px-4 md:px-8 py-6 md:py-10 max-w-[1600px]">
+      <main className="container mx-auto px-4 md:px-8 pt-24 pb-10 max-w-[1600px] relative z-10">
         <div className="flex flex-col xl:flex-row gap-6 md:gap-10">
           {/* Main Dashboard Area */}
           <div className="flex-1 space-y-8 md:space-y-10">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex flex-col md:flex-row md:items-end md:justify-between gap-6"
+            >
               <div className="text-center md:text-left">
                 <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-1 md:mb-2">
                   Hello, {user.name?.split(' ')[0] || 'Staff'}
@@ -560,10 +629,12 @@ export function DashboardClient({
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="w-full sm:w-auto bg-white border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-sm transition-all hover:-translate-y-0.5">
-                      <CalendarIcon className="w-5 h-5 mr-3" />
-                      My Calendar
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button className="w-full sm:w-auto bg-white border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-sm transition-all">
+                        <CalendarIcon className="w-5 h-5 mr-3" />
+                        My Calendar
+                      </Button>
+                    </motion.div>
                   </DialogTrigger>
                   <DialogContent className="max-w-[95vw] md:max-w-5xl rounded-2xl md:rounded-3xl p-0 border-none shadow-2xl">
                     <DashboardCalendar user={user} />
@@ -571,203 +642,245 @@ export function DashboardClient({
                 </Dialog>
 
                 <Link href="/leaves" className="w-full sm:w-auto">
-                  <Button className="w-full bg-indigo-600 text-white hover:bg-slate-900 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:-translate-y-0.5">
-                    Apply Leave
-                  </Button>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button className="w-full bg-indigo-600 text-white hover:bg-slate-900 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-lg shadow-indigo-100 transition-all">
+                      Apply Leave
+                    </Button>
+                  </motion.div>
                 </Link>
               </div>
-            </div>
+            </motion.div>
 
-            {initialTab === 'dashboard' && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                {/* Attendance Hero Card */}
-                <div className="lg:col-span-8">
-                  <AttendanceCard user={user} timeFormat={timeFormat} />
-                </div>
+            <AnimatePresence mode="wait">
+              {initialTab === 'dashboard' && (
+                <motion.div
+                  key="dashboard"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+                >
+                  {/* Attendance Hero Card */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1, type: 'spring', damping: 20 }}
+                    className="lg:col-span-8"
+                  >
+                    <AttendanceCard user={user} timeFormat={timeFormat} />
+                  </motion.div>
 
-                {/* Quick Stats Sidebar */}
-                <div className="lg:col-span-4 space-y-6">
-                  {/* Salary Card Skeleton or Real */}
-                  <div className="dashboard-card p-8 bg-white/40 backdrop-blur-xl border-white/20 relative overflow-hidden">
-                    {!workSettings ? (
-                      <div className="space-y-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="w-10 h-10 rounded-xl" />
-                        </div>
-                        <div className="space-y-4">
-                          <Skeleton className="h-16 w-full rounded-2xl" />
-                          <Skeleton className="h-16 w-full rounded-2xl" />
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-16 -mt-16" />
-                        <div className="flex items-center justify-between mb-8 relative z-10">
-                          <h4 className="font-black text-slate-900 tracking-tighter uppercase text-xs opacity-50">
-                            Standard Schedule
-                          </h4>
-                          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                            <Clock className="w-5 h-5" />
-                          </div>
-                        </div>
+                  {/* Quick Stats Sidebar */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="lg:col-span-4 space-y-6"
+                  >
+                    {/* Salary Card Skeleton or Real */}
+                    <div className="dashboard-card p-8 bg-white/40 backdrop-blur-xl border-white/20 relative overflow-hidden">
+                      {!workSettings ? (
                         <div className="space-y-6">
-                          {/* Schedule entries */}
-                          <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
-                                <Clock className="w-6 h-6" />
-                              </div>
-                              <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                  Shift Start
-                                </p>
-                                <p className="text-lg font-black text-slate-900 tracking-tighter">
-                                  {workSettings?.workStartTime
-                                    ? formatTime(
-                                        new Date(workSettings.workStartTime),
-                                        timeFormat === '12h',
-                                      )
-                                    : '09:00 AM'}
-                                </p>
-                              </div>
-                            </div>
+                          <div className="flex items-center justify-between mb-4">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="w-10 h-10 rounded-xl" />
                           </div>
-
-                          <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
-                                <Clock className="w-6 h-6" />
-                              </div>
-                              <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                  Shift End
-                                </p>
-                                <p className="text-lg font-black text-slate-900 tracking-tighter">
-                                  {workSettings?.workEndTime
-                                    ? formatTime(
-                                        new Date(workSettings.workEndTime),
-                                        timeFormat === '12h',
-                                      )
-                                    : '06:00 PM'}
-                                </p>
-                              </div>
-                            </div>
+                          <div className="space-y-4">
+                            <Skeleton className="h-16 w-full rounded-2xl" />
+                            <Skeleton className="h-16 w-full rounded-2xl" />
                           </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {user.role === 'staff' && (
-                    <div className="dashboard-card p-8 bg-indigo-600 text-white relative overflow-hidden group">
-                      {!approvedLeavesThisMonth ? (
-                        <div className="space-y-6">
-                          <Skeleton className="h-4 w-24 bg-white/20" />
-                          <Skeleton className="h-10 w-48 bg-white/20" />
-                          <Skeleton className="h-4 w-32 bg-white/20" />
                         </div>
                       ) : (
                         <>
-                          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-white/20 transition-colors duration-700" />
-                          <div className="relative z-10">
-                            <h4 className="font-black text-indigo-200 tracking-widest uppercase text-[10px] mb-6">
-                              Estimated Salary •{' '}
-                              {new Date().toLocaleDateString('en-US', { month: 'long' })}
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-16 -mt-16" />
+                          <div className="flex items-center justify-between mb-8 relative z-10">
+                            <h4 className="font-black text-slate-900 tracking-tighter uppercase text-xs opacity-50">
+                              Standard Schedule
                             </h4>
-                            <div className="flex items-baseline gap-2 mb-2">
-                              <span className="text-4xl font-black tracking-tighter">
-                                ₹{estimatedSalary.toLocaleString()}
-                              </span>
-                              <span className="text-indigo-200 text-xs font-bold uppercase tracking-widest">
-                                Net
-                              </span>
+                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                              <Clock className="w-5 h-5" />
                             </div>
-                            <p className="text-xs font-bold text-indigo-100/80 mb-8 flex items-center gap-2">
-                              <Briefcase className="w-3 h-3" />
-                              {payableDays} payable days this month
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
-                                  Daily Rate
-                                </p>
-                                <p className="text-sm font-black">₹{dailyRate.toFixed(0)}</p>
+                          </div>
+                          <div className="space-y-6">
+                            {/* Schedule entries */}
+                            <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
+                                  <Clock className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+                                    Shift Start
+                                  </p>
+                                  <p className="text-xl font-black text-slate-900">
+                                    {workSettings?.workStartTime
+                                      ? formatTime(
+                                          new Date(workSettings.workStartTime),
+                                          timeFormat === '12h',
+                                        )
+                                      : '09:00 AM'}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
-                                  Base Pay
-                                </p>
-                                <p className="text-sm font-black">₹{baseSalary.toLocaleString()}</p>
+                            </div>
+                            <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold shadow-sm">
+                                  <LogOut className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+                                    Shift End
+                                  </p>
+                                  <p className="text-xl font-black text-slate-900">
+                                    {workSettings?.workEndTime
+                                      ? formatTime(
+                                          new Date(workSettings.workEndTime),
+                                          timeFormat === '12h',
+                                        )
+                                      : '06:00 PM'}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
 
-            {initialTab === 'history' && (
-              <div className="dashboard-card p-6 md:p-10 bg-white/50 backdrop-blur-sm border-white/20">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
-                      Session <span className="text-indigo-600">Archive</span>
-                    </h2>
-                    <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
-                      Detailed log of your presence and activity.
-                    </p>
-                  </div>
-                  <div className="hidden sm:block">
-                    <History className="w-10 h-10 text-slate-200" />
-                  </div>
-                </div>
-                <DashboardCalendar user={user} workSettings={workSettings} />
-              </div>
-            )}
+                    {user.role === 'staff' && (
+                      <div className="dashboard-card p-8 bg-indigo-600 text-white relative overflow-hidden group">
+                        {!approvedLeavesThisMonth ? (
+                          <div className="space-y-6">
+                            <Skeleton className="h-4 w-24 bg-white/20" />
+                            <Skeleton className="h-10 w-48 bg-white/20" />
+                            <Skeleton className="h-4 w-32 bg-white/20" />
+                          </div>
+                        ) : (
+                          <>
+                            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-white/20 transition-colors duration-700" />
+                            <div className="relative z-10">
+                              <h4 className="font-black text-indigo-200 tracking-widest uppercase text-[10px] mb-6">
+                                Estimated Salary •{' '}
+                                {new Date().toLocaleDateString('en-US', { month: 'long' })}
+                              </h4>
+                              <div className="flex items-baseline gap-2 mb-2">
+                                <span className="text-4xl font-black tracking-tighter">
+                                  ₹{estimatedSalary.toLocaleString()}
+                                </span>
+                                <span className="text-indigo-200 text-xs font-bold uppercase tracking-widest">
+                                  Net
+                                </span>
+                              </div>
+                              <p className="text-xs font-bold text-indigo-100/80 mb-8 flex items-center gap-2">
+                                <Briefcase className="w-3 h-3" />
+                                {payableDays} payable days this month
+                              </p>
 
-            {initialTab === 'leaves' && (
-              <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
-                  <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                      <div>
-                        <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
-                          Leave <span className="text-indigo-600">Ledger</span>
-                        </h2>
-                        <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
-                          Monitor the status of your submitted requests.
-                        </p>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
+                                    Daily Rate
+                                  </p>
+                                  <p className="text-sm font-black">₹{dailyRate.toFixed(0)}</p>
+                                </div>
+                                <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
+                                  <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
+                                    Base Pay
+                                  </p>
+                                  <p className="text-sm font-black">
+                                    ₹{baseSalary.toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
-                    </div>
-                    <MyLeaveStatusList user={user} />
-                  </div>
-                  <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                      <div>
-                        <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
-                          Request <span className="text-indigo-600">Time Off</span>
-                        </h2>
-                        <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
-                          Select dates on the calendar to begin your application.
-                        </p>
-                      </div>
-                    </div>
-                    <DashboardCalendar user={user} workSettings={workSettings} />
-                  </div>
-                </div>
-              </div>
-            )}
+                    )}
+                  </motion.div>
+                </motion.div>
+              )}
 
-            {initialTab === 'holidays' && (
-              <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-                <HolidaysCalendar user={user} />
-              </div>
-            )}
+              {initialTab === 'history' && (
+                <motion.div
+                  key="history"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="dashboard-card p-6 md:p-10 bg-white/50 backdrop-blur-sm border-white/20"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                    <div>
+                      <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                        Session <span className="text-indigo-600">Archive</span>
+                      </h2>
+                      <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
+                        Detailed log of your presence and activity.
+                      </p>
+                    </div>
+                    <div className="hidden sm:block">
+                      <History className="w-10 h-10 text-slate-200" />
+                    </div>
+                  </div>
+                  <DashboardCalendar user={user} workSettings={workSettings} />
+                </motion.div>
+              )}
+
+              {initialTab === 'leaves' && (
+                <motion.div
+                  key="leaves"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-6 md:space-y-8"
+                >
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                        <div>
+                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                            Leave <span className="text-indigo-600">Ledger</span>
+                          </h2>
+                          <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
+                            Monitor the status of your submitted requests.
+                          </p>
+                        </div>
+                      </div>
+                      <MyLeaveStatusList user={user} />
+                    </div>
+                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                        <div>
+                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                            Request <span className="text-indigo-600">Time Off</span>
+                          </h2>
+                          <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
+                            Select dates on the calendar to begin your application.
+                          </p>
+                        </div>
+                      </div>
+                      <DashboardCalendar user={user} workSettings={workSettings} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {initialTab === 'holidays' && (
+                <motion.div
+                  key="holidays"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <HolidaysCalendar user={user} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </main>

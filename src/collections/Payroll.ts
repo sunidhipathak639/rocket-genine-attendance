@@ -240,7 +240,7 @@ export const Payroll: CollectionConfig = {
       type: 'text', // Format YYYY-MM
       required: true,
       admin: {
-        description: 'Format: YYYY-MM (e.g. 2024-01)',
+        description: 'Format: YYYY-MM (e.g. 2026-01)',
       },
     },
     {

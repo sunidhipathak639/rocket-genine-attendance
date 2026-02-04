@@ -79,3 +79,30 @@
     @apply bg-green-50 text-green-600 border-green-100;
   }
 }
+
+/* Calendar Holiday Indicator */
+.rdp-day_holiday {
+  position: relative !important;
+}
+
+.rdp-day_holiday::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #4f46e5;
+  box-shadow: 0 0 8px rgba(79, 70, 229, 0.6);
+}
+
+/* Hide custom cursor on touch devices/mobile */
+@media (max-width: 1024px) {
+  .fluid-cursor,
+  [class*='FluidCursor'],
+  canvas[style*='pointer-events: none'] {
+    display: none !important;
+  }
+}
