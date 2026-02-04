@@ -98,8 +98,8 @@ export async function PATCH(request: NextRequest) {
             checkInTime: timeIn,
             checkOutTime: timeOut,
             workSummary,
-            activeDuration: doc.activeDuration,
-            inactiveDuration: doc.inactiveDuration,
+            activeDuration: doc.activeDuration ?? undefined,
+            inactiveDuration: doc.inactiveDuration ?? undefined,
           }),
         })
       }
