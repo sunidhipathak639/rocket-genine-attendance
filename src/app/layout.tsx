@@ -1,6 +1,13 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import './(frontend)/styles.css'
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-jakarta',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -21,8 +28,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased">{children}</body>
+    <html lang="en" className={jakarta.variable}>
+      <body className="min-h-screen antialiased font-sans">{children}</body>
     </html>
   )
 }

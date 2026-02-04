@@ -1,39 +1,29 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { AttendanceCard } from '@/components/attendance-card'
 import Image from 'next/image'
 import { DashboardCalendar } from '@/components/dashboard-calendar'
 import {
-  LayoutDashboard,
   LogOut,
   History,
   Calendar as CalendarIcon,
-  ChevronRight,
   Briefcase,
   Clock,
-  PartyPopper,
   Loader2,
+  Menu,
 } from 'lucide-react'
 import { HolidaysCalendar } from './holidays-calendar'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { usePathname } from 'next/navigation'
 
 import type { Attendance, User } from '@/payload-types'
 import { AdminDashboardView } from './admin-dashboard-view'
 import { MyLeaveStatusList } from './my-leave-status-list'
 import { formatTime } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface DashboardClientProps {
   user: {
@@ -105,7 +95,7 @@ export function DashboardClient({
   workSettings: workSettingsProp,
   userAttendance = [],
 }: DashboardClientProps) {
-  const [timeFormat, setTimeFormat] = useState<'12h' | '24h'>('12h')
+  const [timeFormat] = useState<'12h' | '24h'>('12h')
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] = useState<
     { startDate: string; endDate: string; type?: string }[]
@@ -147,52 +137,29 @@ export function DashboardClient({
 
   // Monthly earnings: base salary minus approved leave days (live)
   const baseSalary = user.salary || 0
-  const { estimatedSalary, dailyRate, totalWorkingDays, approvedLeaveDays, payableDays } =
-    useMemo(() => {
-      const now = new Date()
-      const year = now.getFullYear()
-      const month = now.getMonth() + 1
-      const saturdayWorking = !!workSettings?.saturdayWorkingDay
-      const total = totalWorkingDaysInMonth(year, month, saturdayWorking)
-      const leaveDays = approvedLeaveDaysInMonth(
-        approvedLeavesThisMonth,
-        year,
-        month,
-        saturdayWorking,
-      )
-      const payable = Math.max(0, total - leaveDays)
-      const daily = total > 0 ? baseSalary / total : baseSalary / 30
-      const estimated = total > 0 ? baseSalary * (payable / total) : daily * 22
-      return {
-        estimatedSalary: estimated.toFixed(2),
-        dailyRate: total > 0 ? baseSalary / total : baseSalary / 30,
-        totalWorkingDays: total,
-        approvedLeaveDays: leaveDays,
-        payableDays: payable,
-      }
-    }, [baseSalary, workSettings?.saturdayWorkingDay, approvedLeavesThisMonth])
+  const { estimatedSalary, dailyRate, payableDays } = useMemo(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+    const saturdayWorking = !!workSettings?.saturdayWorkingDay
+    const total = totalWorkingDaysInMonth(year, month, saturdayWorking)
+    const leaveDays = approvedLeaveDaysInMonth(
+      approvedLeavesThisMonth,
+      year,
+      month,
+      saturdayWorking,
+    )
+    const payable = Math.max(0, total - leaveDays)
+    const daily = total > 0 ? baseSalary / total : baseSalary / 30
+    const estimated = total > 0 ? baseSalary * (payable / total) : daily * 22
+    return {
+      estimatedSalary: estimated.toFixed(2),
+      dailyRate: total > 0 ? baseSalary / total : baseSalary / 30,
+      payableDays: payable,
+    }
+  }, [baseSalary, workSettings?.saturdayWorkingDay, approvedLeavesThisMonth])
 
-  // This week and today summary from userAttendance
-  const todayStr = new Date().toISOString().split('T')[0]
-  const now = new Date()
-  const dayOfWeek = now.getDay()
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-  const weekStart = new Date(now)
-  weekStart.setDate(now.getDate() + mondayOffset)
-  const weekStartStr = weekStart.toISOString().split('T')[0]
-  const thisWeekRecords = (userAttendance || []).filter(
-    (a: Attendance) => a.date >= weekStartStr && a.date <= todayStr,
-  )
-  const todayRecord = (userAttendance || []).find((a: Attendance) => a.date === todayStr)
-  const weekPresent = thisWeekRecords.filter((a: Attendance) =>
-    ['present', 'late', 'half-day'].includes(a.status),
-  ).length
-  const weekLate = thisWeekRecords.filter((a: Attendance) => a.status === 'late').length
-  const weekHalfDay = thisWeekRecords.filter((a: Attendance) => a.status === 'half-day').length
-
-  const toggleTimeFormat = (checked: boolean) => {
-    setTimeFormat(checked ? '24h' : '12h')
-  }
+  // Week summary variables were unused and removed
 
   // Activity Monitor Logic
   const [showActivityPopup, setShowActivityPopup] = useState(false)
@@ -202,7 +169,7 @@ export function DashboardClient({
   lastCheckTimeRef.current = lastCheckTime
   showActivityPopupRef.current = showActivityPopup
 
-  const handleActivityResponse = React.useCallback(
+  const handleActivityResponse = useCallback(
     async (status: 'active' | 'inactive', customDuration?: number) => {
       setShowActivityPopup(false)
       const now = Date.now()
@@ -222,8 +189,8 @@ export function DashboardClient({
             duration,
           }),
         })
-      } catch (err) {
-        console.error('Failed to log activity:', err)
+      } catch (_error) {
+        console.error('Failed to log activity:', _error)
       }
     },
     [workSettings],
@@ -299,63 +266,117 @@ export function DashboardClient({
   // Show admin dashboard if user is admin
   if (user.role === 'admin' && allUsers && allAttendance) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] text-gray-900 font-sans selection:bg-indigo-100">
+      <div className="min-h-screen bg-[#F8FAFC]/50 text-slate-900 font-sans selection:bg-indigo-100">
         {/* Premium Header */}
-        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex items-center justify-between transition-all duration-300">
-          <div className="flex items-center gap-3 group cursor-pointer">
-            <div className="w-10 h-10 relative transform group-hover:rotate-3 transition-all duration-300">
-              <Image
-                src="/rocket-genie-logo.webp"
-                alt="Rocket Genie"
-                fill
-                className="object-contain rounded-xl shadow-lg"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight text-gray-900 leading-none">
-                Rocket Genie
-              </span>
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
-                Admin Dashboard
+        <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 relative">
+                <Image
+                  src="/rocket-genie-logo.webp"
+                  alt="Rocket Genie"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <span className="font-black text-2xl tracking-tighter text-slate-900">
+                Rocket <span className="text-indigo-600">Genie</span>
               </span>
             </div>
+
+            <nav className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
+              <button
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${pathname === '/' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              >
+                Dashboard
+              </button>
+              <Link
+                href="/admin/collections/users"
+                className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-900 rounded-lg"
+              >
+                Employees
+              </Link>
+              <Link
+                href="/admin/globals/work-settings"
+                className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-900 rounded-lg"
+              >
+                Work Settings
+              </Link>
+            </nav>
           </div>
 
-          <div className="flex items-center gap-4 pl-6 border-l border-gray-200">
-            <div className="text-right">
-              <span className="block text-sm font-bold text-gray-900">
-                {user.name || user.email}
-              </span>
-              <span className="block text-[10px] uppercase tracking-wider font-semibold text-gray-500">
-                Admin
-              </span>
+          <div className="flex items-center gap-6">
+            <div className="relative hidden xl:block">
+              <input
+                type="text"
+                placeholder="Search anything..."
+                className="pl-10 pr-4 py-2.5 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-64 transition-all"
+              />
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.5"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
-              disabled={logoutLoading}
-              onClick={async () => {
-                setLogoutLoading(true)
-                try {
-                  await fetch('/api/auth/logout', { method: 'POST' })
-                  window.location.href = '/admin/login'
-                } catch (error) {
-                  console.error('Logout error:', error)
-                  window.location.href = '/admin/login'
-                }
-              }}
-            >
-              {logoutLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <LogOut className="w-5 h-5" />
-              )}
-            </Button>
+
+            <div className="flex items-center gap-2 md:gap-3 pl-4 md:pl-6 border-l border-slate-200">
+              <div className="text-right hidden sm:block">
+                <span className="block text-xs md:text-sm font-bold text-slate-900 truncate max-w-[100px] md:max-w-none">
+                  {user.name || user.email}
+                </span>
+                <span className="block text-[8px] md:text-[10px] uppercase tracking-widest font-black text-slate-400">
+                  ADMINISTRATOR
+                </span>
+              </div>
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-indigo-50 text-xs md:text-base">
+                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-xl hover:bg-red-50 hover:text-red-500 transition-colors"
+                disabled={logoutLoading}
+                onClick={async () => {
+                  setLogoutLoading(true)
+                  try {
+                    await fetch('/api/auth/logout', { method: 'POST' })
+                    window.location.href = '/admin/login'
+                  } catch (_error) {
+                    window.location.href = '/admin/login'
+                  }
+                }}
+              >
+                {logoutLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <LogOut className="w-5 h-5" />
+                )}
+              </Button>
+            </div>
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-8 max-w-7xl">
+        <main className="container mx-auto px-4 md:px-8 py-6 md:py-10 max-w-[1600px]">
+          <div className="mb-6 md:mb-10 text-center md:text-left">
+            <h1 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900 mb-1 md:mb-2 italic">
+              Hello, {user.name?.split(' ')[0] || 'Admin'}
+            </h1>
+            <p className="text-slate-500 font-medium">
+              Its{' '}
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </p>
+          </div>
+
           <AdminDashboardView allUsers={allUsers} allAttendance={allAttendance} />
         </main>
       </div>
@@ -363,27 +384,41 @@ export function DashboardClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] text-gray-900 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen bg-[#F8FAFC]/50 text-slate-900 font-sans selection:bg-indigo-100">
       {/* Activity Check Popup */}
       <Dialog
         open={showActivityPopup}
         onOpenChange={(open) => {
-          // Prevent closing by clicking outside, forcing explicit action or timeout
           if (!open) handleActivityResponse('inactive')
         }}
       >
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Are you still working?</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 text-center text-gray-600">
-            Please confirm you are active to log your working hours. Missed checks will be recorded
-            as inactive time.
+        <DialogContent
+          className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
+          <div className="bg-indigo-600 p-8 text-white">
+            <h2 className="text-2xl font-black mb-2">Are you still working?</h2>
+            <p className="opacity-80 font-medium">
+              We monitor activity to ensure accurate time logs.
+            </p>
           </div>
-          <div className="flex justify-center gap-4">
+          <div className="p-8 space-y-4">
+            <div className="flex flex-col items-center justify-center mb-12 py-16 bg-white rounded-[48px] border border-slate-100 shadow-[0_20px_50px_rgba(79,70,229,0.05)] relative overflow-hidden group/clock">
+              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-50/10 via-transparent to-transparent opacity-0 group-hover/clock:opacity-100 transition-opacity duration-700" />
+              <div className="absolute -right-12 -top-12 w-48 h-48 bg-indigo-600/5 rounded-full blur-3xl group-hover/clock:bg-indigo-600/10 transition-colors duration-700" />
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-600" />
+              <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900">Activity Check</p>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  Please confirm presence within 60 seconds.
+                </p>
+              </div>
+            </div>
             <Button
-              variant="default"
-              className="bg-green-600 hover:bg-green-700 w-full"
+              className="w-full bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl py-6 font-bold text-base shadow-lg shadow-indigo-100 transition-all hover:-translate-y-0.5"
               onClick={() => handleActivityResponse('active')}
             >
               Yes, I&apos;m Working
@@ -392,354 +427,344 @@ export function DashboardClient({
         </DialogContent>
       </Dialog>
 
-      {/* Premium Header */}
-      <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex items-center justify-between transition-all duration-300">
-        <div className="flex items-center gap-3 group cursor-pointer">
-          <div className="w-10 h-10 relative transform group-hover:rotate-3 transition-all duration-300">
+      {/* Premium Navigation */}
+      <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3 md:gap-4 group cursor-pointer">
+          <div className="w-8 h-8 md:w-10 md:h-10 relative">
             <Image
               src="/rocket-genie-logo.webp"
               alt="Rocket Genie"
               fill
-              className="object-contain rounded-xl shadow-lg"
+              className="object-contain"
             />
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-lg tracking-tight text-gray-900 leading-none">
-              Rocket Genie
-            </span>
-            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
-              Attendance
-            </span>
-          </div>
+          <span className="font-black text-xl md:text-2xl tracking-tighter text-slate-900">
+            Rocket <span className="text-indigo-600">Genie</span>
+          </span>
         </div>
 
-        <div className="flex items-center gap-6">
-          {/* Time Format Toggle */}
-          <div className="hidden md:flex items-center gap-2 bg-gray-100/50 p-1 rounded-full border border-gray-200/50">
-            <Label
-              htmlFor="time-format"
-              className={`text-xs font-semibold px-2 py-1 rounded-full transition-all cursor-pointer ${timeFormat === '12h' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}
-              onClick={() => setTimeFormat('12h')}
+        <nav className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
+          {[
+            { label: 'Dashboard', href: '/', id: 'overview' },
+            { label: 'History', href: '/history', id: 'history' },
+            { label: 'Leaves', href: '/leaves', id: 'leaves' },
+            { label: 'Holidays', href: '/holidays', id: 'holidays' },
+          ].map((item) => (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${pathname === item.href ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
             >
-              12H
-            </Label>
-            <Switch
-              id="time-format"
-              checked={timeFormat === '24h'}
-              onCheckedChange={toggleTimeFormat}
-              className="data-[state=checked]:bg-indigo-600 hidden" // Hiding the actual switch visually, using labels as tabs
-            />
-            {/* Custom Toggle UI */}
-            <Label
-              htmlFor="time-format"
-              className={`text-xs font-semibold px-2 py-1 rounded-full transition-all cursor-pointer ${timeFormat === '24h' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}
-              onClick={() => setTimeFormat('24h')}
-            >
-              24H
-            </Label>
-          </div>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
 
-          <div className="hidden md:flex items-center gap-4 pl-6 border-l border-gray-200">
-            <div className="text-right">
-              <span className="block text-sm font-bold text-gray-900">
+        {/* Mobile Navigation Trigger */}
+        <div className="lg:hidden">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-xl border border-slate-200 lg:hidden"
+              >
+                <Menu className="w-5 h-5 text-slate-600" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[85vw] left-[7.5vw] top-4 translate-y-0 rounded-2xl border-none shadow-2xl p-6 lg:hidden">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="font-black text-xl tracking-tighter text-slate-900">
+                    Rocket <span className="text-indigo-600">Genie</span>
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { label: 'Dashboard', href: '/', id: 'overview' },
+                    { label: 'History', href: '/history', id: 'history' },
+                    { label: 'Leaves', href: '/leaves', id: 'leaves' },
+                    { label: 'Holidays', href: '/holidays', id: 'holidays' },
+                  ].map((item) => (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      className={`px-4 py-3 text-base font-bold rounded-xl transition-all ${pathname === item.href ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 active:bg-slate-50'}`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <div className="flex items-center gap-2 md:gap-6">
+          <div className="flex items-center gap-2 md:gap-3 md:pl-6 md:border-l border-slate-200">
+            <div className="hidden sm:block text-right">
+              <span className="block text-sm font-bold text-slate-900 line-clamp-1">
                 {user.name || user.email}
               </span>
-              <span className="block text-[10px] uppercase tracking-wider font-semibold text-gray-500">
-                {user.role}
+              <span className="block text-[10px] uppercase tracking-widest font-black text-slate-400">
+                {user.role?.toUpperCase()}
               </span>
+            </div>
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-indigo-50 flex-shrink-0 text-xs md:text-sm">
+              {user.name?.[0] || user.email?.[0]?.toUpperCase()}
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
+              className="rounded-xl w-8 h-8 md:w-10 md:h-10 hover:bg-red-50 hover:text-red-500 transition-colors"
               disabled={logoutLoading}
               onClick={async () => {
                 setLogoutLoading(true)
                 try {
                   await fetch('/api/auth/logout', { method: 'POST' })
-                  window.location.href = user.role === 'staff' ? '/login' : '/admin/login'
-                } catch (error) {
-                  console.error('Logout error:', error)
-                  window.location.href = user.role === 'staff' ? '/login' : '/admin/login'
+                  window.location.href = '/login'
+                } catch (_error) {
+                  window.location.href = '/login'
                 }
               }}
             >
               {logoutLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
               ) : (
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4 md:w-5 md:h-5" />
               )}
             </Button>
           </div>
         </div>
       </header>
-      {/* ... keeping the rest of the main content same ... */}
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Sidebar / Navigation (Desktop) */}
-          <div className="hidden lg:block lg:col-span-3 space-y-6">
-            <nav className="space-y-1">
-              <Link
-                href="/"
-                className={`group flex items-center justify-between px-4 py-3 rounded-2xl font-medium transition-all duration-300 ${pathname === '/' ? 'bg-white shadow-md text-indigo-600 ring-1 ring-gray-100' : 'text-gray-500 hover:bg-white/60 hover:text-gray-900'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <LayoutDashboard className="w-5 h-5 transition-transform group-hover:scale-110" />
-                  <span>Overview</span>
-                </div>
-                {pathname === '/' && <ChevronRight className="w-4 h-4 text-indigo-400" />}
-              </Link>
-              <Link
-                href="/history"
-                className={`group flex items-center justify-between px-4 py-3 rounded-2xl font-medium transition-all duration-300 ${pathname === '/history' ? 'bg-white shadow-md text-indigo-600 ring-1 ring-gray-100' : 'text-gray-500 hover:bg-white/60 hover:text-gray-900'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <History className="w-5 h-5 transition-transform group-hover:scale-110" />
-                  <span>History</span>
-                </div>
-                {pathname === '/history' && <ChevronRight className="w-4 h-4 text-indigo-400" />}
-              </Link>
-              <Link
-                href="/leaves"
-                className={`group flex items-center justify-between px-4 py-3 rounded-2xl font-medium transition-all duration-300 ${pathname === '/leaves' ? 'bg-white shadow-md text-indigo-600 ring-1 ring-gray-100' : 'text-gray-500 hover:bg-white/60 hover:text-gray-900'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <CalendarIcon className="w-5 h-5 transition-transform group-hover:scale-110" />
-                  <span>Leaves</span>
-                </div>
-                {pathname === '/leaves' && <ChevronRight className="w-4 h-4 text-indigo-400" />}
-              </Link>
-              <Link
-                href="/holidays"
-                className={`group flex items-center justify-between px-4 py-3 rounded-2xl font-medium transition-all duration-300 ${pathname === '/holidays' ? 'bg-white shadow-md text-indigo-600 ring-1 ring-gray-100' : 'text-gray-500 hover:bg-white/60 hover:text-gray-900'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <PartyPopper className="w-5 h-5 transition-transform group-hover:scale-110" />
-                  <span>Holidays</span>
-                </div>
-                {pathname === '/holidays' && <ChevronRight className="w-4 h-4 text-indigo-400" />}
-              </Link>
-            </nav>
 
-            {/* Premium Salary Card */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#1c1c1e] to-[#2c2c2e] p-6 rounded-3xl text-white shadow-xl ring-1 ring-black/5">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -translate-y-10 translate-x-10"></div>
+      <main className="container mx-auto px-4 md:px-8 py-6 md:py-10 max-w-[1600px]">
+        <div className="flex flex-col xl:flex-row gap-6 md:gap-10">
+          {/* Main Dashboard Area */}
+          <div className="flex-1 space-y-8 md:space-y-10">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+              <div className="text-center md:text-left">
+                <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-1 md:mb-2">
+                  Hello, {user.name?.split(' ')[0] || 'Staff'}
+                </h1>
+                <p className="text-sm md:text-base text-slate-500 font-medium">
+                  Its{' '}
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
+              </div>
 
-              <div className="relative z-10 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm text-gray-300 tracking-wide uppercase">
-                    Monthly Earnings
-                  </h3>
-                  <Briefcase className="w-4 h-4 text-indigo-400" />
-                </div>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full sm:w-auto bg-white border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-sm transition-all hover:-translate-y-0.5">
+                      <CalendarIcon className="w-5 h-5 mr-3" />
+                      My Calendar
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[95vw] md:max-w-5xl rounded-2xl md:rounded-3xl p-0 border-none shadow-2xl">
+                    <DashboardCalendar user={user} />
+                  </DialogContent>
+                </Dialog>
 
-                <div className="space-y-1">
-                  <div className="text-4xl font-bold tracking-tight text-white flex items-baseline gap-1">
-                    <span className="text-2xl text-gray-400">₹</span>
-                    {estimatedSalary}
-                  </div>
-                  <p className="text-xs text-gray-400 font-medium">
-                    Estimated for {new Date().toLocaleString('default', { month: 'long' })}
-                    {approvedLeaveDays > 0 && (
-                      <span className="block mt-0.5 text-amber-300/90">
-                        After {approvedLeaveDays} approved leave day
-                        {approvedLeaveDays !== 1 ? 's' : ''} deducted
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-4 border-t border-white/10">
-                  <div className="bg-white/5 p-2 rounded-xl backdrop-blur-sm">
-                    <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                      Base
-                    </span>
-                    <span className="block text-sm font-semibold">₹{user.salary || 0}</span>
-                  </div>
-                  <div className="bg-white/5 p-2 rounded-xl backdrop-blur-sm">
-                    <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                      Daily Rate
-                    </span>
-                    <span className="block text-sm font-semibold">₹{dailyRate.toFixed(2)}</span>
-                  </div>
-                </div>
-                {approvedLeaveDays > 0 && (
-                  <div className="bg-white/5 p-2 rounded-xl border border-white/10">
-                    <span className="block text-[10px] text-gray-400 uppercase font-bold">
-                      This month
-                    </span>
-                    <span className="block text-sm text-white">{payableDays} payable days</span>
-                    <span className="block text-xs text-gray-400">
-                      {totalWorkingDays} working days − {approvedLeaveDays} leave
-                    </span>
-                  </div>
-                )}
+                <Link href="/leaves" className="w-full sm:w-auto">
+                  <Button className="w-full bg-indigo-600 text-white hover:bg-slate-900 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:-translate-y-0.5">
+                    Apply Leave
+                  </Button>
+                </Link>
               </div>
             </div>
-          </div>
 
-          {/* Main Content Area */}
-          <div className="col-span-1 lg:col-span-9 space-y-8">
             {initialTab === 'dashboard' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                      <h2 className="text-xl font-bold text-gray-900 tracking-tight sm:text-2xl md:text-3xl">
-                        Good Morning, {user.name ? user.name.split(' ')[0] : 'Staff'}!
-                      </h2>
-                      {todayRecord && (
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium sm:px-3 sm:py-1 sm:text-sm ${
-                            todayRecord.status === 'present'
-                              ? 'bg-green-100 text-green-800'
-                              : todayRecord.status === 'late'
-                                ? 'bg-amber-100 text-amber-800'
-                                : todayRecord.status === 'half-day'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          Today:{' '}
-                          {todayRecord.status === 'present'
-                            ? 'On time'
-                            : todayRecord.status === 'late'
-                              ? 'Late'
-                              : todayRecord.status === 'half-day'
-                                ? 'Half day'
-                                : todayRecord.status}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-gray-500 mt-1 text-sm sm:text-base">
-                      Ready to start your day? Don&apos;t forget to check in.
-                    </p>
-                  </div>
-
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        size="lg"
-                        className="w-full shrink-0 rounded-full bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 shadow-sm font-medium transition-all hover:shadow-md sm:w-auto"
-                      >
-                        <CalendarIcon className="w-4 h-4 mr-2 text-indigo-600 shrink-0" />
-                        <span className="truncate">View Full Schedule</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-2xl">
-                      <DialogHeader className="sr-only">
-                        <DialogTitle className="sr-only">Full Schedule Calendar</DialogTitle>
-                      </DialogHeader>
-                      <DashboardCalendar user={user} />
-                    </DialogContent>
-                  </Dialog>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Attendance Hero Card */}
+                <div className="lg:col-span-8">
+                  <AttendanceCard user={user} timeFormat={timeFormat} />
                 </div>
 
-                {/* Hero Section */}
-                <div className="grid grid-cols-1 gap-6 items-start xl:grid-cols-2 xl:gap-8">
-                  {/* Attendance Hero Card */}
-                  <div className="space-y-6 min-w-0">
-                    <AttendanceCard
-                      user={user}
-                      timeFormat={timeFormat}
-                      workStartTime={workSettings?.workStartTime}
-                      workEndTime={workSettings?.workEndTime}
-                    />
+                {/* Quick Stats Sidebar */}
+                <div className="lg:col-span-4 space-y-6">
+                  {/* Salary Card Skeleton or Real */}
+                  <div className="dashboard-card p-8 bg-white/40 backdrop-blur-xl border-white/20 relative overflow-hidden">
+                    {!workSettings ? (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="w-10 h-10 rounded-xl" />
+                        </div>
+                        <div className="space-y-4">
+                          <Skeleton className="h-16 w-full rounded-2xl" />
+                          <Skeleton className="h-16 w-full rounded-2xl" />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-16 -mt-16" />
+                        <div className="flex items-center justify-between mb-8 relative z-10">
+                          <h4 className="font-black text-slate-900 tracking-tighter uppercase text-xs opacity-50">
+                            Standard Schedule
+                          </h4>
+                          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                            <Clock className="w-5 h-5" />
+                          </div>
+                        </div>
+                        <div className="space-y-6">
+                          {/* Schedule entries */}
+                          <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
+                                <Clock className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                  Shift Start
+                                </p>
+                                <p className="text-lg font-black text-slate-900 tracking-tighter">
+                                  {workSettings?.workStartTime
+                                    ? formatTime(
+                                        new Date(workSettings.workStartTime),
+                                        timeFormat === '12h',
+                                      )
+                                    : '09:00 AM'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
+                                <Clock className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                  Shift End
+                                </p>
+                                <p className="text-lg font-black text-slate-900 tracking-tighter">
+                                  {workSettings?.workEndTime
+                                    ? formatTime(
+                                        new Date(workSettings.workEndTime),
+                                        timeFormat === '12h',
+                                      )
+                                    : '06:00 PM'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {/* Quick Stats Grid - 1 column on all screen sizes */}
-                  <div className="grid grid-cols-1 min-w-0 gap-3 sm:gap-4">
-                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow min-w-0 sm:rounded-3xl sm:p-6">
-                      <div className="w-8 h-8 bg-green-50 rounded-full flex items-center justify-center mb-2 sm:mb-4 sm:w-10 sm:h-10">
-                        <Clock className="w-4 h-4 text-green-600 sm:w-5 sm:h-5" />
-                      </div>
-                      <h4 className="text-lg font-bold text-gray-900 truncate sm:text-2xl">
-                        {workSettings?.workStartTime
-                          ? formatTime(new Date(workSettings.workStartTime), timeFormat === '12h')
-                          : '09:00 AM'}
-                      </h4>
-                      <p className="text-xs text-gray-500 font-medium truncate sm:text-sm">
-                        Standard Start Time
-                      </p>
+                  {user.role === 'staff' && (
+                    <div className="dashboard-card p-8 bg-indigo-600 text-white relative overflow-hidden group">
+                      {!approvedLeavesThisMonth ? (
+                        <div className="space-y-6">
+                          <Skeleton className="h-4 w-24 bg-white/20" />
+                          <Skeleton className="h-10 w-48 bg-white/20" />
+                          <Skeleton className="h-4 w-32 bg-white/20" />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-white/20 transition-colors duration-700" />
+                          <div className="relative z-10">
+                            <h4 className="font-black text-indigo-200 tracking-widest uppercase text-[10px] mb-6">
+                              Estimated Salary •{' '}
+                              {new Date().toLocaleDateString('en-US', { month: 'long' })}
+                            </h4>
+                            <div className="flex items-baseline gap-2 mb-2">
+                              <span className="text-4xl font-black tracking-tighter">
+                                ₹{estimatedSalary.toLocaleString()}
+                              </span>
+                              <span className="text-indigo-200 text-xs font-bold uppercase tracking-widest">
+                                Net
+                              </span>
+                            </div>
+                            <p className="text-xs font-bold text-indigo-100/80 mb-8 flex items-center gap-2">
+                              <Briefcase className="w-3 h-3" />
+                              {payableDays} payable days this month
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
+                                <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
+                                  Daily Rate
+                                </p>
+                                <p className="text-sm font-black">₹{dailyRate.toFixed(0)}</p>
+                              </div>
+                              <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
+                                <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
+                                  Base Pay
+                                </p>
+                                <p className="text-sm font-black">₹{baseSalary.toLocaleString()}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow min-w-0 sm:rounded-3xl sm:p-6">
-                      <div className="w-8 h-8 bg-indigo-50 rounded-full flex items-center justify-center mb-2 sm:mb-4 sm:w-10 sm:h-10">
-                        <Briefcase className="w-4 h-4 text-indigo-600 sm:w-5 sm:h-5" />
-                      </div>
-                      <h4 className="text-lg font-bold text-gray-900 truncate sm:text-2xl">
-                        {weekPresent}
-                      </h4>
-                      <p className="text-xs text-gray-500 font-medium line-clamp-2 sm:text-sm">
-                        This week: days present
-                      </p>
-                    </div>
-                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow min-w-0 sm:rounded-3xl sm:p-6">
-                      <div className="w-8 h-8 bg-amber-50 rounded-full flex items-center justify-center mb-2 sm:mb-4 sm:w-10 sm:h-10">
-                        <Clock className="w-4 h-4 text-amber-600 sm:w-5 sm:h-5" />
-                      </div>
-                      <h4 className="text-lg font-bold text-gray-900 truncate sm:text-2xl">
-                        {weekLate}
-                      </h4>
-                      <p className="text-xs text-gray-500 font-medium truncate sm:text-sm">
-                        This week: late
-                      </p>
-                    </div>
-                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow min-w-0 sm:rounded-3xl sm:p-6">
-                      <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center mb-2 sm:mb-4 sm:w-10 sm:h-10">
-                        <Briefcase className="w-4 h-4 text-blue-600 sm:w-5 sm:h-5" />
-                      </div>
-                      <h4 className="text-lg font-bold text-gray-900 truncate sm:text-2xl">
-                        {weekHalfDay}
-                      </h4>
-                      <p className="text-xs text-gray-500 font-medium truncate sm:text-sm">
-                        This week: half days
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             )}
 
             {initialTab === 'history' && (
-              <Card className="border-none shadow-lg bg-white/50 backdrop-blur-xl">
-                <CardHeader>
-                  <CardTitle>Attendance History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DashboardCalendar user={user} workSettings={workSettings} />
-                </CardContent>
-              </Card>
+              <div className="dashboard-card p-6 md:p-10 bg-white/50 backdrop-blur-sm border-white/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                      Session <span className="text-indigo-600">Archive</span>
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
+                      Detailed log of your presence and activity.
+                    </p>
+                  </div>
+                  <div className="hidden sm:block">
+                    <History className="w-10 h-10 text-slate-200" />
+                  </div>
+                </div>
+                <DashboardCalendar user={user} workSettings={workSettings} />
+              </div>
             )}
 
             {initialTab === 'leaves' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <Card className="border-none shadow-lg bg-white/50 backdrop-blur-xl">
-                  <CardHeader>
-                    <CardTitle>Leave Status</CardTitle>
-                    <p className="text-sm text-gray-500 font-normal">
-                      See whether your leave requests are approved or pending.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
+              <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+                  <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                      <div>
+                        <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                          Leave <span className="text-indigo-600">Ledger</span>
+                        </h2>
+                        <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
+                          Monitor the status of your submitted requests.
+                        </p>
+                      </div>
+                    </div>
                     <MyLeaveStatusList user={user} />
-                  </CardContent>
-                </Card>
-                <Card className="border-none shadow-lg bg-white/50 backdrop-blur-xl">
-                  <CardHeader>
-                    <CardTitle>Request New Leave</CardTitle>
-                    <p className="text-sm text-gray-500 font-normal">
-                      Click a date on the calendar to request leave.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
+                  </div>
+                  <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                      <div>
+                        <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                          Request <span className="text-indigo-600">Time Off</span>
+                        </h2>
+                        <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
+                          Select dates on the calendar to begin your application.
+                        </p>
+                      </div>
+                    </div>
                     <DashboardCalendar user={user} workSettings={workSettings} />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             )}
 
             {initialTab === 'holidays' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
                 <HolidaysCalendar user={user} />
               </div>
             )}

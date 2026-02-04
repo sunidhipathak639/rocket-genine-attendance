@@ -19,6 +19,7 @@ import {
   UserCheck,
   UserX,
   MapPin,
+  LogOut,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
@@ -136,23 +137,34 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Dashboard</h2>
-          <p className="text-gray-500 mt-1">Manage and view all users and their attendance</p>
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-1 md:mb-2 italic">
+            Admin <span className="text-indigo-600">Dashboard</span>
+          </h2>
+          <p className="text-xs md:text-sm text-slate-500 font-medium">
+            Manage your force and monitor attendance activity in real-time
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.refresh()} className="gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </Button>
-          <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 sm:flex-initial">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.refresh()}
+              className="gap-2 w-full"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </Button>
+          </div>
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 w-full sm:w-64 bg-white border-slate-200"
             />
           </div>
         </div>
@@ -161,12 +173,14 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
       {/* Today's attendance - live monitoring */}
       <Card className="border-2 border-indigo-100 bg-gradient-to-br from-white to-indigo-50/20">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-lg">
               <UserCheck className="w-5 h-5 text-indigo-600" />
-              Today&apos;s attendance
+              Today&apos;s monitoring
             </CardTitle>
-            <span className="text-sm text-gray-500">{format(new Date(), 'EEEE, MMM d, yyyy')}</span>
+            <span className="text-xs md:text-sm text-gray-500 font-medium bg-white/50 px-3 py-1 rounded-full border border-indigo-100/50">
+              {format(new Date(), 'EEEE, MMM d, yyyy')}
+            </span>
           </div>
         </CardHeader>
         <CardContent>
@@ -242,7 +256,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -291,12 +305,14 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-6">
+        <Card className="col-span-2 lg:col-span-1">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Salary Payable Today</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">
+              <div className="min-w-0">
+                <p className="text-[10px] md:text-sm font-black text-slate-400 uppercase tracking-widest truncate">
+                  Revenue Payable
+                </p>
+                <p className="text-xl md:text-2xl font-black text-green-600 mt-1 truncate">
                   ₹
                   {presentToday
                     .reduce((acc, a) => {
@@ -305,10 +321,12 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                       const daily = (u?.salary || 0) / 22
                       return acc + daily
                     }, 0)
-                    .toFixed(2)}
+                    .toFixed(0)}
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 text-green-600" />
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600 flex-shrink-0">
+                <DollarSign className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -462,31 +480,39 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                             key={attendance.id}
                             className={`p-5 rounded-2xl border-2 space-y-4 shadow-sm ${getStatusColor(attendance.status)} transition-all hover:shadow-md`}
                           >
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                               <div className="flex items-center gap-3">
-                                {getStatusIcon(attendance.status)}
-                                <div>
-                                  <p className="font-bold capitalize text-lg">
+                                <div className="p-3 bg-white rounded-xl shadow-sm">
+                                  {getStatusIcon(attendance.status)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-black capitalize text-lg text-slate-900 leading-tight">
                                     {attendance.status}
                                   </p>
-                                  <p className="text-sm opacity-80 font-medium">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                     {format(new Date(attendance.date), 'EEEE, MMM dd, yyyy')}
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <div className="bg-white/50 px-3 py-1 rounded-full border border-current/20 inline-block mb-1">
-                                  <p className="text-sm font-bold flex items-center gap-1">
-                                    <DollarSign className="w-3 h-3" />
+                              <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
+                                <div className="bg-white/60 px-3 py-1.5 rounded-full border border-slate-200/60 shadow-sm flex items-center gap-1.5">
+                                  <DollarSign className="w-3.5 h-3.5 text-green-600" />
+                                  <p className="text-sm font-black text-slate-900">
                                     Payable: ₹{dailySalary}
                                   </p>
                                 </div>
-                                <div className="text-xs space-y-0.5 font-medium opacity-90">
+                                <div className="text-[10px] flex gap-3 text-slate-500 font-bold uppercase tracking-wider">
                                   {attendance.timeIn && (
-                                    <p>In: {format(new Date(attendance.timeIn), 'hh:mm a')}</p>
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />{' '}
+                                      {format(new Date(attendance.timeIn), 'hh:mm a')}
+                                    </span>
                                   )}
                                   {attendance.timeOut && (
-                                    <p>Out: {format(new Date(attendance.timeOut), 'hh:mm a')}</p>
+                                    <span className="flex items-center gap-1">
+                                      <LogOut className="w-3 h-3" />{' '}
+                                      {format(new Date(attendance.timeOut), 'hh:mm a')}
+                                    </span>
                                   )}
                                 </div>
                               </div>

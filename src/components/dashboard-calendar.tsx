@@ -4,91 +4,124 @@ import React, { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { format, isSameDay } from 'date-fns'
 import { CalendarDays, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface DashboardCalendarProps {
-    user: { id: string | number }
-    workSettings?: {
-      saturdayWorkingDay?: boolean | null
-      workStartTime?: string | null
-      workEndTime?: string | null
-    }
+  user: { id: string | number }
+  workSettings?: {
+    saturdayWorkingDay?: boolean | null
+    workStartTime?: string | null
+    workEndTime?: string | null
+  }
 }
 
 interface AttendanceRecord {
-    date: string
-    status: 'present' | 'absent' | 'late' | 'half-day'
+  date: string
+  status: 'present' | 'absent' | 'late' | 'half-day'
 }
 
 interface HolidayRecord {
-    date: string
-    name: string
-    type: string
+  date: string
+  name: string
+  type: string
 }
 
-export function DashboardCalendar({ user, workSettings: propsWorkSettings }: DashboardCalendarProps) {
+export function DashboardCalendar({
+  user,
+  workSettings: propsWorkSettings,
+}: DashboardCalendarProps) {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
   const [leaveType, setLeaveType] = useState('full_day')
   const [reason, setReason] = useState('')
-  
+
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
-  const [_workSettings, setWorkSettings] = useState<{ saturdayWorkingDay?: boolean | null; workStartTime?: string | null; workEndTime?: string | null } | null>(propsWorkSettings || null)
+  const [_workSettings, setWorkSettings] = useState<{
+    saturdayWorkingDay?: boolean | null
+    workStartTime?: string | null
+    workEndTime?: string | null
+  } | null>(propsWorkSettings || null)
   const [leaveError, setLeaveError] = useState<string | null>(null)
   const [leaveSubmitting, setLeaveSubmitting] = useState(false)
 
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
-      const fetchData = async () => {
-          try {
-              // Fetch Attendance
-              const attRes = await fetch(`/api/attendance?where[user][equals]=${user.id}&limit=100`, { credentials: 'include' })
-              const attJson = await attRes.json()
-              if (attJson.docs) {
-                  setAttendanceData(attJson.docs)
-              }
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        // Fetch Attendance
+        const attRes = await fetch(`/api/attendance?where[user][equals]=${user.id}&limit=100`, {
+          credentials: 'include',
+        })
+        const attJson = await attRes.json()
+        if (attJson.docs) {
+          setAttendanceData(attJson.docs)
+        }
 
-              // Fetch Holidays
-              const holRes = await fetch(`/api/holidays?limit=100`, { credentials: 'include' })
-              const holJson = await holRes.json()
-              if (holJson.docs) {
-                  setHolidays(holJson.docs)
-              }
+        // Fetch Holidays
+        const holRes = await fetch(`/api/holidays?limit=100`, { credentials: 'include' })
+        const holJson = await holRes.json()
+        if (holJson.docs) {
+          setHolidays(holJson.docs)
+        }
 
-              // Fetch Work Settings if not provided as prop
-              if (!propsWorkSettings) {
-                const settingsRes = await fetch(`/api/globals/work-settings`, { credentials: 'include' })
-                const settingsJson = await settingsRes.json()
-                if (settingsJson) {
-                    setWorkSettings(settingsJson)
-                }
-              }
-
-          } catch (error) {
-              console.error("Error fetching calendar data", error)
+        // Fetch Work Settings if not provided as prop
+        if (!propsWorkSettings) {
+          const settingsRes = await fetch(`/api/globals/work-settings`, { credentials: 'include' })
+          const settingsJson = await settingsRes.json()
+          if (settingsJson) {
+            setWorkSettings(settingsJson)
           }
+        }
+      } catch (error) {
+        console.error('Error fetching calendar data', error)
+      } finally {
+        setLoading(false)
       }
-      
-      if (user?.id) {
-          fetchData()
-      }
+    }
+
+    if (user?.id) {
+      fetchData()
+    }
   }, [user?.id, propsWorkSettings])
 
   // Function to render custom day content
   const modifiers = {
-    booked: (date: Date) => attendanceData.some(att => isSameDay(new Date(att.date), date)),
-    holiday: (date: Date) => holidays.some(hol => isSameDay(new Date(hol.date), date)),
-    present: (date: Date) => attendanceData.some(att => isSameDay(new Date(att.date), date) && att.status === 'present'),
-    absent: (date: Date) => attendanceData.some(att => isSameDay(new Date(att.date), date) && att.status === 'absent'),
-    late: (date: Date) => attendanceData.some(att => isSameDay(new Date(att.date), date) && att.status === 'late'),
-    halfDay: (date: Date) => attendanceData.some(att => isSameDay(new Date(att.date), date) && att.status === 'half-day'),
+    booked: (date: Date) => attendanceData.some((att) => isSameDay(new Date(att.date), date)),
+    holiday: (date: Date) => holidays.some((hol) => isSameDay(new Date(hol.date), date)),
+    present: (date: Date) =>
+      attendanceData.some((att) => isSameDay(new Date(att.date), date) && att.status === 'present'),
+    absent: (date: Date) =>
+      attendanceData.some((att) => isSameDay(new Date(att.date), date) && att.status === 'absent'),
+    late: (date: Date) =>
+      attendanceData.some((att) => isSameDay(new Date(att.date), date) && att.status === 'late'),
+    halfDay: (date: Date) =>
+      attendanceData.some(
+        (att) => isSameDay(new Date(att.date), date) && att.status === 'half-day',
+      ),
   }
 
   // Custom classNames for modifiers
@@ -109,7 +142,7 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
     dayOnly.setHours(0, 0, 0, 0)
     if (dayOnly.getTime() < today.getTime()) return true // past
     if (day.getDay() === 0) return true // Sunday
-    const isHoliday = holidays.some(h => isSameDay(new Date(h.date), day))
+    const isHoliday = holidays.some((h) => isSameDay(new Date(h.date), day))
     return isHoliday
   }
 
@@ -121,8 +154,8 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
 
     if (dayOnly.getTime() < today.getTime()) {
       // Past: show info only
-      const att = attendanceData.find(a => isSameDay(new Date(a.date), day))
-      const hol = holidays.find(h => isSameDay(new Date(h.date), day))
+      const att = attendanceData.find((a) => isSameDay(new Date(a.date), day))
+      const hol = holidays.find((h) => isSameDay(new Date(h.date), day))
       if (att) toast.info(`Status: ${att.status.toUpperCase()}`)
       else if (hol) toast.info(`Holiday: ${hol.name}`)
       else toast.info(`No record for ${format(day, 'MMM dd')}`)
@@ -133,8 +166,12 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
       if (day.getDay() === 0) {
         toast.error('Leave cannot be requested for Sundays.')
       } else {
-        const holiday = holidays.find(h => isSameDay(new Date(h.date), day))
-        toast.error(holiday ? `"${holiday.name}" is a holiday. Leave cannot be requested on holidays.` : 'This date is a holiday.')
+        const holiday = holidays.find((h) => isSameDay(new Date(h.date), day))
+        toast.error(
+          holiday
+            ? `"${holiday.name}" is a holiday. Leave cannot be requested on holidays.`
+            : 'This date is a holiday.',
+        )
       }
       return
     }
@@ -150,7 +187,12 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
     if (typeof d.message === 'string' && d.message.trim()) return d.message
     if (Array.isArray(d.errors) && d.errors.length > 0) {
       const first = d.errors[0]
-      if (first && typeof first === 'object' && 'message' in first && typeof (first as { message: unknown }).message === 'string') {
+      if (
+        first &&
+        typeof first === 'object' &&
+        'message' in first &&
+        typeof (first as { message: unknown }).message === 'string'
+      ) {
         return (first as { message: string }).message
       }
     }
@@ -185,8 +227,10 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
       if (date.getDay() === 0) {
         msg = 'Leave cannot be requested for Sundays.'
       } else {
-        const holiday = holidays.find(h => isSameDay(new Date(h.date), date))
-        msg = holiday ? `"${holiday.name}" is a holiday. Leave cannot be requested on holidays.` : 'This date is a holiday. Leave cannot be requested on holidays.'
+        const holiday = holidays.find((h) => isSameDay(new Date(h.date), date))
+        msg = holiday
+          ? `"${holiday.name}" is a holiday. Leave cannot be requested on holidays.`
+          : 'This date is a holiday. Leave cannot be requested on holidays.'
       }
       toast.error(msg)
       setLeaveError(msg)
@@ -239,66 +283,105 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
     }
   }
 
+  if (loading) {
+    return (
+      <Card className="shadow-none border-0 bg-transparent flex flex-col items-center p-8">
+        <Skeleton className="h-8 w-64 mb-6" />
+        <Skeleton className="h-[400px] w-full max-w-[500px] rounded-3xl mb-8" />
+        <div className="grid grid-cols-2 gap-4 w-full max-w-[500px]">
+          <Skeleton className="h-14 w-full rounded-2xl" />
+          <Skeleton className="h-14 w-full rounded-2xl" />
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <Card className="w-full shadow-md border-0 bg-white/50 backdrop-blur-sm">
       <CardHeader>
-        <div className="flex items-center justify-between">
-            <div className="space-y-1">
-                <CardTitle className="flex items-center gap-2">
-                    <CalendarDays className="w-5 h-5 text-indigo-600" />
-                    Attendance & Leaves
-                </CardTitle>
-                <CardDescription>Manage your schedule and leave requests</CardDescription>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-xl font-black text-slate-900 italic">
+              <CalendarDays className="w-5 h-5 text-indigo-600" />
+              Session <span className="text-indigo-600">Calendar</span>
+            </CardTitle>
+            <CardDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Manage your schedule
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-widest">
+            <div className="flex items-center gap-1.5 bg-green-50 px-2 py-1 rounded-full text-green-600 border border-green-100">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>Present
             </div>
-            <div className="flex gap-2 text-xs flex-wrap">
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-100 rounded-full border border-green-300"></div>Present</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-100 rounded-full border border-red-300"></div>Absent</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-100 rounded-full border border-orange-300"></div>Late</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-100 rounded-full border border-blue-300"></div>Holiday</div>
-                <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-100 rounded-full border border-gray-300"></div>Sunday (Leave not allowed)</div>
+            <div className="flex items-center gap-1.5 bg-red-50 px-2 py-1 rounded-full text-red-600 border border-red-100">
+              <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>Absent
             </div>
+            <div className="flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded-full text-orange-600 border border-orange-100">
+              <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>Late
+            </div>
+            <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-full text-blue-600 border border-blue-100">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>Holiday
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-full text-slate-400 border border-slate-200">
+              <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>Sunday
+            </div>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0 sm:p-4 flex justify-center">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={setDate}
-          onDayClick={handleDayClick}
-          className="rounded-md border shadow-sm w-full max-w-full [&_table]:w-full [&_td]:p-0"
-          modifiers={modifiers}
-          modifiersClassNames={modifiersClassNames}
-          disabled={(day) => {
-            // Disable only past dates, Sundays, and holidays (today and other weekdays allowed)
-            return isDateDisabled(day)
-          }}
-              components={{
-                // @ts-expect-error - DayContent is a custom component prop
-                DayContent: (props: { date: Date }) => {
-                    const isHol = holidays.find(h => isSameDay(new Date(h.date), props.date))
-                    const isSunday = props.date.getDay() === 0
-                    const isDisabled = isDateDisabled(props.date)
-                    return (
-                        <div className={`relative w-full h-full flex items-center justify-center p-2 group transition-all ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-105'}`}>
-                             <span className={isDisabled ? 'text-gray-400' : ''}>{props.date.getDate()}</span>
-                             {isHol && (
-                                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full" title={isHol.name}></div>
-                             )}
-                             {isSunday && !isHol && (
-                                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-gray-400 rounded-full" title="Sunday - Leave not allowed"></div>
-                             )}
-                        </div>
-                    )
-                }
-              }}
-        />
+      <CardContent className="p-2 sm:p-6 flex justify-center -mx-4 sm:mx-0">
+        <div className="w-full flex justify-center scale-[0.85] sm:scale-100 origin-top">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={setDate}
+            onDayClick={handleDayClick}
+            className="rounded-[24px] border border-slate-100 shadow-xl w-full max-w-full bg-white transition-all [&_table]:w-full [&_td]:p-0"
+            modifiers={modifiers}
+            modifiersClassNames={modifiersClassNames}
+            disabled={(day) => isDateDisabled(day)}
+            components={{
+              // @ts-expect-error - DayContent is a custom component prop
+              DayContent: (props: { date: Date }) => {
+                const isHol = holidays.find((h) => isSameDay(new Date(h.date), props.date))
+                const isSunday = props.date.getDay() === 0
+                const isDisabled = isDateDisabled(props.date)
+                return (
+                  <div
+                    className={`relative w-full h-full flex items-center justify-center p-2 sm:p-3 group transition-all ${isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:scale-110'}`}
+                  >
+                    <span
+                      className={`text-xs sm:text-sm font-bold ${isDisabled ? 'text-slate-300' : 'text-slate-700'}`}
+                    >
+                      {props.date.getDate()}
+                    </span>
+                    {isHol && (
+                      <div
+                        className="absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-1 sm:w-1.5 h-1 sm:h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                        title={isHol.name}
+                      ></div>
+                    )}
+                    {isSunday && !isHol && (
+                      <div
+                        className="absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-1 sm:w-1.5 h-1 sm:h-1.5 bg-slate-300 rounded-full"
+                        title="Sunday"
+                      ></div>
+                    )}
+                  </div>
+                )
+              },
+            }}
+          />
+        </div>
       </CardContent>
-      
+
       {/* Leave Request Dialog */}
-      <Dialog open={isLeaveDialogOpen} onOpenChange={(open) => {
-        setIsLeaveDialogOpen(open)
-        if (!open) setLeaveError(null)
-      }}>
+      <Dialog
+        open={isLeaveDialogOpen}
+        onOpenChange={(open) => {
+          setIsLeaveDialogOpen(open)
+          if (!open) setLeaveError(null)
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Request Leave</DialogTitle>
@@ -319,24 +402,24 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
                 Type
               </Label>
               <Select value={leaveType} onValueChange={setLeaveType}>
-                  <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      <SelectItem value="full_day">Full Day</SelectItem>
-                      <SelectItem value="half_day">Half Day</SelectItem>
-                      <SelectItem value="paid">Paid Leave</SelectItem>
-                      <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                  </SelectContent>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full_day">Full Day</SelectItem>
+                  <SelectItem value="half_day">Half Day</SelectItem>
+                  <SelectItem value="paid">Paid Leave</SelectItem>
+                  <SelectItem value="unpaid">Unpaid Leave</SelectItem>
+                </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="reason" className="text-right">
                 Reason
               </Label>
-              <Textarea 
-                id="reason" 
-                placeholder="Why are you taking leave?" 
+              <Textarea
+                id="reason"
+                placeholder="Why are you taking leave?"
                 className="col-span-3"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -344,12 +427,20 @@ export function DashboardCalendar({ user, workSettings: propsWorkSettings }: Das
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setIsLeaveDialogOpen(false)
-              setReason('')
-              setLeaveError(null)
-            }}>Cancel</Button>
-            <Button onClick={handleLeaveRequest} disabled={isDateDisabled(date || new Date()) || leaveSubmitting}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsLeaveDialogOpen(false)
+                setReason('')
+                setLeaveError(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleLeaveRequest}
+              disabled={isDateDisabled(date || new Date()) || leaveSubmitting}
+            >
               {leaveSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

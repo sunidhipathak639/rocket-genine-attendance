@@ -71,22 +71,24 @@ export function StaffLoginForm() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
       </div>
 
-      <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-white/80 backdrop-blur-xl">
-        <CardHeader className="space-y-4 text-center pb-8">
+      <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-white/80 backdrop-blur-xl mx-2">
+        <CardHeader className="space-y-4 text-center pb-6 md:pb-8">
           <div className="flex justify-center">
-            <div className="w-16 h-16 relative transform hover:rotate-3 transition-transform">
+            <div className="w-12 h-12 md:w-16 md:h-16 relative transform hover:rotate-3 transition-transform">
               <Image
                 src="/rocket-genie-logo.webp"
                 alt="Rocket Genie"
                 fill
-                className="object-contain rounded-2xl shadow-lg"
+                className="object-contain rounded-xl md:rounded-2xl shadow-lg"
               />
             </div>
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold text-gray-900">Welcome Back</CardTitle>
-            <CardDescription className="text-base mt-2 text-gray-600">
-              Sign in to your staff account
+            <CardTitle className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight italic">
+              Welcome <span className="text-indigo-600">Back</span>
+            </CardTitle>
+            <CardDescription className="text-xs md:text-sm mt-1.5 font-bold text-slate-400 uppercase tracking-widest">
+              Staff Secure Login
             </CardDescription>
           </div>
         </CardHeader>
