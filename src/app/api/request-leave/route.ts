@@ -10,12 +10,15 @@ import configPromise from '@payload-config'
 export async function POST(request: NextRequest) {
   try {
     const payload = await getPayload({ config: await configPromise })
-    const { user } = await payload.auth({ headers: request.headers })
+    const token = request.cookies.get('payload-token')?.value
+    const authHeaders = new Headers(request.headers)
+    if (token) authHeaders.set('Authorization', `Bearer ${token}`)
+    const { user } = await payload.auth({ headers: authHeaders })
 
     if (!user) {
       return NextResponse.json(
         { message: 'You must be logged in to request leave.' },
-        { status: 401 }
+        { status: 401 },
       )
     }
 
@@ -25,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (!startDate || !endDate || !type) {
       return NextResponse.json(
         { message: 'type, startDate and endDate are required.' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof APIError) {
       return NextResponse.json(
         { message: error.message, errors: (error as any).errors },
-        { status: error.status }
+        { status: error.status },
       )
     }
     const message = error?.message || 'Failed to submit leave request.'

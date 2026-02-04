@@ -4,20 +4,21 @@ import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { 
-  Users, 
-  Search, 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Users,
+  Search,
+  Calendar,
+  Clock,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Building2,
   Mail,
   DollarSign,
   RefreshCw,
   UserCheck,
-  UserX
+  UserX,
+  MapPin,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
@@ -33,63 +34,72 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const staffUsers = useMemo(() => allUsers.filter(u => u.role === 'staff'), [allUsers])
-  const todayAttendance = useMemo(() => 
-    allAttendance.filter(a => a.date === todayStr),
-    [allAttendance, todayStr]
+  const staffUsers = useMemo(() => allUsers.filter((u) => u.role === 'staff'), [allUsers])
+  const todayAttendance = useMemo(
+    () => allAttendance.filter((a) => a.date === todayStr),
+    [allAttendance, todayStr],
   )
-  const presentToday = useMemo(() => 
-    todayAttendance.filter(a => ['present', 'late', 'half-day'].includes(a.status)),
-    [todayAttendance]
+  const presentToday = useMemo(
+    () => todayAttendance.filter((a) => ['present', 'late', 'half-day'].includes(a.status)),
+    [todayAttendance],
   )
-  const notCheckedInToday = useMemo(() => 
-    staffUsers.filter(staff => !todayAttendance.some(a => (typeof a.user === 'object' ? a.user.id : a.user) === staff.id)),
-    [staffUsers, todayAttendance]
+  const notCheckedInToday = useMemo(
+    () =>
+      staffUsers.filter(
+        (staff) =>
+          !todayAttendance.some(
+            (a) => (typeof a.user === 'object' ? a.user.id : a.user) === staff.id,
+          ),
+      ),
+    [staffUsers, todayAttendance],
   )
 
   // Filter users based on search query
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return allUsers
     const query = searchQuery.toLowerCase()
-    return allUsers.filter(user => 
-      user.name?.toLowerCase().includes(query) ||
-      user.email?.toLowerCase().includes(query) ||
-      user.department?.toLowerCase().includes(query)
+    return allUsers.filter(
+      (user) =>
+        user.name?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        user.department?.toLowerCase().includes(query),
     )
   }, [allUsers, searchQuery])
 
   // Get attendance for selected user
   const selectedUserAttendance = useMemo(() => {
     if (!selectedUserId) return []
-    return allAttendance.filter(att => {
-      const userId = typeof att.user === 'object' ? att.user.id : att.user
-      return userId === selectedUserId
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    return allAttendance
+      .filter((att) => {
+        const userId = typeof att.user === 'object' ? att.user.id : att.user
+        return userId === selectedUserId
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [allAttendance, selectedUserId])
 
   // Get selected user details
   const selectedUser = useMemo(() => {
     if (!selectedUserId) return null
-    return allUsers.find(u => u.id === selectedUserId)
+    return allUsers.find((u) => u.id === selectedUserId)
   }, [allUsers, selectedUserId])
 
   // Calculate stats for selected user
   const userStats = useMemo(() => {
     if (!selectedUserAttendance.length) return null
-    
-    const present = selectedUserAttendance.filter(a => a.status === 'present').length
-    const absent = selectedUserAttendance.filter(a => a.status === 'absent').length
-    const late = selectedUserAttendance.filter(a => a.status === 'late').length
-    const halfDay = selectedUserAttendance.filter(a => a.status === 'half-day').length
+
+    const present = selectedUserAttendance.filter((a) => a.status === 'present').length
+    const absent = selectedUserAttendance.filter((a) => a.status === 'absent').length
+    const late = selectedUserAttendance.filter((a) => a.status === 'late').length
+    const halfDay = selectedUserAttendance.filter((a) => a.status === 'half-day').length
     const total = selectedUserAttendance.length
-    
+
     return {
       present,
       absent,
       late,
       halfDay,
       total,
-      presentPercentage: total > 0 ? ((present / total) * 100).toFixed(1) : '0'
+      presentPercentage: total > 0 ? ((present / total) * 100).toFixed(1) : '0',
     }
   }, [selectedUserAttendance])
 
@@ -132,12 +142,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
           <p className="text-gray-500 mt-1">Manage and view all users and their attendance</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.refresh()}
-            className="gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={() => router.refresh()} className="gap-2">
             <RefreshCw className="w-4 h-4" />
             Refresh
           </Button>
@@ -176,11 +181,20 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                   <p className="text-gray-500 text-sm">No one has checked in today yet.</p>
                 ) : (
                   presentToday.map((a) => {
-                    const u = typeof a.user === 'object' ? a.user : allUsers.find(x => x.id === a.user)
+                    const u =
+                      typeof a.user === 'object' ? a.user : allUsers.find((x) => x.id === a.user)
                     const name = u?.name || u?.email || 'Unknown'
-                    const statusColor = a.status === 'present' ? 'text-green-700' : a.status === 'late' ? 'text-amber-700' : 'text-blue-700'
+                    const statusColor =
+                      a.status === 'present'
+                        ? 'text-green-700'
+                        : a.status === 'late'
+                          ? 'text-amber-700'
+                          : 'text-blue-700'
                     return (
-                      <div key={a.id} className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-gray-100">
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-gray-100"
+                      >
                         <span className="font-medium text-gray-900">{name}</span>
                         <div className="flex items-center gap-2">
                           {a.timeIn && (
@@ -189,7 +203,11 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                             </span>
                           )}
                           <span className={`text-xs font-medium ${statusColor}`}>
-                            {a.status === 'present' ? 'On time' : a.status === 'late' ? 'Late' : 'Half day'}
+                            {a.status === 'present'
+                              ? 'On time'
+                              : a.status === 'late'
+                                ? 'Late'
+                                : 'Half day'}
                           </span>
                         </div>
                       </div>
@@ -208,7 +226,10 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                   <p className="text-gray-500 text-sm">Everyone has checked in today.</p>
                 ) : (
                   notCheckedInToday.map((u) => (
-                    <div key={u.id} className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-gray-100">
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-gray-100"
+                    >
                       <span className="font-medium text-gray-700">{u.name || u.email}</span>
                       <span className="text-xs text-gray-400">—</span>
                     </div>
@@ -239,7 +260,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
               <div>
                 <p className="text-sm font-medium text-gray-500">Staff Members</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {allUsers.filter(u => u.role === 'staff').length}
+                  {allUsers.filter((u) => u.role === 'staff').length}
                 </p>
               </div>
               <Building2 className="w-8 h-8 text-blue-600" />
@@ -263,10 +284,31 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
               <div>
                 <p className="text-sm font-medium text-gray-500">Departments</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {new Set(allUsers.map(u => u.department).filter(Boolean)).size}
+                  {new Set(allUsers.map((u) => u.department).filter(Boolean)).size}
                 </p>
               </div>
               <Building2 className="w-8 h-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Salary Payable Today</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">
+                  ₹
+                  {presentToday
+                    .reduce((acc, a) => {
+                      const u =
+                        typeof a.user === 'object' ? a.user : allUsers.find((x) => x.id === a.user)
+                      const daily = (u?.salary || 0) / 22
+                      return acc + daily
+                    }, 0)
+                    .toFixed(2)}
+                </p>
+              </div>
+              <DollarSign className="w-8 h-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
@@ -289,7 +331,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                 filteredUsers.map((user) => {
                   const userId = typeof user === 'object' ? user.id : user
                   const isSelected = selectedUserId === userId
-                  const userAttendanceCount = allAttendance.filter(att => {
+                  const userAttendanceCount = allAttendance.filter((att) => {
                     const attUserId = typeof att.user === 'object' ? att.user.id : att.user
                     return attUserId === userId
                   }).length
@@ -317,11 +359,13 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                                 {user.department}
                               </span>
                             )}
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              user.role === 'admin' 
-                                ? 'bg-purple-100 text-purple-700' 
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full ${
+                                user.role === 'admin'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}
+                            >
                               {user.role}
                             </span>
                           </div>
@@ -357,7 +401,9 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                   </div>
                   <div className="p-4 bg-gray-50 rounded-xl">
                     <p className="text-sm text-gray-500">Department</p>
-                    <p className="font-semibold text-gray-900">{selectedUser.department || 'N/A'}</p>
+                    <p className="font-semibold text-gray-900">
+                      {selectedUser.department || 'N/A'}
+                    </p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-xl">
                     <p className="text-sm text-gray-500">Role</p>
@@ -367,8 +413,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                     <div className="p-4 bg-gray-50 rounded-xl">
                       <p className="text-sm text-gray-500">Monthly Salary</p>
                       <p className="font-semibold text-gray-900 flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />
-                        ₹{selectedUser.salary.toLocaleString()}
+                        <DollarSign className="w-4 h-4" />₹{selectedUser.salary.toLocaleString()}
                       </p>
                     </div>
                   )}
@@ -391,46 +436,124 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                     </div>
                     <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
                       <p className="text-sm text-blue-600 font-medium">Attendance %</p>
-                      <p className="text-2xl font-bold text-blue-700 mt-1">{userStats.presentPercentage}%</p>
+                      <p className="text-2xl font-bold text-blue-700 mt-1">
+                        {userStats.presentPercentage}%
+                      </p>
                     </div>
                   </div>
                 )}
 
                 {/* Attendance History */}
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-4">Attendance History</h3>
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  <h3 className="font-semibold text-gray-900 mb-4">
+                    Attendance & Activity History
+                  </h3>
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                     {selectedUserAttendance.length === 0 ? (
                       <p className="text-gray-500 text-center py-8">No attendance records found</p>
                     ) : (
-                      selectedUserAttendance.map((attendance) => (
-                        <div
-                          key={attendance.id}
-                          className={`p-4 rounded-xl border-2 flex items-center justify-between ${getStatusColor(attendance.status)}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            {getStatusIcon(attendance.status)}
-                            <div>
-                              <p className="font-semibold capitalize">{attendance.status}</p>
-                              <p className="text-sm opacity-75">
-                                {format(new Date(attendance.date), 'MMM dd, yyyy')}
-                              </p>
+                      selectedUserAttendance.map((attendance) => {
+                        // Calculate daily salary for this record
+                        const monthlySalary = selectedUser?.salary || 0
+                        const dailySalary = monthlySalary > 0 ? (monthlySalary / 22).toFixed(2) : 0
+
+                        return (
+                          <div
+                            key={attendance.id}
+                            className={`p-5 rounded-2xl border-2 space-y-4 shadow-sm ${getStatusColor(attendance.status)} transition-all hover:shadow-md`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {getStatusIcon(attendance.status)}
+                                <div>
+                                  <p className="font-bold capitalize text-lg">
+                                    {attendance.status}
+                                  </p>
+                                  <p className="text-sm opacity-80 font-medium">
+                                    {format(new Date(attendance.date), 'EEEE, MMM dd, yyyy')}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="bg-white/50 px-3 py-1 rounded-full border border-current/20 inline-block mb-1">
+                                  <p className="text-sm font-bold flex items-center gap-1">
+                                    <DollarSign className="w-3 h-3" />
+                                    Payable: ₹{dailySalary}
+                                  </p>
+                                </div>
+                                <div className="text-xs space-y-0.5 font-medium opacity-90">
+                                  {attendance.timeIn && (
+                                    <p>In: {format(new Date(attendance.timeIn), 'hh:mm a')}</p>
+                                  )}
+                                  {attendance.timeOut && (
+                                    <p>Out: {format(new Date(attendance.timeOut), 'hh:mm a')}</p>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            {attendance.timeIn && (
-                              <p className="text-sm font-medium">
-                                {format(new Date(attendance.timeIn), 'hh:mm a')}
-                              </p>
+
+                            {/* Active / Inactive duration (from 10-min activity popups) */}
+                            {((attendance as any).activeDuration != null ||
+                              (attendance as any).inactiveDuration != null) && (
+                              <div className="flex gap-4 flex-wrap text-xs">
+                                <span className="bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
+                                  Active: {(attendance as any).activeDuration ?? 0} min
+                                </span>
+                                <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded font-medium">
+                                  Inactive (missed): {(attendance as any).inactiveDuration ?? 0} min
+                                </span>
+                              </div>
                             )}
-                            {attendance.timeOut && (
-                              <p className="text-xs opacity-75">
-                                Out: {format(new Date(attendance.timeOut), 'hh:mm a')}
-                              </p>
+
+                            {/* Work Summary */}
+                            {(attendance as any).workSummary && (
+                              <div className="bg-white/40 p-3 rounded-xl border border-white/20">
+                                <p className="text-xs font-bold uppercase tracking-wider mb-1 opacity-70">
+                                  Daily Work Summary
+                                </p>
+                                <p className="text-sm italic">
+                                  &quot;{(attendance as any).workSummary}&quot;
+                                </p>
+                              </div>
                             )}
+
+                            {/* Location History */}
+                            {(attendance as any).locationHistory &&
+                              (attendance as any).locationHistory.length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" /> Movement History
+                                  </p>
+                                  <div className="grid gap-2">
+                                    {(attendance as any).locationHistory.map(
+                                      (loc: any, i: number) => (
+                                        <div
+                                          key={i}
+                                          className="text-[10px] bg-white/30 p-2 rounded-lg border border-white/10 flex justify-between gap-4"
+                                        >
+                                          <span className="font-mono opacity-80 w-16 shrink-0">
+                                            {format(new Date(loc.timestamp), 'hh:mm a')}
+                                          </span>
+                                          <span className="truncate font-medium flex-1">
+                                            {loc.address ||
+                                              `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}
+                                          </span>
+                                          <a
+                                            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                                            target="_blank"
+                                            className="text-blue-600 hover:underline font-bold shrink-0"
+                                          >
+                                            Map
+                                          </a>
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                           </div>
-                        </div>
-                      ))
+                        )
+                      })
                     )}
                   </div>
                 </div>

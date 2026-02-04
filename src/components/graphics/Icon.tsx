@@ -1,17 +1,13 @@
 'use client'
 
 import React from 'react'
-import Image from 'next/image'
 
-const Icon = () => {
+const Icon = (_props: any) => {
   return (
-    <Image
+    <img
       src="/rocket-genie-logo.webp"
       alt="Rocket Genie"
-      width={40}
-      height={40}
-      className="object-contain"
-      priority
+      style={{ maxWidth: '40px', maxHeight: '40px', objectFit: 'contain' }}
     />
   )
 }

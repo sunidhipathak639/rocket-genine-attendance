@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { APIError } from 'payload'
+import { format } from 'date-fns'
 
 export const Leaves: CollectionConfig = {
   slug: 'leaves',
@@ -14,8 +15,60 @@ export const Leaves: CollectionConfig = {
     delete: () => true,
   },
   hooks: {
+    afterChange: [
+      async ({ doc, req, operation }: any) => {
+        if (operation === 'create') {
+          try {
+            const { sendEmail } = await import('@/lib/email')
+            const settings = await req.payload.findGlobal({
+              slug: 'work-settings',
+            })
+
+            let targetEmails: string[] = []
+
+            if (
+              (settings as any).notificationEmails &&
+              (settings as any).notificationEmails.length > 0
+            ) {
+              targetEmails = (settings as any).notificationEmails
+                .map((e: any) => e.email)
+                .filter(Boolean)
+            } else {
+              const admins = await req.payload.find({
+                collection: 'users',
+                where: { role: { equals: 'admin' } },
+                limit: 5,
+              })
+              targetEmails = admins.docs.map((a: any) => a.email).filter(Boolean)
+            }
+
+            if (targetEmails.length > 0) {
+              const user: any =
+                typeof doc.user === 'object'
+                  ? doc.user
+                  : await req.payload.findByID({ collection: 'users', id: doc.user })
+
+              await sendEmail({
+                to: targetEmails,
+                subject: `New Leave Request: ${user?.name || user?.email}`,
+                html: `
+                <h3>New Leave Request Received</h3>
+                <p><strong>Employee:</strong> ${user?.name || user?.email}</p>
+                <p><strong>Type:</strong> ${doc.type}</p>
+                <p><strong>Dates:</strong> ${format(new Date(doc.startDate), 'MMM dd, yyyy')} to ${format(new Date(doc.endDate), 'MMM dd, yyyy')}</p>
+                <p><strong>Reason:</strong> ${doc.reason || 'No reason provided.'}</p>
+                <p><a href="${process.env.NEXT_PUBLIC_SERVER_URL}/admin/collections/leaves/${doc.id}">Review in Admin Panel</a></p>
+              `,
+              })
+            }
+          } catch (err) {
+            console.error('Failed to send leave request email:', err)
+          }
+        }
+      },
+    ],
     beforeChange: [
-      async ({ data, req, operation }) => {
+      async ({ data, req, operation }: any) => {
         // Only validate for staff users on create operation
         if (operation === 'create' && req.user && req.user.role === 'staff') {
           // Use date strings (YYYY-MM-DD) and UTC to avoid timezone bugs (e.g. Feb 2 UTC is Monday; in PST it becomes Feb 1 Sunday)
@@ -183,9 +236,6 @@ export const Leaves: CollectionConfig = {
       ],
       defaultValue: 'pending',
       required: true,
-      access: {
-        update: ({ req: { user } }) => user?.role === 'admin', // Only admin can change status
-      },
     },
   ],
 }

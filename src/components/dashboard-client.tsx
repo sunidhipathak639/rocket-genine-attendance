@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { AttendanceCard } from '@/components/attendance-card'
 import Image from 'next/image'
 import { DashboardCalendar } from '@/components/dashboard-calendar'
@@ -50,6 +50,7 @@ interface DashboardClientProps {
     saturdayWorkingDay?: boolean | null
     workStartTime?: string | null
     workEndTime?: string | null
+    activityCheckInterval?: number | null
   }
   userAttendance?: Attendance[]
 }
@@ -193,6 +194,108 @@ export function DashboardClient({
     setTimeFormat(checked ? '24h' : '12h')
   }
 
+  // Activity Monitor Logic
+  const [showActivityPopup, setShowActivityPopup] = useState(false)
+  const [lastCheckTime, setLastCheckTime] = useState<number>(() => Date.now())
+  const lastCheckTimeRef = useRef(lastCheckTime)
+  const showActivityPopupRef = useRef(showActivityPopup)
+  lastCheckTimeRef.current = lastCheckTime
+  showActivityPopupRef.current = showActivityPopup
+
+  const handleActivityResponse = React.useCallback(
+    async (status: 'active' | 'inactive', customDuration?: number) => {
+      setShowActivityPopup(false)
+      const now = Date.now()
+      setLastCheckTime(now)
+      lastCheckTimeRef.current = now
+      localStorage.setItem('lastActivityCheck', now.toString())
+
+      const duration = customDuration ?? workSettings?.activityCheckInterval ?? 10
+
+      try {
+        await fetch('/api/activity-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status,
+            timestamp: new Date().toISOString(),
+            duration,
+          }),
+        })
+      } catch (err) {
+        console.error('Failed to log activity:', err)
+      }
+    },
+    [workSettings],
+  )
+
+  // Timer for activity check — use refs so interval always sees latest values and doesn't reset
+  useEffect(() => {
+    // Today in local date (YYYY-MM-DD) so timezone doesn't break the check
+    const now = new Date()
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+    const isCheckedIn = userAttendance?.some((a) => {
+      let dateStr: string
+      if (typeof a.date === 'string') dateStr = a.date
+      else if (a.date) {
+        const d = new Date(a.date as string | Date)
+        dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      } else dateStr = ''
+      return dateStr === todayLocal && a.timeIn && !a.timeOut
+    })
+
+    if (!isCheckedIn) return
+
+    const intervalMinutes = workSettings?.activityCheckInterval ?? 10
+    const CHECK_INTERVAL_MS = intervalMinutes * 60 * 1000
+    const RESPONSE_TIMEOUT = 60 * 1000
+
+    // When testing with short intervals (≤2 min), don't restore from localStorage so popup starts from "now"
+    const skipRestore = intervalMinutes <= 2
+    if (!skipRestore) {
+      const storedLastCheck = localStorage.getItem('lastActivityCheck')
+      if (storedLastCheck) {
+        const timestamp = parseInt(storedLastCheck, 10)
+        if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+          setLastCheckTime(timestamp)
+          lastCheckTimeRef.current = timestamp
+        }
+      }
+    }
+
+    // Check every 1s when interval is short (faster feedback for 1-min testing), else every 5s
+    const tickMs = intervalMinutes <= 2 ? 1000 : 5000
+
+    const timer = setInterval(() => {
+      const now = Date.now()
+      const last = lastCheckTimeRef.current
+      const popupOpen = showActivityPopupRef.current
+      if (!popupOpen && now - last >= CHECK_INTERVAL_MS) {
+        setShowActivityPopup(true)
+        showActivityPopupRef.current = true
+
+        try {
+          const audio = new Audio('/notification.mp3')
+          audio.play().catch(() => {})
+        } catch {}
+
+        setTimeout(() => {
+          setShowActivityPopup((currentShow) => {
+            if (currentShow) {
+              handleActivityResponse('inactive', intervalMinutes)
+              showActivityPopupRef.current = false
+              return false
+            }
+            return currentShow
+          })
+        }, RESPONSE_TIMEOUT)
+      }
+    }, tickMs)
+
+    return () => clearInterval(timer)
+  }, [userAttendance, workSettings, handleActivityResponse])
+
   // Show admin dashboard if user is admin
   if (user.role === 'admin' && allUsers && allAttendance) {
     return (
@@ -261,6 +364,34 @@ export function DashboardClient({
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-gray-900 font-sans selection:bg-indigo-100">
+      {/* Activity Check Popup */}
+      <Dialog
+        open={showActivityPopup}
+        onOpenChange={(open) => {
+          // Prevent closing by clicking outside, forcing explicit action or timeout
+          if (!open) handleActivityResponse('inactive')
+        }}
+      >
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Are you still working?</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center text-gray-600">
+            Please confirm you are active to log your working hours. Missed checks will be recorded
+            as inactive time.
+          </div>
+          <div className="flex justify-center gap-4">
+            <Button
+              variant="default"
+              className="bg-green-600 hover:bg-green-700 w-full"
+              onClick={() => handleActivityResponse('active')}
+            >
+              Yes, I'm Working
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Premium Header */}
       <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex items-center justify-between transition-all duration-300">
         <div className="flex items-center gap-3 group cursor-pointer">
@@ -342,7 +473,7 @@ export function DashboardClient({
           </div>
         </div>
       </header>
-
+      {/* ... keeping the rest of the main content same ... */}
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Sidebar / Navigation (Desktop) */}

@@ -194,6 +194,45 @@ export interface Attendance {
     longitude?: number | null;
     address?: string | null;
   };
+  /**
+   * Photo proof of attendance (URL)
+   */
+  selfie?: string | null;
+  /**
+   * Logs of user activity checks
+   */
+  activityLogs?:
+    | {
+        timestamp: string;
+        status: 'active' | 'inactive';
+        notes?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Total active minutes based on popup confirmations
+   */
+  activeDuration?: number | null;
+  /**
+   * Total inactive minutes based on missed popups
+   */
+  inactiveDuration?: number | null;
+  /**
+   * Periodic location tracking during work hours
+   */
+  locationHistory?:
+    | {
+        timestamp: string;
+        latitude: number;
+        longitude: number;
+        address?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Written summary of work submitted upon checkout
+   */
+  workSummary?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -435,6 +474,27 @@ export interface AttendanceSelect<T extends boolean = true> {
         longitude?: T;
         address?: T;
       };
+  selfie?: T;
+  activityLogs?:
+    | T
+    | {
+        timestamp?: T;
+        status?: T;
+        notes?: T;
+        id?: T;
+      };
+  activeDuration?: T;
+  inactiveDuration?: T;
+  locationHistory?:
+    | T
+    | {
+        timestamp?: T;
+        latitude?: T;
+        longitude?: T;
+        address?: T;
+        id?: T;
+      };
+  workSummary?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -553,6 +613,19 @@ export interface WorkSetting {
    * The standard work end time for all employees
    */
   workEndTime: string;
+  /**
+   * Specify up to 2 email addresses where notifications (leaves, work summaries) will be sent.
+   */
+  notificationEmails?:
+    | {
+        email: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Interval in minutes between "Are you still working?" popups.
+   */
+  activityCheckInterval: number;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -564,6 +637,13 @@ export interface WorkSettingsSelect<T extends boolean = true> {
   saturdayWorkingDay?: T;
   workStartTime?: T;
   workEndTime?: T;
+  notificationEmails?:
+    | T
+    | {
+        email?: T;
+        id?: T;
+      };
+  activityCheckInterval?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

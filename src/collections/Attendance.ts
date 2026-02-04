@@ -257,5 +257,91 @@ export const Attendance: CollectionConfig = {
         },
       ],
     },
+    {
+      name: 'selfie',
+      type: 'text',
+      required: false,
+      admin: {
+        description: 'Photo proof of attendance (URL)',
+      },
+    },
+    {
+      name: 'activityLogs',
+      type: 'array',
+      admin: {
+        description: 'Logs of user activity checks',
+      },
+      fields: [
+        {
+          name: 'timestamp',
+          type: 'date',
+          required: true,
+        },
+        {
+          name: 'status',
+          type: 'select',
+          options: [
+            { label: 'Active', value: 'active' },
+            { label: 'Inactive', value: 'inactive' },
+          ],
+          required: true,
+        },
+        {
+          name: 'notes',
+          type: 'text',
+        },
+      ],
+    },
+    {
+      name: 'activeDuration',
+      type: 'number',
+      admin: {
+        description: 'Total active minutes based on popup confirmations',
+      },
+      defaultValue: 0,
+    },
+    {
+      name: 'inactiveDuration',
+      type: 'number',
+      admin: {
+        description: 'Total inactive minutes based on missed popups',
+      },
+      defaultValue: 0,
+    },
+    {
+      name: 'locationHistory',
+      type: 'array',
+      admin: {
+        description: 'Periodic location tracking during work hours',
+      },
+      fields: [
+        {
+          name: 'timestamp',
+          type: 'date',
+          required: true,
+        },
+        {
+          name: 'latitude',
+          type: 'number',
+          required: true,
+        },
+        {
+          name: 'longitude',
+          type: 'number',
+          required: true,
+        },
+        {
+          name: 'address',
+          type: 'text',
+        },
+      ],
+    },
+    {
+      name: 'workSummary',
+      type: 'textarea',
+      admin: {
+        description: 'Written summary of work submitted upon checkout',
+      },
+    },
   ],
 }

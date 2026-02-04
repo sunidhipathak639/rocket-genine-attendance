@@ -12,8 +12,6 @@ import { Leaves } from './collections/Leaves'
 import { Payroll } from './collections/Payroll'
 import { Holidays } from './collections/Holidays'
 import { WorkSettings } from './globals/WorkSettings'
-import Logo from './components/graphics/Logo'
-import Icon from './components/graphics/Icon'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -45,8 +43,8 @@ export default buildConfig({
     },
     components: {
       graphics: {
-        Logo: Logo as any,
-        Icon: Icon as any,
+        Logo: '/components/graphics/Logo',
+        Icon: '/components/graphics/Icon',
       },
     },
   },

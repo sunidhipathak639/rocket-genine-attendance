@@ -1,18 +1,14 @@
 'use client'
 
 import React from 'react'
-import Image from 'next/image'
 
-const Logo = () => {
+const Logo = (_props: any) => {
   return (
     <div className="flex items-center justify-center">
-      <Image
+      <img
         src="/rocket-genie-logo.webp"
         alt="Rocket Genie"
-        width={240}
-        height={240}
-        className="object-contain"
-        priority
+        style={{ maxWidth: '240px', maxHeight: '240px', objectFit: 'contain' }} // Inline styles for safety
       />
     </div>
   )

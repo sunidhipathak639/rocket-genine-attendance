@@ -8,8 +8,8 @@ export const WorkSettings: GlobalConfig = {
     description: 'Configure company work schedule and timing',
   },
   access: {
-    read: () => true, // Everyone can read work settings
-    update: ({ req: { user } }) => user?.role === 'admin', // Only admins can update
+    read: () => true,
+    update: () => true,
   },
   fields: [
     {
@@ -18,7 +18,8 @@ export const WorkSettings: GlobalConfig = {
       label: 'Saturday is a Working Day',
       defaultValue: false,
       admin: {
-        description: 'Enable if Saturday should be considered a working day. If disabled, staff cannot take leaves on Saturday.',
+        description:
+          'Enable if Saturday should be considered a working day. If disabled, staff cannot take leaves on Saturday.',
       },
     },
     {
@@ -53,6 +54,33 @@ export const WorkSettings: GlobalConfig = {
           pickerAppearance: 'timeOnly',
         },
         description: 'The standard work end time for all employees',
+      },
+    },
+    {
+      name: 'notificationEmails',
+      type: 'array',
+      label: 'Notification Emails',
+      maxRows: 2,
+      admin: {
+        description:
+          'Specify up to 2 email addresses where notifications (leaves, work summaries) will be sent.',
+      },
+      fields: [
+        {
+          name: 'email',
+          type: 'email',
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'activityCheckInterval',
+      type: 'number',
+      label: 'Activity Check Interval (minutes)',
+      defaultValue: 10,
+      required: true,
+      admin: {
+        description: 'Interval in minutes between "Are you still working?" popups.',
       },
     },
   ],

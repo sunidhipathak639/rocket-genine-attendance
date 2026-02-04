@@ -9,23 +9,20 @@ import configPromise from '@payload-config'
 export async function PATCH(request: NextRequest) {
   try {
     const payload = await getPayload({ config: await configPromise })
-    const { user } = await payload.auth({ headers: request.headers })
+    const token = request.cookies.get('payload-token')?.value
+    const authHeaders = new Headers(request.headers)
+    if (token) authHeaders.set('Authorization', `Bearer ${token}`)
+    const { user } = await payload.auth({ headers: authHeaders })
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'You must be logged in to check out.' },
-        { status: 401 }
-      )
+      return NextResponse.json({ message: 'You must be logged in to check out.' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { id, timeOut, location } = body
+    const { id, timeOut, location, workSummary } = body
 
     if (!id) {
-      return NextResponse.json(
-        { message: 'Attendance record id is required.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Attendance record id is required.' }, { status: 400 })
     }
 
     const existing = await payload.findByID({
@@ -38,7 +35,7 @@ export async function PATCH(request: NextRequest) {
     if (userId !== user.id) {
       return NextResponse.json(
         { message: 'You can only check out your own attendance.' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
@@ -48,6 +45,7 @@ export async function PATCH(request: NextRequest) {
       data: {
         timeOut: timeOut || new Date().toISOString(),
         ...(location && { location }),
+        workSummary: workSummary || undefined,
       },
       req: {
         user,
@@ -59,13 +57,57 @@ export async function PATCH(request: NextRequest) {
       overrideAccess: true,
     })
 
+    // Send email to configured notification emails or default admins
+    try {
+      const { sendEmail } = await import('@/lib/email')
+      const settings = await payload.findGlobal({
+        slug: 'work-settings',
+      })
+
+      let targetEmails: string[] = []
+
+      if ((settings as any).notificationEmails && (settings as any).notificationEmails.length > 0) {
+        targetEmails = (settings as any).notificationEmails.map((e: any) => e.email).filter(Boolean)
+      } else {
+        const admins = await payload.find({
+          collection: 'users',
+          where: { role: { equals: 'admin' } },
+          limit: 5,
+        })
+        targetEmails = admins.docs.map((a) => a.email).filter(Boolean) as string[]
+      }
+
+      if (targetEmails.length > 0) {
+        const timeIn = doc.timeIn ? new Date(doc.timeIn).toLocaleTimeString() : 'N/A'
+        const timeOut = doc.timeOut ? new Date(doc.timeOut).toLocaleTimeString() : 'N/A'
+
+        await sendEmail({
+          to: targetEmails,
+          subject: `Work Summary: ${user.name || user.email} - ${new Date().toLocaleDateString()}`,
+          html: `
+            <h3>Work Summary for ${user.name || user.email}</h3>
+            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <p><strong>Check-in:</strong> ${timeIn}</p>
+            <p><strong>Check-out:</strong> ${timeOut}</p>
+            <p><strong>Work Summary:</strong></p>
+            <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
+              ${workSummary || 'No summary provided.'}
+            </div>
+            <p>Check the dashboard for more details.</p>
+          `,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to send check-out email:', err)
+    }
+
     return NextResponse.json({ doc })
   } catch (error: any) {
     console.error('Check-out error:', error)
     if (error instanceof APIError) {
       return NextResponse.json(
         { message: error.message, errors: (error as any).errors },
-        { status: error.status }
+        { status: error.status },
       )
     }
     const message = error?.message || 'Failed to check out.'
