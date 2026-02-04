@@ -1,0 +1,167 @@
+:root,
+html,
+body,
+[data-theme='dark'] {
+  /* Force Light Theme Colors */
+  --theme-bg-html: #ffffff !important;
+  --theme-bg-body: #ffffff !important;
+  --theme-bg-app: #ffffff !important;
+  --background-html: #ffffff !important;
+
+  /* Text Colors - Darker Black as requested */
+  --theme-text-color: #000000 !important;
+  --theme-elevation-0: #ffffff !important;
+  --theme-elevation-50: #fafafa !important;
+  --theme-elevation-100: #f5f5f5 !important;
+
+  /* Ensure inputs are visible and standard */
+  --theme-input-bg: #ffffff !important;
+  --theme-input-color: #000000 !important;
+  --theme-input-border: #e5e7eb !important;
+
+  /* Force Light Scheme */
+  color-scheme: light !important;
+}
+
+html,
+body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Ensure labels and other text are black */
+label,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span,
+div {
+  color: #000000;
+}
+
+html body #app {
+  background-color: #ffffff !important;
+}
+
+/* HIDE THEME SWITCHER */
+/* This prevents users from even trying to change the theme */
+.theme-switcher,
+[class*='theme-switcher'],
+button[aria-label='Switch to dark mode'],
+button[aria-label='Switch to light mode'],
+.payload-theme-switch {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* 
+  Specific Styles for Admin Login Page Only 
+  Targeted via class added by AdminStyleHandler
+*/
+body.admin-login-page {
+  /* Modernize Input Fields ONLY on login page */
+  input,
+  input[type='text'],
+  input[type='email'],
+  input[type='password'] {
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    color: #111827 !important;
+    font-size: 0.95rem !important;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    margin-bottom: 12px !important;
+  }
+
+  input:focus,
+  input[type='text']:focus,
+  input[type='email']:focus,
+  input[type='password']:focus {
+    border-color: #6366f1 !important; /* Indigo 500 */
+    box-shadow:
+      0 0 0 3px rgba(99, 102, 241, 0.15),
+      0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    outline: none !important;
+  }
+
+  /* Modernize Submit Button ONLY on login page */
+  button[type='submit'],
+  .btn--style-primary {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 12px 24px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    color: #ffffff !important;
+    box-shadow:
+      0 4px 6px -1px rgba(79, 70, 229, 0.2),
+      0 2px 4px -1px rgba(79, 70, 229, 0.1) !important;
+    transition: all 0.2s ease !important;
+    text-transform: none !important;
+    height: 48px !important;
+    width: 100% !important; /* Make button full width on login */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  button[type='submit']:hover,
+  .btn--style-primary:hover {
+    transform: translateY(-1px) !important;
+    box-shadow:
+      0 10px 15px -3px rgba(79, 70, 229, 0.25),
+      0 4px 6px -2px rgba(79, 70, 229, 0.15) !important;
+    opacity: 0.95 !important;
+  }
+
+  /* Add Loading Spinner to button */
+  button[type='submit']:before {
+    content: '' !important;
+    display: none !important; /* Hidden by default */
+    width: 18px !important;
+    height: 18px !important;
+    border: 2px solid #ffffff !important;
+    border-top-color: transparent !important;
+    border-radius: 50% !important;
+    margin-right: 10px !important;
+    animation: spin 0.8s linear infinite !important;
+  }
+
+  /* When button is disabled (submitting), show the spinner */
+  button[type='submit']:disabled:before,
+  button[type='submit'][disabled]:before {
+    display: inline-block !important;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Center layout */
+  #app {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100vh !important;
+    background: #ffffff !important;
+  }
+
+  /* Style the card container */
+  [class*='template-minimal'] {
+    width: 100% !important;
+    max-width: 440px !important;
+    padding: 2rem !important;
+  }
+}

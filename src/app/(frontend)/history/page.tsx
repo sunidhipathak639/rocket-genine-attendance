@@ -8,7 +8,7 @@ import { DashboardClient } from '@/components/dashboard-client'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Attendance History | Rocket Genine',
+  title: 'Attendance History | Rocket Genie',
   description: 'View your attendance history',
 }
 

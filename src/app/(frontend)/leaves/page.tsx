@@ -8,7 +8,7 @@ import { DashboardClient } from '@/components/dashboard-client'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Leave Requests | Rocket Genine',
+  title: 'Leave Requests | Rocket Genie',
   description: 'Manage your leave requests',
 }
 

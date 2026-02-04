@@ -3,8 +3,8 @@ import { Toaster } from '@/components/ui/sonner'
 import './styles.css'
 
 export const metadata = {
-  description: 'A blank template using Payload in a Next.js app.',
-  title: 'Payload Blank Template',
+  title: 'Rocket Genie Attendance',
+  description: 'Manage your attendance and payroll with Rocket Genie.',
 }
 
 export default async function RootLayout(props: { children: React.ReactNode }) {

@@ -9,7 +9,7 @@ import { DashboardClient } from '@/components/dashboard-client'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Dashboard | Rocket Genine',
+  title: 'Dashboard | Rocket Genie',
   description: 'Manage your attendance and profile',
 }
 

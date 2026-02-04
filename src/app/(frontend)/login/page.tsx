@@ -8,7 +8,7 @@ import { StaffLoginForm } from '@/components/staff-login-form'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Staff Login | Rocket Genine',
+  title: 'Staff Login | Rocket Genie',
   description: 'Login to your staff account',
 }
 

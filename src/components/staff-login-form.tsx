@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Mail, Lock, Rocket, AlertCircle } from 'lucide-react'
+import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react'
+import Image from 'next/image'
 
 export function StaffLoginForm() {
   const [email, setEmail] = useState('')
@@ -73,8 +74,13 @@ export function StaffLoginForm() {
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-white/80 backdrop-blur-xl">
         <CardHeader className="space-y-4 text-center pb-8">
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-2xl shadow-lg flex items-center justify-center transform hover:rotate-3 transition-transform">
-              <Rocket className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 relative transform hover:rotate-3 transition-transform">
+              <Image
+                src="/rocket-genie-logo.webp"
+                alt="Rocket Genie"
+                fill
+                className="object-contain rounded-2xl shadow-lg"
+              />
             </div>
           </div>
           <div>

@@ -12,6 +12,8 @@ import { Leaves } from './collections/Leaves'
 import { Payroll } from './collections/Payroll'
 import { Holidays } from './collections/Holidays'
 import { WorkSettings } from './globals/WorkSettings'
+import Logo from './components/graphics/Logo'
+import Icon from './components/graphics/Icon'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -27,7 +29,25 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
     meta: {
-      titleSuffix: '- Rocket Genine',
+      titleSuffix: '- Rocket Genie',
+      icons: [
+        {
+          rel: 'icon',
+          type: 'image/png',
+          url: '/icon.png',
+        },
+        {
+          rel: 'icon',
+          type: 'image/x-icon',
+          url: '/favicon.ico',
+        },
+      ],
+    },
+    components: {
+      graphics: {
+        Logo: Logo as any,
+        Icon: Icon as any,
+      },
     },
   },
   collections: [Users, Media, Attendance, Leaves, Payroll, Holidays],
