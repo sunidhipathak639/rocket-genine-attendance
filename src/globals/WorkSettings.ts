@@ -61,15 +61,18 @@ export const WorkSettings: GlobalConfig = {
       type: 'array',
       label: 'Notification Emails',
       maxRows: 2,
+      defaultValue: [],
       admin: {
         description:
           'Specify up to 2 email addresses where notifications (leaves, work summaries) will be sent.',
+        initCollapsed: false,
       },
       fields: [
         {
           name: 'email',
           type: 'email',
           required: true,
+          defaultValue: '',
         },
       ],
     },

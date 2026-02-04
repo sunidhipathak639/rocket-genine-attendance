@@ -386,7 +386,7 @@ export function DashboardClient({
               className="bg-green-600 hover:bg-green-700 w-full"
               onClick={() => handleActivityResponse('active')}
             >
-              Yes, I'm Working
+              Yes, I&apos;m Working
             </Button>
           </div>
         </DialogContent>
