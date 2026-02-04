@@ -81,20 +81,26 @@ export async function PATCH(request: NextRequest) {
         const timeIn = doc.timeIn ? new Date(doc.timeIn).toLocaleTimeString() : 'N/A'
         const timeOut = doc.timeOut ? new Date(doc.timeOut).toLocaleTimeString() : 'N/A'
 
+        const { getWorkSummaryEmail } = await import('@/lib/email-templates')
+
         await sendEmail({
           to: targetEmails,
-          subject: `Work Summary: ${user.name || user.email} - ${new Date().toLocaleDateString()}`,
-          html: `
-            <h3>Work Summary for ${user.name || user.email}</h3>
-            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            <p><strong>Check-in:</strong> ${timeIn}</p>
-            <p><strong>Check-out:</strong> ${timeOut}</p>
-            <p><strong>Work Summary:</strong></p>
-            <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
-              ${workSummary || 'No summary provided.'}
-            </div>
-            <p>Check the dashboard for more details.</p>
-          `,
+          subject: `📊 Work Summary: ${user.name || user.email} - ${new Date().toLocaleDateString()}`,
+          html: getWorkSummaryEmail({
+            employeeName: user.name || 'Unknown',
+            employeeEmail: user.email || '',
+            date: new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            }),
+            checkInTime: timeIn,
+            checkOutTime: timeOut,
+            workSummary,
+            activeDuration: doc.activeDuration,
+            inactiveDuration: doc.inactiveDuration,
+          }),
         })
       }
     } catch (err) {

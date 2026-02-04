@@ -48,17 +48,20 @@ export const Leaves: CollectionConfig = {
                   ? doc.user
                   : await req.payload.findByID({ collection: 'users', id: doc.user })
 
+              const { getLeaveRequestEmail } = await import('@/lib/email-templates')
+
               await sendEmail({
                 to: targetEmails,
-                subject: `New Leave Request: ${user?.name || user?.email}`,
-                html: `
-                <h3>New Leave Request Received</h3>
-                <p><strong>Employee:</strong> ${user?.name || user?.email}</p>
-                <p><strong>Type:</strong> ${doc.type}</p>
-                <p><strong>Dates:</strong> ${format(new Date(doc.startDate), 'MMM dd, yyyy')} to ${format(new Date(doc.endDate), 'MMM dd, yyyy')}</p>
-                <p><strong>Reason:</strong> ${doc.reason || 'No reason provided.'}</p>
-                <p><a href="${process.env.NEXT_PUBLIC_SERVER_URL}/admin/collections/leaves/${doc.id}">Review in Admin Panel</a></p>
-              `,
+                subject: `🏖️ New Leave Request: ${user?.name || user?.email}`,
+                html: getLeaveRequestEmail({
+                  employeeName: user?.name || 'Unknown',
+                  employeeEmail: user?.email || '',
+                  leaveType: doc.type,
+                  startDate: format(new Date(doc.startDate), 'MMM dd, yyyy'),
+                  endDate: format(new Date(doc.endDate), 'MMM dd, yyyy'),
+                  reason: doc.reason,
+                  leaveId: doc.id,
+                }),
               })
             }
           } catch (err) {
