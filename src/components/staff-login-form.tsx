@@ -51,13 +51,12 @@ export function StaffLoginForm() {
         throw new Error(data.message || 'Login failed')
       }
 
+      // Redirect based on role
       if (data.user?.role === 'admin') {
-        setError('Please use the admin login page for admin accounts.')
-        setIsLoading(false)
-        return
-      }
-
-      if (data.user?.role === 'staff') {
+        setTimeout(() => {
+          window.location.href = '/admin'
+        }, 100)
+      } else if (data.user?.role === 'staff') {
         setTimeout(() => {
           window.location.href = '/'
         }, 100)

@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { usePathname } from 'next/navigation'
 
 import type { Attendance, User } from '@/payload-types'
-import { AdminDashboardView } from './admin-dashboard-view'
+import { AdminDashboardViewEnhanced } from './admin-dashboard-view-enhanced'
 import { MyLeaveStatusList } from './my-leave-status-list'
 import { formatTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -424,7 +424,7 @@ export function DashboardClient({
             </p>
           </div>
 
-          <AdminDashboardView allUsers={allUsers} allAttendance={allAttendance} />
+          <AdminDashboardViewEnhanced allUsers={allUsers} allAttendance={allAttendance} />
         </main>
       </div>
     )

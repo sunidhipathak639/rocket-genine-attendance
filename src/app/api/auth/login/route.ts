@@ -9,10 +9,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = await request.json()
 
     if (!email || !password) {
-      return NextResponse.json(
-        { message: 'Email and password are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Email and password are required' }, { status: 400 })
     }
 
     // Use Payload's login method via Local API
@@ -31,13 +28,7 @@ export async function POST(request: NextRequest) {
       } as any,
     })
 
-    // Check if user is staff
-    if (result.user.role !== 'staff') {
-      return NextResponse.json(
-        { message: 'This login is for staff members only. Please use the admin login for admin accounts.' },
-        { status: 403 }
-      )
-    }
+    // Allow both staff and admin to login through this endpoint
 
     // Create response with cookies
     const response = NextResponse.json({
@@ -68,7 +59,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof APIError) {
       return NextResponse.json(
         { message: error.message || 'Invalid email or password' },
-        { status: error.status || 401 }
+        { status: error.status || 401 },
       )
     }
 
@@ -76,7 +67,7 @@ export async function POST(request: NextRequest) {
     console.error('Login error:', error)
     return NextResponse.json(
       { message: error.message || 'An error occurred during login' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
