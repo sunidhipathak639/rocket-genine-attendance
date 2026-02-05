@@ -11,6 +11,7 @@ import { Attendance } from './collections/Attendance'
 import { Leaves } from './collections/Leaves'
 import { Payroll } from './collections/Payroll'
 import { Holidays } from './collections/Holidays'
+import { Meetings } from './collections/Meetings'
 import { WorkSettings } from './globals/WorkSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -53,7 +54,7 @@ export default buildConfig({
       },
     },
   },
-  collections: [Users, Media, Attendance, Leaves, Payroll, Holidays],
+  collections: [Users, Media, Attendance, Leaves, Payroll, Holidays, Meetings],
   globals: [WorkSettings],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',

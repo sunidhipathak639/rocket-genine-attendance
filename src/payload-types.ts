@@ -73,6 +73,7 @@ export interface Config {
     leaves: Leaf;
     payroll: Payroll;
     holidays: Holiday;
+    meetings: Meeting;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -86,6 +87,7 @@ export interface Config {
     leaves: LeavesSelect<false> | LeavesSelect<true>;
     payroll: PayrollSelect<false> | PayrollSelect<true>;
     holidays: HolidaysSelect<false> | HolidaysSelect<true>;
+    meetings: MeetingsSelect<false> | MeetingsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -346,6 +348,20 @@ export interface Holiday {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meetings".
+ */
+export interface Meeting {
+  id: number;
+  topic: string;
+  meetingLink: string;
+  date: string;
+  participants: (number | User)[];
+  status?: ('draft' | 'sent') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -391,6 +407,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'holidays';
         value: number | Holiday;
+      } | null)
+    | ({
+        relationTo: 'meetings';
+        value: number | Meeting;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -574,6 +594,19 @@ export interface HolidaysSelect<T extends boolean = true> {
   lucideIcon?: T;
   uploadedIcon?: T;
   svgCode?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meetings_select".
+ */
+export interface MeetingsSelect<T extends boolean = true> {
+  topic?: T;
+  meetingLink?: T;
+  date?: T;
+  participants?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
 }

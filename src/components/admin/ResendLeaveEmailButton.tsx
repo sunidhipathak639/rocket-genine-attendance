@@ -51,9 +51,15 @@ export function ResendLeaveEmailButton() {
         size="small"
         onClick={handleResend}
         disabled={loading}
-        icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+        icon={
+          loading ? (
+            <Loader2 className="w-4 h-4 animate-spin !text-white" />
+          ) : (
+            <Mail className="w-4 h-4 !text-white" />
+          )
+        }
       >
-        {loading ? 'Resending…' : 'Resend Status Email'}
+        <span style={{ color: 'white' }}>{loading ? 'Resending…' : 'Resend Status Email'}</span>
       </Button>
       {message && (
         <span

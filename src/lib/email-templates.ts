@@ -534,3 +534,58 @@ export function getLeaveStatusEmail({
 
   return getEmailTemplate(content)
 }
+
+/**
+ * Meeting Invitation Email Template
+ */
+export function getMeetingInvitationEmail({
+  topic,
+  meetingLink,
+  date,
+  employeeName,
+}: {
+  topic: string
+  meetingLink: string
+  date: string
+  employeeName: string
+}): string {
+  const content = `
+    <h1>📅 New Meeting Invitation</h1>
+    <p>Hello ${employeeName},</p>
+    <p>You have been invited to a meeting. Please find the details below:</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Topic:</span>
+        <span class="info-value"><strong>${topic}</strong></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Date & Time:</span>
+        <span class="info-value">${date}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Platform:</span>
+        <span class="info-value">Virtual Meeting</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center;">
+      <a href="${meetingLink}" class="button" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+        Join Meeting Now →
+      </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
+      If you're unable to join via the button above, copy and paste this link into your browser:<br>
+      <a href="${meetingLink}" style="color: #3b82f6; word-break: break-all;">${meetingLink}</a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 10px;">
+      Please be on time and ensure your microphone and camera are working.
+    </p>
+  `
+
+  return getEmailTemplate(content)
+}

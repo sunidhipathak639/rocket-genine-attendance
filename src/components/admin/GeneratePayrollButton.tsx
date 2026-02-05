@@ -46,17 +46,21 @@ export function GeneratePayrollButton() {
         size="small"
         onClick={handleGenerate}
         disabled={loading}
-        icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
+        icon={
+          loading ? (
+            <Loader2 className="w-4 h-4 animate-spin !text-white" />
+          ) : (
+            <DollarSign className="w-4 h-4 !text-white" />
+          )
+        }
       >
-        {loading ? 'Generating…' : 'Generate payroll for this month'}
+        <span style={{ color: 'white' }}>
+          {loading ? 'Generating…' : 'Generate payroll for this month'}
+        </span>
       </Button>
       {message && (
         <span
-          className={
-            message.type === 'success'
-              ? 'text-green-600 text-sm'
-              : 'text-red-600 text-sm'
-          }
+          className={message.type === 'success' ? 'text-green-600 text-sm' : 'text-red-600 text-sm'}
         >
           {message.text}
         </span>
