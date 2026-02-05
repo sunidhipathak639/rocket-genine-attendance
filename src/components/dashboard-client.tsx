@@ -26,7 +26,7 @@ import { formatTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
-import { FluidCursor } from 'cursor-styles'
+import { CustomPngCursor } from 'cursor-styles'
 import 'cursor-styles/dist/style.css'
 import { useIdleTimer } from 'react-idle-timer'
 
@@ -425,7 +425,7 @@ export function DashboardClient({
 
   return (
     <div className="min-h-screen bg-slate-50 relative" ref={bgRef}>
-      <FluidCursor color="#523df6" />
+      <CustomPngCursor icon="/favicon.ico" size={60} />
       {/* Dynamic Background Blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="bg-blob-1 absolute -top-24 -left-24 w-96 h-96 bg-indigo-200/20 rounded-full blur-[100px]" />

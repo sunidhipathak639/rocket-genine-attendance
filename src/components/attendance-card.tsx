@@ -12,10 +12,23 @@ import {
   RefreshCw,
   PartyPopper,
   Loader2,
+  Paperclip,
+  Target,
+  AlertCircle,
+  FileText,
+  Smile,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Attendance } from '@/payload-types'
@@ -47,8 +60,15 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [showSummaryModal, setShowSummaryModal] = useState(false)
   const [workSummary, setWorkSummary] = useState('')
+  const [accomplishments, setAccomplishments] = useState('')
+  const [challenges, setChallenges] = useState('')
+  const [nextDayPlan, setNextDayPlan] = useState('')
+  const [mood, setMood] = useState('good')
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
   const [address, setAddress] = useState<string | null>(null)
   const [displayAddress, setDisplayAddress] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchTodayAttendance = useCallback(async () => {
     if (!user?.id) return
@@ -193,6 +213,31 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
     }
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const MAX_SIZE = 3 * 1024 * 1024 // 3MB
+      const newFiles = Array.from(e.target.files)
+
+      const oversizedFiles = newFiles.filter((file) => file.size > MAX_SIZE)
+      if (oversizedFiles.length > 0) {
+        toast.error(
+          `Files too large! Max size is 3MB. Skipping: ${oversizedFiles.map((f) => f.name).join(', ')}`,
+        )
+        // Filter out the oversized files and add the rest
+        const validFiles = newFiles.filter((file) => file.size <= MAX_SIZE)
+        if (validFiles.length > 0) {
+          setSelectedFiles((prev) => [...prev, ...validFiles])
+        }
+      } else {
+        setSelectedFiles((prev) => [...prev, ...newFiles])
+      }
+    }
+  }
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const isCheckedIn = !!attendanceRecord && !!attendanceRecord.timeIn && !attendanceRecord.timeOut
   const isCheckedOut = !!attendanceRecord && !!attendanceRecord.timeIn && !!attendanceRecord.timeOut
 
@@ -291,8 +336,53 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
       return
     }
     setLoading(true)
+    setUploading(true)
     try {
       const now = new Date()
+
+      // 1. Upload Attachments to Vercel Blob and create Media docs
+      const attachmentIds: (string | number)[] = []
+      for (const file of selectedFiles) {
+        try {
+          // A. Upload to Vercel Blob
+          const blobRes = await fetch(
+            `/api/upload?filename=report-${user.name || 'user'}-${Date.now()}-${file.name}`,
+            {
+              method: 'POST',
+              body: file,
+              credentials: 'include',
+            },
+          )
+
+          if (!blobRes.ok) throw new Error(`Blob upload failed for ${file.name}`)
+          const blobData = await blobRes.json()
+          const blobUrl = blobData.url
+
+          // B. Create Metadata Doc in Payload Media Collection
+          const mediaRes = await fetch('/api/media', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: blobUrl,
+              filename: file.name,
+              alt: `Work attachment: ${file.name} from ${user.name} on ${new Date().toLocaleDateString()}`,
+            }),
+          })
+
+          if (mediaRes.ok) {
+            const mediaDocData = await mediaRes.json()
+            attachmentIds.push(mediaDocData.doc.id)
+          } else {
+            console.error('Failed to create media doc for:', file.name)
+          }
+        } catch (err) {
+          console.error('File upload error:', err)
+          toast.error(`Could not upload ${file.name}`)
+        }
+      }
+
+      // 2. Submit Advanced Check-Out
       const res = await fetch('/api/check-out', {
         method: 'PATCH',
         credentials: 'include',
@@ -306,13 +396,18 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
             address: address || 'Captured via Dashboard',
           },
           workSummary,
+          accomplishments,
+          challenges,
+          nextDayPlan,
+          mood,
+          attachments: attachmentIds,
         }),
       })
       const data = await res.json()
       if (res.ok) {
         setAttendanceRecord(data.doc)
         setShowSummaryModal(false)
-        toast.success('Checked out successfully!')
+        toast.success('Shift report submitted! Have a great evening.')
         router.refresh()
       } else {
         toast.error(data.message || 'Failed to check out')
@@ -322,6 +417,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
       toast.error('Failed to connect to server')
     } finally {
       setLoading(false)
+      setUploading(false)
     }
   }
 
@@ -613,32 +709,160 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
       </Dialog>
 
       <Dialog open={showSummaryModal} onOpenChange={setShowSummaryModal}>
-        <DialogContent className="sm:max-w-lg rounded-3xl p-0 border-none shadow-2xl overflow-hidden">
-          <div className="bg-slate-900 p-10 text-white">
-            <h2 className="text-3xl font-black">Work Summary</h2>
-            <p className="opacity-60 text-sm">Tell us what you did today.</p>
+        <DialogContent className="sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-slate-900 p-8 text-white shrink-0">
+            <h2 className="text-2xl md:text-3xl font-black">Daily Shift Report</h2>
+            <p className="opacity-60 text-sm">Review your achievements and plan for tomorrow.</p>
           </div>
-          <div className="p-10">
-            <textarea
-              className="w-full min-h-[180px] p-6 rounded-3xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base"
-              placeholder="Describe achievements..."
-              value={workSummary}
-              onChange={(e) => setWorkSummary(e.target.value)}
-            />
-            <div className="flex gap-4 mt-8">
+
+          <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+            {/* Sentiment Selector */}
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Smile className="w-4 h-4" /> End of Day Mood
+              </label>
+              <Select value={mood} onValueChange={setMood}>
+                <SelectTrigger className="w-full h-14 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white text-base font-bold">
+                  <SelectValue placeholder="How was your day?" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-slate-200">
+                  <SelectItem value="productive">🚀 Highly Productive</SelectItem>
+                  <SelectItem value="good">✅ Good Progress</SelectItem>
+                  <SelectItem value="challenging">⚠️ Challenging</SelectItem>
+                  <SelectItem value="exhausting">😴 Exhausting</SelectItem>
+                  <SelectItem value="blocked">📉 Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* General Overview */}
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Shift Overview
+              </label>
+              <textarea
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                placeholder="A brief summary of your shift..."
+                value={workSummary}
+                onChange={(e) => setWorkSummary(e.target.value)}
+              />
+            </div>
+
+            {/* Accomplishments */}
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Target className="w-4 h-4" /> Key Accomplishments (Required)
+              </label>
+              <textarea
+                className="w-full min-h-[120px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                placeholder="What did you achieve today?"
+                value={accomplishments}
+                onChange={(e) => setAccomplishments(e.target.value)}
+              />
+            </div>
+
+            {/* Challenges */}
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" /> Blockers & Challenges
+              </label>
+              <textarea
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                placeholder="Any issues that slowed you down?"
+                value={challenges}
+                onChange={(e) => setChallenges(e.target.value)}
+              />
+            </div>
+
+            {/* Next Day Plan */}
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Agenda for Tomorrow
+              </label>
+              <textarea
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                placeholder="Top priorities for your next shift?"
+                value={nextDayPlan}
+                onChange={(e) => setNextDayPlan(e.target.value)}
+              />
+            </div>
+
+            {/* File Upload */}
+            <div className="space-y-4">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Paperclip className="w-4 h-4" /> Documentation & Attachments
+              </label>
+
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="group cursor-pointer p-8 rounded-3xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all flex flex-col items-center justify-center text-center gap-3"
+              >
+                <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                  <Paperclip className="w-6 h-6 text-slate-400 group-hover:text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-900">Click to upload files</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1">PDFs, Images, or Reports</p>
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  multiple
+                  onChange={handleFileSelect}
+                />
+              </div>
+
+              {selectedFiles.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedFiles.map((file, idx) => (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      key={idx}
+                      className="p-4 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="w-5 h-5 text-indigo-500 shrink-0" />
+                        <span className="text-sm font-bold text-slate-700 truncate">
+                          {file.name}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeFile(idx)}
+                        className="p-1.5 hover:bg-white hover:text-red-500 rounded-lg text-slate-400 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-8 border-t border-slate-100 shrink-0 bg-white">
+            <div className="flex gap-4">
               <Button
                 variant="ghost"
                 onClick={() => setShowSummaryModal(false)}
-                className="flex-1 py-7"
+                className="flex-1 py-7 rounded-2xl font-black text-slate-500"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCheckOut}
-                disabled={loading || !workSummary.trim()}
-                className="flex-[2] bg-indigo-600 text-white py-7 rounded-2xl font-bold"
+                disabled={loading || !accomplishments.trim() || uploading}
+                className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white py-7 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100"
               >
-                Submit & Checkout
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-3" />
+                    Uploading...
+                  </>
+                ) : (
+                  'Complete Shift Report'
+                )}
               </Button>
             </div>
           </div>

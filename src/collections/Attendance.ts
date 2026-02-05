@@ -263,6 +263,10 @@ export const Attendance: CollectionConfig = {
       required: false,
       admin: {
         description: 'Photo proof of attendance (URL)',
+        components: {
+          Field: '@/components/admin/AttendancePreviews#SelfiePreview',
+          Cell: '@/components/admin/AttendancePreviews#SelfieCell',
+        },
       },
     },
     {
@@ -340,7 +344,56 @@ export const Attendance: CollectionConfig = {
       name: 'workSummary',
       type: 'textarea',
       admin: {
-        description: 'Written summary of work submitted upon checkout',
+        description: 'Detailed description of work performed',
+      },
+    },
+    {
+      name: 'accomplishments',
+      type: 'textarea',
+      admin: {
+        description: 'Key wins and tasks completed today',
+      },
+    },
+    {
+      name: 'challenges',
+      type: 'textarea',
+      admin: {
+        description: 'Any blockers or challenges faced during the shift',
+      },
+    },
+    {
+      name: 'nextDayPlan',
+      type: 'textarea',
+      label: 'Tasks for Tomorrow',
+      admin: {
+        description: 'Priority tasks planned for the next working day',
+      },
+    },
+    {
+      name: 'mood',
+      type: 'select',
+      label: 'End of Day Sentiment',
+      options: [
+        { label: '🚀 Highly Productive', value: 'productive' },
+        { label: '✅ Good Progress', value: 'good' },
+        { label: '⚠️ Challenging', value: 'challenging' },
+        { label: '😴 Exhausting', value: 'exhausting' },
+        { label: '📉 Blocked', value: 'blocked' },
+      ],
+      admin: {
+        description: 'How was your workday overall?',
+      },
+    },
+    {
+      name: 'attachments',
+      type: 'relationship',
+      relationTo: 'media',
+      hasMany: true,
+      admin: {
+        description: 'Upload PDFs, documents, or screenshots related to today’s work',
+        components: {
+          Field: '@/components/admin/AttendancePreviews#AttachmentsPreview',
+        },
       },
     },
   ],

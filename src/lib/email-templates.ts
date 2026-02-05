@@ -326,6 +326,11 @@ export function getWorkSummaryEmail({
   checkInTime,
   checkOutTime,
   workSummary,
+  accomplishments,
+  challenges,
+  nextDayPlan,
+  mood,
+  attachments = [],
   activeDuration,
   inactiveDuration,
 }: {
@@ -335,6 +340,11 @@ export function getWorkSummaryEmail({
   checkInTime: string
   checkOutTime: string
   workSummary?: string
+  accomplishments?: string
+  challenges?: string
+  nextDayPlan?: string
+  mood?: string
+  attachments?: { url: string; filename: string }[]
   activeDuration?: number
   inactiveDuration?: number
 }): string {
@@ -342,9 +352,17 @@ export function getWorkSummaryEmail({
   const activePercentage =
     totalMinutes > 0 ? Math.round(((activeDuration || 0) / totalMinutes) * 100) : 0
 
+  const moodLabels: Record<string, string> = {
+    productive: '🚀 Highly Productive',
+    good: '✅ Good Progress',
+    challenging: '⚠️ Challenging',
+    exhausting: '😴 Exhausting',
+    blocked: '📉 Blocked',
+  }
+
   const content = `
-    <h1>📊 Daily Work Summary</h1>
-    <p>End-of-day work summary for <strong>${employeeName}</strong></p>
+    <h1>📊 Daily Shift Report</h1>
+    <p>Comprehensive work summary for <strong>${employeeName}</strong> on <strong>${date}</strong></p>
     
     <div class="info-card">
       <div class="info-row">
@@ -352,42 +370,90 @@ export function getWorkSummaryEmail({
         <span class="info-value">${employeeName} (${employeeEmail})</span>
       </div>
       <div class="info-row">
-        <span class="info-label">Date:</span>
-        <span class="info-value">${date}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Check-in Time:</span>
+        <span class="info-label">Check-in:</span>
         <span class="info-value">${checkInTime}</span>
       </div>
       <div class="info-row">
-        <span class="info-label">Check-out Time:</span>
+        <span class="info-label">Check-out:</span>
         <span class="info-value">${checkOutTime}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Sentiment:</span>
+        <span class="info-value"><strong>${moodLabels[mood || ''] || 'No sentiment shared'}</strong></span>
       </div>
       ${
         activeDuration !== undefined
           ? `
         <div class="info-row">
-          <span class="info-label">Active Duration:</span>
-          <span class="info-value">${Math.round(activeDuration / 60)} hours ${activeDuration % 60} minutes (${activePercentage}%)</span>
+          <span class="info-label">Focus Score:</span>
+          <span class="info-value">${Math.round(activeDuration / 60)}h ${activeDuration % 60}m active (${activePercentage}%)</span>
         </div>
       `
           : ''
       }
     </div>
 
-    <h2>Work Summary</h2>
-    <div class="summary-box">${workSummary || 'No summary provided.'}</div>
+    ${
+      workSummary
+        ? `
+      <h2>📝 Overview of Work</h2>
+      <div class="summary-box">${workSummary}</div>
+    `
+        : ''
+    }
+
+    ${
+      accomplishments
+        ? `
+      <h2>🏆 Key Accomplishments</h2>
+      <div class="summary-box" style="border-left: 4px solid #10b981; background: #f0fdf4;">${accomplishments}</div>
+    `
+        : ''
+    }
+
+    ${
+      challenges
+        ? `
+      <h2>⚠️ Challenges & Blockers</h2>
+      <div class="summary-box" style="border-left: 4px solid #ef4444; background: #fef2f2;">${challenges}</div>
+    `
+        : ''
+    }
+
+    ${
+      nextDayPlan
+        ? `
+      <h2>📅 Agenda for Tomorrow</h2>
+      <div class="summary-box" style="border-left: 4px solid #3b82f6; background: #eff6ff;">${nextDayPlan}</div>
+    `
+        : ''
+    }
+
+    ${
+      attachments && attachments.length > 0
+        ? `
+      <h2>📎 Attachments & Documentation</h2>
+      <div style="margin: 20px 0;">
+        ${attachments
+          .map(
+            (file) => `
+          <a href="${file.url}" target="_blank" style="display: block; padding: 12px; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 500;">
+            📄 ${file.filename} (View/Download)
+          </a>
+        `,
+          )
+          .join('')}
+      </div>
+    `
+        : ''
+    }
 
     <div class="divider"></div>
 
     <p style="text-align: center;">
       <a href="${process.env.NEXT_PUBLIC_SERVER_URL}/admin" class="button">
-        View Full Dashboard →
+        Review in Admin Panel →
       </a>
-    </p>
-
-    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
-      This summary was automatically generated when the employee checked out.
     </p>
   `
 

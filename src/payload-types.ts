@@ -165,18 +165,11 @@ export interface User {
  */
 export interface Media {
   id: number;
+  url: string;
+  filename?: string | null;
   alt: string;
   updatedAt: string;
   createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -230,9 +223,29 @@ export interface Attendance {
       }[]
     | null;
   /**
-   * Written summary of work submitted upon checkout
+   * Detailed description of work performed
    */
   workSummary?: string | null;
+  /**
+   * Key wins and tasks completed today
+   */
+  accomplishments?: string | null;
+  /**
+   * Any blockers or challenges faced during the shift
+   */
+  challenges?: string | null;
+  /**
+   * Priority tasks planned for the next working day
+   */
+  nextDayPlan?: string | null;
+  /**
+   * How was your workday overall?
+   */
+  mood?: ('productive' | 'good' | 'challenging' | 'exhausting' | 'blocked') | null;
+  /**
+   * Upload PDFs, documents, or screenshots related to today’s work
+   */
+  attachments?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -448,18 +461,11 @@ export interface UsersSelect<T extends boolean = true> {
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
+  url?: T;
+  filename?: T;
   alt?: T;
   updatedAt?: T;
   createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -499,6 +505,11 @@ export interface AttendanceSelect<T extends boolean = true> {
         id?: T;
       };
   workSummary?: T;
+  accomplishments?: T;
+  challenges?: T;
+  nextDayPlan?: T;
+  mood?: T;
+  attachments?: T;
   updatedAt?: T;
   createdAt?: T;
 }

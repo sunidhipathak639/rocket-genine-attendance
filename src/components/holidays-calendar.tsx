@@ -27,6 +27,14 @@ interface HolidayRecord {
   description?: string | null
 }
 
+interface LeaveRecord {
+  id: string | number
+  startDate: string
+  endDate: string
+  bookingStatus: 'pending' | 'approved' | 'rejected'
+  type: string
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -42,9 +50,10 @@ const item = {
   show: { opacity: 1, y: 0 },
 }
 
-export function HolidaysCalendar({ user: _user }: HolidaysCalendarProps) {
+export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
+  const [leaves, setLeaves] = useState<LeaveRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedHoliday, setSelectedHoliday] = useState<HolidayRecord | null>(null)
   const [isHolidayDialogOpen, setIsHolidayDialogOpen] = useState(false)
@@ -58,6 +67,17 @@ export function HolidaysCalendar({ user: _user }: HolidaysCalendarProps) {
         if (data.docs) {
           setHolidays(data.docs)
         }
+
+        if (user?.id) {
+          const leaveRes = await fetch(
+            `/api/leaves?where[user][equals]=${user.id}&where[bookingStatus][equals]=approved&limit=100`,
+            { credentials: 'include' },
+          )
+          const leaveData = await leaveRes.json()
+          if (leaveData.docs) {
+            setLeaves(leaveData.docs)
+          }
+        }
       } catch (error) {
         console.error('Error fetching holidays:', error)
       } finally {
@@ -65,7 +85,7 @@ export function HolidaysCalendar({ user: _user }: HolidaysCalendarProps) {
       }
     }
     fetchHolidays()
-  }, [])
+  }, [user?.id])
 
   const currentMonthHolidays = holidays.filter((hol) => {
     if (!date) return false
@@ -111,10 +131,23 @@ export function HolidaysCalendar({ user: _user }: HolidaysCalendarProps) {
 
   const modifiers = {
     holiday: (date: Date) => holidays.some((hol) => isSameDay(new Date(hol.date), date)),
+    leave: (date: Date) =>
+      leaves.some((leave) => {
+        const start = new Date(leave.startDate)
+        const end = new Date(leave.endDate)
+        const d = new Date(date)
+        d.setHours(0, 0, 0, 0)
+        const s = new Date(start)
+        s.setHours(0, 0, 0, 0)
+        const e = new Date(end)
+        e.setHours(0, 0, 0, 0)
+        return d >= s && d <= e
+      }),
   }
 
   const modifiersClassNames = {
     holiday: 'bg-indigo-50 text-indigo-700 border-2 border-indigo-300 rounded-md font-bold',
+    leave: 'bg-red-500 text-white border-2 border-red-600 rounded-md font-bold shadow-sm',
   }
 
   const handleDayClick = (day: Date) => {
@@ -183,7 +216,13 @@ export function HolidaysCalendar({ user: _user }: HolidaysCalendarProps) {
                 <div className="flex items-center gap-3">
                   <div className="w-4 h-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg"></div>
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Marked
+                    Holiday
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 bg-red-500 border-2 border-red-600 rounded-lg"></div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Approved Leave
                   </span>
                 </div>
                 {['public', 'company', 'optional'].map((type) => (

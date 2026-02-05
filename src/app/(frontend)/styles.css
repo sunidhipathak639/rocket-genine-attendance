@@ -42,9 +42,18 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    cursor: url('/favicon.ico'), auto;
   }
   body {
     @apply bg-background text-foreground font-sans;
+  }
+  a,
+  button,
+  [role='button'],
+  input[type='submit'],
+  input[type='button'],
+  label {
+    cursor: url('/favicon.ico'), pointer !important;
   }
 }
 

@@ -15,6 +15,13 @@ export const metadata: Metadata = {
     template: '%s | Rocket Genie',
   },
   description: 'Manage your attendance and payroll with Rocket Genie.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    shortcut: '/favicon.ico',
+  },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

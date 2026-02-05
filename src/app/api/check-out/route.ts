@@ -21,7 +21,17 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, timeOut, location, workSummary } = body
+    const {
+      id,
+      timeOut,
+      location,
+      workSummary,
+      accomplishments,
+      challenges,
+      nextDayPlan,
+      mood,
+      attachments,
+    } = body
 
     if (!id) {
       return NextResponse.json({ message: 'Attendance record id is required.' }, { status: 400 })
@@ -41,14 +51,22 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    // Prepare update data
+    const updateData: any = {
+      timeOut: timeOut || new Date().toISOString(),
+      ...(location && { location }),
+      workSummary: workSummary || undefined,
+      accomplishments: accomplishments || undefined,
+      challenges: challenges || undefined,
+      nextDayPlan: nextDayPlan || undefined,
+      mood: mood || undefined,
+      attachments: attachments || undefined,
+    }
+
     const doc: any = await payload.update({
       collection: 'attendance',
       id,
-      data: {
-        timeOut: timeOut || new Date().toISOString(),
-        ...(location && { location }),
-        workSummary: workSummary || undefined,
-      },
+      data: updateData,
       req: {
         user,
         payload,
@@ -89,10 +107,24 @@ export async function PATCH(request: NextRequest) {
         const timeIn = doc.timeIn ? new Date(doc.timeIn).toLocaleTimeString() : 'N/A'
         const timeOutActual = doc.timeOut ? new Date(doc.timeOut).toLocaleTimeString() : 'N/A'
 
+        // Fetch attachment details for the email
+        let emailAttachments: { url: string; filename: string }[] = []
+        if (doc.attachments && doc.attachments.length > 0) {
+          const mediaDocs = await payload.find({
+            collection: 'media',
+            where: { id: { in: doc.attachments } },
+            overrideAccess: true,
+          })
+          emailAttachments = mediaDocs.docs.map((m: any) => ({
+            url: m.url,
+            filename: m.filename || 'attachment',
+          }))
+        }
+
         console.log('[Check-out Email] Sending via Resend...')
         const result = await sendEmail({
           to: targetEmails,
-          subject: `📊 Work Summary: ${user.name || user.email} - ${new Date().toLocaleDateString()}`,
+          subject: `📊 Shift Report: ${user.name || user.email} - ${new Date().toLocaleDateString()}`,
           html: getWorkSummaryEmail({
             employeeName: user.name || 'Unknown',
             employeeEmail: user.email || '',
@@ -104,7 +136,12 @@ export async function PATCH(request: NextRequest) {
             }),
             checkInTime: timeIn,
             checkOutTime: timeOutActual,
-            workSummary,
+            workSummary: doc.workSummary,
+            accomplishments: doc.accomplishments,
+            challenges: doc.challenges,
+            nextDayPlan: doc.nextDayPlan,
+            mood: doc.mood,
+            attachments: emailAttachments,
             activeDuration: doc.activeDuration ?? undefined,
             inactiveDuration: doc.inactiveDuration ?? undefined,
           }),

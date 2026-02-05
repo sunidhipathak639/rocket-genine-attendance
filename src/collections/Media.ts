@@ -10,10 +10,18 @@ export const Media: CollectionConfig = {
   },
   fields: [
     {
+      name: 'url',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'filename',
+      type: 'text',
+    },
+    {
       name: 'alt',
       type: 'text',
       required: true,
     },
   ],
-  upload: true,
 }

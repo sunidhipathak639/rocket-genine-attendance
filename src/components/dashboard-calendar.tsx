@@ -41,6 +41,13 @@ interface HolidayRecord {
   type: string
 }
 
+interface LeaveRecord {
+  startDate: string
+  endDate: string
+  bookingStatus: 'pending' | 'approved' | 'rejected'
+  type: 'full_day' | 'half_day' | 'paid' | 'unpaid'
+}
+
 export function DashboardCalendar({
   user,
   workSettings: propsWorkSettings,
@@ -52,6 +59,7 @@ export function DashboardCalendar({
 
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
+  const [leaves, setLeaves] = useState<LeaveRecord[]>([])
   const [_workSettings, setWorkSettings] = useState<{
     saturdayWorkingDay?: boolean | null
     workStartTime?: string | null
@@ -82,6 +90,16 @@ export function DashboardCalendar({
           setHolidays(holJson.docs)
         }
 
+        // Fetch Approved Leaves
+        const leaveRes = await fetch(
+          `/api/leaves?where[user][equals]=${user.id}&where[bookingStatus][equals]=approved&limit=100`,
+          { credentials: 'include' },
+        )
+        const leaveJson = await leaveRes.json()
+        if (leaveJson.docs) {
+          setLeaves(leaveJson.docs)
+        }
+
         // Fetch Work Settings if not provided as prop
         if (!propsWorkSettings) {
           const settingsRes = await fetch(`/api/globals/work-settings`, { credentials: 'include' })
@@ -106,6 +124,19 @@ export function DashboardCalendar({
   const modifiers = {
     booked: (date: Date) => attendanceData.some((att) => isSameDay(new Date(att.date), date)),
     holiday: (date: Date) => holidays.some((hol) => isSameDay(new Date(hol.date), date)),
+    leave: (date: Date) =>
+      leaves.some((leave) => {
+        const start = new Date(leave.startDate)
+        const end = new Date(leave.endDate)
+        // Normalize to midnight UTC for comparison
+        const d = new Date(date)
+        d.setHours(0, 0, 0, 0)
+        const s = new Date(start)
+        s.setHours(0, 0, 0, 0)
+        const e = new Date(end)
+        e.setHours(0, 0, 0, 0)
+        return d >= s && d <= e
+      }),
     present: (date: Date) =>
       attendanceData.some((att) => isSameDay(new Date(att.date), date) && att.status === 'present'),
     absent: (date: Date) =>
@@ -122,6 +153,7 @@ export function DashboardCalendar({
   const modifiersClassNames = {
     present: 'bg-green-100 text-green-700 hover:bg-green-200 rounded-md',
     absent: 'bg-red-100 text-red-700 hover:bg-red-200 rounded-md',
+    leave: 'bg-red-500 text-white hover:bg-red-600 rounded-md font-bold shadow-sm',
     late: 'bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-md',
     halfDay: 'bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-md',
     holiday: 'bg-blue-50 text-blue-600 border border-blue-200 rounded-md font-bold',
@@ -304,6 +336,9 @@ export function DashboardCalendar({
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-widest">
+            <div className="flex items-center gap-1.5 bg-red-500 px-2 py-1 rounded-full text-white border border-red-600">
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>Leave
+            </div>
             <div className="flex items-center gap-1.5 bg-green-50 px-2 py-1 rounded-full text-green-600 border border-green-100">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>Present
             </div>
@@ -337,14 +372,25 @@ export function DashboardCalendar({
               // @ts-expect-error - DayContent is a custom component prop
               DayContent: (props: { date: Date }) => {
                 const isHol = holidays.find((h) => isSameDay(new Date(h.date), props.date))
+                const isLeave = leaves.some((leave) => {
+                  const start = new Date(leave.startDate)
+                  const end = new Date(leave.endDate)
+                  const d = new Date(props.date)
+                  d.setHours(0, 0, 0, 0)
+                  const s = new Date(start)
+                  s.setHours(0, 0, 0, 0)
+                  const e = new Date(end)
+                  e.setHours(0, 0, 0, 0)
+                  return d >= s && d <= e
+                })
                 const isSunday = props.date.getDay() === 0
                 const isDisabled = isDateDisabled(props.date)
                 return (
                   <div
-                    className={`relative w-full h-full flex items-center justify-center p-2 sm:p-3 group transition-all ${isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:scale-110'}`}
+                    className={`relative w-full h-full flex items-center justify-center p-2 sm:p-3 group transition-all ${isDisabled && !isLeave ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:scale-110'}`}
                   >
                     <span
-                      className={`text-xs sm:text-sm font-bold ${isDisabled ? 'text-slate-300' : 'text-slate-700'}`}
+                      className={`text-xs sm:text-sm font-bold ${isLeave ? 'text-white' : isDisabled ? 'text-slate-300' : 'text-slate-700'}`}
                     >
                       {props.date.getDate()}
                     </span>
