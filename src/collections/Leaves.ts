@@ -16,7 +16,8 @@ export const Leaves: CollectionConfig = {
   },
   hooks: {
     afterChange: [
-      async ({ doc, req, operation }: any) => {
+      async ({ doc, req, operation, previousDoc }: any) => {
+        // Send email to admins when a new leave is created
         if (operation === 'create') {
           try {
             const { sendEmail } = await import('@/lib/email')
@@ -66,6 +67,44 @@ export const Leaves: CollectionConfig = {
             }
           } catch (err) {
             console.error('Failed to send leave request email:', err)
+          }
+        }
+
+        // Send email to employee when leave status is updated (approved/rejected)
+        if (operation === 'update' && previousDoc) {
+          const statusChanged = previousDoc.bookingStatus !== doc.bookingStatus
+          const isApprovedOrRejected =
+            doc.bookingStatus === 'approved' || doc.bookingStatus === 'rejected'
+
+          if (statusChanged && isApprovedOrRejected) {
+            try {
+              const { sendEmail } = await import('@/lib/email')
+              const { getLeaveStatusEmail } = await import('@/lib/email-templates')
+
+              const user: any =
+                typeof doc.user === 'object'
+                  ? doc.user
+                  : await req.payload.findByID({ collection: 'users', id: doc.user })
+
+              if (user?.email) {
+                const statusIcon = doc.bookingStatus === 'approved' ? '✅' : '❌'
+
+                await sendEmail({
+                  to: user.email,
+                  subject: `${statusIcon} Leave Request ${doc.bookingStatus === 'approved' ? 'Approved' : 'Rejected'}`,
+                  html: getLeaveStatusEmail({
+                    employeeName: user.name || 'Employee',
+                    leaveType: doc.type,
+                    startDate: format(new Date(doc.startDate), 'MMM dd, yyyy'),
+                    endDate: format(new Date(doc.endDate), 'MMM dd, yyyy'),
+                    status: doc.bookingStatus,
+                    adminNotes: undefined, // You can add an admin notes field if needed
+                  }),
+                })
+              }
+            } catch (err) {
+              console.error('Failed to send leave status email:', err)
+            }
           }
         }
       },
