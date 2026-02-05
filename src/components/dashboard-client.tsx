@@ -26,8 +26,7 @@ import { formatTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
-import { CustomPngCursor } from 'cursor-styles'
-import 'cursor-styles/dist/style.css'
+import { CustomCursor } from 'cursor-style'
 import { useIdleTimer } from 'react-idle-timer'
 
 interface DashboardClientProps {
@@ -307,6 +306,7 @@ export function DashboardClient({
   if (user.role === 'admin' && allUsers && allAttendance) {
     return (
       <div className="min-h-screen bg-[#F8FAFC]/50 text-slate-900 font-sans selection:bg-indigo-100">
+        <CustomCursor type="five" showImages imageSize={30} imageFollowDelay={20} />
         {/* Premium Header */}
         <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-8">
@@ -425,7 +425,7 @@ export function DashboardClient({
 
   return (
     <div className="min-h-screen bg-slate-50 relative" ref={bgRef}>
-      <CustomPngCursor icon="/favicon.ico" size={60} />
+      <CustomCursor type="five" showImages imageSize={30} imageFollowDelay={20} />
       {/* Dynamic Background Blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="bg-blob-1 absolute -top-24 -left-24 w-96 h-96 bg-indigo-200/20 rounded-full blur-[100px]" />
