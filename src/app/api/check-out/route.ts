@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload, APIError } from 'payload'
 import configPromise from '@payload-config'
+import { sendEmail } from '@/lib/email'
+import { getWorkSummaryEmail } from '@/lib/email-templates'
 
 /**
  * Custom route for staff check-out. Uses cookie auth so staff can update
@@ -39,7 +41,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const doc = await payload.update({
+    const doc: any = await payload.update({
       collection: 'attendance',
       id,
       data: {
@@ -59,31 +61,36 @@ export async function PATCH(request: NextRequest) {
 
     // Send email to configured notification emails or default admins
     try {
-      const { sendEmail } = await import('@/lib/email')
+      console.log('[Check-out Email] Starting email process...')
       const settings = await payload.findGlobal({
         slug: 'work-settings',
+        overrideAccess: true,
       })
 
       let targetEmails: string[] = []
 
       if ((settings as any).notificationEmails && (settings as any).notificationEmails.length > 0) {
+        console.log('[Check-out Email] Using notification emails from settings')
         targetEmails = (settings as any).notificationEmails.map((e: any) => e.email).filter(Boolean)
       } else {
+        console.log('[Check-out Email] No notification emails found, searching for admins')
         const admins = await payload.find({
           collection: 'users',
           where: { role: { equals: 'admin' } },
-          limit: 5,
+          limit: 10,
+          overrideAccess: true,
         })
-        targetEmails = admins.docs.map((a) => a.email).filter(Boolean) as string[]
+        targetEmails = admins.docs.map((a: any) => a.email).filter(Boolean) as string[]
       }
+
+      console.log('[Check-out Email] Target emails:', targetEmails)
 
       if (targetEmails.length > 0) {
         const timeIn = doc.timeIn ? new Date(doc.timeIn).toLocaleTimeString() : 'N/A'
-        const timeOut = doc.timeOut ? new Date(doc.timeOut).toLocaleTimeString() : 'N/A'
+        const timeOutActual = doc.timeOut ? new Date(doc.timeOut).toLocaleTimeString() : 'N/A'
 
-        const { getWorkSummaryEmail } = await import('@/lib/email-templates')
-
-        await sendEmail({
+        console.log('[Check-out Email] Sending via Resend...')
+        const result = await sendEmail({
           to: targetEmails,
           subject: `📊 Work Summary: ${user.name || user.email} - ${new Date().toLocaleDateString()}`,
           html: getWorkSummaryEmail({
@@ -96,15 +103,18 @@ export async function PATCH(request: NextRequest) {
               day: 'numeric',
             }),
             checkInTime: timeIn,
-            checkOutTime: timeOut,
+            checkOutTime: timeOutActual,
             workSummary,
             activeDuration: doc.activeDuration ?? undefined,
             inactiveDuration: doc.inactiveDuration ?? undefined,
           }),
         })
+        console.log('[Check-out Email] Send result:', result)
+      } else {
+        console.log('[Check-out Email] No target emails found, skipping.')
       }
     } catch (err) {
-      console.error('Failed to send check-out email:', err)
+      console.error('[Check-out Email] CRITICAL ERROR:', err)
     }
 
     return NextResponse.json({ doc })

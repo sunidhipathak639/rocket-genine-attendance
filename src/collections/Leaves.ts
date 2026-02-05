@@ -98,7 +98,7 @@ export const Leaves: CollectionConfig = {
                     startDate: format(new Date(doc.startDate), 'MMM dd, yyyy'),
                     endDate: format(new Date(doc.endDate), 'MMM dd, yyyy'),
                     status: doc.bookingStatus,
-                    adminNotes: undefined, // You can add an admin notes field if needed
+                    adminNotes: doc.adminNotes,
                   }),
                 })
               }
@@ -278,6 +278,13 @@ export const Leaves: CollectionConfig = {
       ],
       defaultValue: 'pending',
       required: true,
+    },
+    {
+      name: 'adminNotes',
+      type: 'textarea',
+      admin: {
+        description: 'Notes from the administrator (e.g., reason for approval or rejection)',
+      },
     },
   ],
 }

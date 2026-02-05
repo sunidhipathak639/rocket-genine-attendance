@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
 import { FluidCursor } from 'cursor-styles'
 import 'cursor-styles/dist/style.css'
+import { useIdleTimer } from 'react-idle-timer'
 
 interface DashboardClientProps {
   user: {
@@ -208,26 +209,18 @@ export function DashboardClient({
 
   // Week summary variables were unused and removed
 
-  // Activity Monitor Logic
+  // Activity Monitor Logic using react-idle-timer
   const [showActivityPopup, setShowActivityPopup] = useState(false)
-  const [lastCheckTime, setLastCheckTime] = useState<number>(() => Date.now())
-  const lastCheckTimeRef = useRef(lastCheckTime)
-  const showActivityPopupRef = useRef(showActivityPopup)
-  lastCheckTimeRef.current = lastCheckTime
-  showActivityPopupRef.current = showActivityPopup
+  const [timeToResponse, setTimeToResponse] = useState(60)
 
   const handleActivityResponse = useCallback(
     async (status: 'active' | 'inactive', customDuration?: number) => {
+      console.log(`[Activity] API Call: Logging as ${status}`)
       setShowActivityPopup(false)
-      const now = Date.now()
-      setLastCheckTime(now)
-      lastCheckTimeRef.current = now
-      localStorage.setItem('lastActivityCheck', now.toString())
-
       const duration = customDuration ?? workSettings?.activityCheckInterval ?? 10
 
       try {
-        await fetch('/api/activity-check', {
+        const res = await fetch('/api/activity-check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -236,79 +229,79 @@ export function DashboardClient({
             duration,
           }),
         })
+        const data = await res.json()
+        console.log('[Activity] Logged to server:', data)
       } catch (_error) {
-        console.error('Failed to log activity:', _error)
+        console.error('[Activity] Failed to log activity:', _error)
       }
     },
     [workSettings],
   )
 
-  // Timer for activity check — use refs so interval always sees latest values and doesn't reset
-  useEffect(() => {
-    // Today in local date (YYYY-MM-DD) so timezone doesn't break the check
-    const now = new Date()
-    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const onPrompt = () => {
+    console.log('[Activity] Triggering Prompt Popup!')
+    setShowActivityPopup(true)
+    setTimeToResponse(60)
+    try {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+      audio.play().catch(() => {})
+    } catch {}
+  }
 
-    const isCheckedIn = userAttendance?.some((a) => {
-      let dateStr: string
-      if (typeof a.date === 'string') dateStr = a.date
-      else if (a.date) {
-        const d = new Date(a.date as string | Date)
-        dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      } else dateStr = ''
-      return dateStr === todayLocal && a.timeIn && !a.timeOut
-    })
+  const onIdle = () => {
+    console.log('[Activity] User went Idle (No response to prompt)')
+    handleActivityResponse('inactive')
+  }
 
-    if (!isCheckedIn) return
-
-    const intervalMinutes = workSettings?.activityCheckInterval ?? 10
-    const CHECK_INTERVAL_MS = intervalMinutes * 60 * 1000
-    const RESPONSE_TIMEOUT = 60 * 1000
-
-    // When testing with short intervals (≤2 min), don't restore from localStorage so popup starts from "now"
-    const skipRestore = intervalMinutes <= 2
-    if (!skipRestore) {
-      const storedLastCheck = localStorage.getItem('lastActivityCheck')
-      if (storedLastCheck) {
-        const timestamp = parseInt(storedLastCheck, 10)
-        if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-          setLastCheckTime(timestamp)
-          lastCheckTimeRef.current = timestamp
-        }
-      }
+  const onActive = () => {
+    console.log('[Activity] User is back Active')
+    if (showActivityPopup) {
+      handleActivityResponse('active')
     }
+  }
 
-    // Check every 1s when interval is short (faster feedback for 1-min testing), else every 5s
-    const tickMs = intervalMinutes <= 2 ? 1000 : 5000
+  // Check if user is checked in TODAY
+  const nowStr = new Date().toISOString().split('T')[0]
+  const isCheckedInToday = userAttendance?.some((a) => {
+    const aDate = typeof a.date === 'string' ? a.date.split('T')[0] : ''
+    return aDate === nowStr && a.timeIn && !a.timeOut
+  })
 
-    const timer = setInterval(() => {
-      const now = Date.now()
-      const last = lastCheckTimeRef.current
-      const popupOpen = showActivityPopupRef.current
-      if (!popupOpen && now - last >= CHECK_INTERVAL_MS) {
-        setShowActivityPopup(true)
-        showActivityPopupRef.current = true
+  const intervalMinutes = workSettings?.activityCheckInterval ?? 10
+  const promptBeforeIdleMs = 60 * 1000 // 60 seconds to respond
+  // Timeout is the TOTAL time (Idle + Prompt).
+  // We want the prompt to show AFTER intervalMinutes of idleness.
+  const timeoutMs = intervalMinutes * 60 * 1000 + promptBeforeIdleMs
 
-        try {
-          const audio = new Audio('/notification.mp3')
-          audio.play().catch(() => {})
-        } catch {}
+  const { getRemainingTime, activate } = useIdleTimer({
+    onPrompt,
+    onIdle,
+    onActive,
+    timeout: timeoutMs,
+    promptBeforeIdle: promptBeforeIdleMs,
+    throttle: 500,
+    disabled: !isCheckedInToday,
+    crossTab: true,
+    leaderElection: true,
+    syncTimers: 200,
+  })
 
-        setTimeout(() => {
-          setShowActivityPopup((currentShow) => {
-            if (currentShow) {
-              handleActivityResponse('inactive', intervalMinutes)
-              showActivityPopupRef.current = false
-              return false
-            }
-            return currentShow
-          })
-        }, RESPONSE_TIMEOUT)
-      }
-    }, tickMs)
+  // Sync countdown UI with remaining prompt time
+  useEffect(() => {
+    if (!showActivityPopup) return
 
-    return () => clearInterval(timer)
-  }, [userAttendance, workSettings, handleActivityResponse])
+    const interval = setInterval(() => {
+      const remaining = Math.ceil(getRemainingTime() / 1000)
+      setTimeToResponse(remaining > 0 ? remaining : 0)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [showActivityPopup, getRemainingTime])
+
+  const handleConfirmPresence = () => {
+    console.log('[Activity] User confirmed presence')
+    activate() // This triggers onActive callback
+  }
 
   // Show admin dashboard if user is admin
   if (user.role === 'admin' && allUsers && allAttendance) {
@@ -461,20 +454,25 @@ export function DashboardClient({
             <div className="flex flex-col items-center justify-center mb-12 py-16 bg-white rounded-[48px] border border-slate-100 shadow-[0_20px_50px_rgba(79,70,229,0.05)] relative overflow-hidden group/clock">
               <div className="absolute inset-0 bg-gradient-to-tr from-indigo-50/10 via-transparent to-transparent opacity-0 group-hover/clock:opacity-100 transition-opacity duration-700" />
               <div className="absolute -right-12 -top-12 w-48 h-48 bg-indigo-600/5 rounded-full blur-3xl group-hover/clock:bg-indigo-600/10 transition-colors duration-700" />
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-600" />
-              <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-indigo-600">
-                <Clock className="w-6 h-6" />
+              <div
+                className="absolute top-0 left-0 h-1.5 bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-600 transition-all duration-1000 ease-linear"
+                style={{ width: `${(timeToResponse / 60) * 100}%` }}
+              />
+              <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-4 animate-pulse">
+                <Clock className="w-8 h-8" />
               </div>
-              <div>
-                <p className="font-bold text-slate-900">Activity Check</p>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Please confirm presence within 60 seconds.
+              <div className="text-center">
+                <p className="font-black text-4xl text-slate-900 tabular-nums">
+                  00:{String(timeToResponse).padStart(2, '0')}
+                </p>
+                <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-2">
+                  Seconds Remaining
                 </p>
               </div>
             </div>
             <Button
               className="w-full bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl py-6 font-bold text-base shadow-lg shadow-indigo-100 transition-all hover:-translate-y-0.5"
-              onClick={() => handleActivityResponse('active')}
+              onClick={handleConfirmPresence}
             >
               Yes, I&apos;m Working
             </Button>

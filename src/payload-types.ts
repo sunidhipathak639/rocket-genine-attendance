@@ -248,6 +248,10 @@ export interface Leaf {
   endDate: string;
   reason?: string | null;
   bookingStatus: 'pending' | 'approved' | 'rejected';
+  /**
+   * Notes from the administrator (e.g., reason for approval or rejection)
+   */
+  adminNotes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -509,6 +513,7 @@ export interface LeavesSelect<T extends boolean = true> {
   endDate?: T;
   reason?: T;
   bookingStatus?: T;
+  adminNotes?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -614,7 +619,7 @@ export interface WorkSetting {
    */
   workEndTime: string;
   /**
-   * Specify up to 2 email addresses where notifications (leaves, work summaries) will be sent.
+   * Specify the email address where notifications (leaves, work summaries) will be sent.
    */
   notificationEmails?:
     | {

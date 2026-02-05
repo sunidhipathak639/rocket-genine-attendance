@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import type { Attendance } from '@/payload-types'
 
 interface AttendanceCardProps {
@@ -30,6 +31,7 @@ interface AttendanceCardProps {
 }
 
 export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
@@ -267,6 +269,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
         setCheckInTime(now.toISOString())
         toast.success('Successfully checked in!')
         handleModalOpenChange(false)
+        router.refresh()
       } else {
         toast.error(data.message || 'Failed to check in')
       }
@@ -310,6 +313,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
         setAttendanceRecord(data.doc)
         setShowSummaryModal(false)
         toast.success('Checked out successfully!')
+        router.refresh()
       } else {
         toast.error(data.message || 'Failed to check out')
       }
