@@ -24,6 +24,36 @@ export const Users: CollectionConfig = {
     },
   },
   hooks: {
+    beforeDelete: [
+      async ({ id, req }) => {
+        // Cascading delete: Remove all records dependent on this user
+        // this prevents foreign key constraint errors in Postgres
+        try {
+          console.log(`[Users Hook] Cleaning up data for User ${id} before deletion...`)
+
+          await req.payload.delete({
+            collection: 'attendance',
+            where: { user: { equals: id } },
+          })
+
+          await req.payload.delete({
+            collection: 'leaves',
+            where: { user: { equals: id } },
+          })
+
+          await req.payload.delete({
+            collection: 'payroll',
+            where: { user: { equals: id } },
+          })
+
+          console.log(`[Users Hook] Cleanup complete for User ${id}`)
+        } catch (err) {
+          console.error(`[Users Hook] Error during user cleanup:`, err)
+          // We don't throw here to allow the user deletion to attempt to proceed
+          // (though it will likely fail via DB constraint if cleanup failed)
+        }
+      },
+    ],
     afterLogin: [
       async ({ user, req: _req }) => {
         // Redirect based on role after login
