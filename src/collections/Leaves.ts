@@ -70,7 +70,7 @@ export const Leaves: CollectionConfig = {
           }
         }
 
-        // Send email to employee when leave status is updated (approved/rejected)
+        // Send email to employee and admins when leave status is updated (approved/rejected)
         if (operation === 'update' && previousDoc) {
           const statusChanged = previousDoc.bookingStatus !== doc.bookingStatus
           const isApprovedOrRejected =
@@ -86,14 +86,44 @@ export const Leaves: CollectionConfig = {
                   ? doc.user
                   : await req.payload.findByID({ collection: 'users', id: doc.user })
 
-              if (user?.email) {
+              // Get admin emails from work settings
+              const settings = await req.payload.findGlobal({
+                slug: 'work-settings',
+              })
+
+              let adminEmails: string[] = []
+              if (
+                (settings as any).notificationEmails &&
+                (settings as any).notificationEmails.length > 0
+              ) {
+                adminEmails = (settings as any).notificationEmails
+                  .map((e: any) => e.email)
+                  .filter(Boolean)
+              } else {
+                const admins = await req.payload.find({
+                  collection: 'users',
+                  where: { role: { equals: 'admin' } },
+                  limit: 5,
+                })
+                adminEmails = admins.docs.map((a: any) => a.email).filter(Boolean)
+              }
+
+              // Combine user email and admin emails for notification
+              const allRecipients = new Set<string>()
+              if (user?.email) allRecipients.add(user.email)
+              adminEmails.forEach((email) => allRecipients.add(email))
+
+              if (allRecipients.size > 0) {
                 const statusIcon = doc.bookingStatus === 'approved' ? '✅' : '❌'
+                const recipientsArray = Array.from(allRecipients)
+
+                console.log(`[Leave Update] Sending status email to: ${recipientsArray.join(', ')}`)
 
                 await sendEmail({
-                  to: user.email,
-                  subject: `${statusIcon} Leave Request ${doc.bookingStatus === 'approved' ? 'Approved' : 'Rejected'}`,
+                  to: recipientsArray,
+                  subject: `${statusIcon} Leave Request ${doc.bookingStatus === 'approved' ? 'Approved' : 'Rejected'} - ${user?.name || 'Employee'}`,
                   html: getLeaveStatusEmail({
-                    employeeName: user.name || 'Employee',
+                    employeeName: user?.name || 'Employee',
                     leaveType: doc.type,
                     startDate: format(new Date(doc.startDate), 'MMM dd, yyyy'),
                     endDate: format(new Date(doc.endDate), 'MMM dd, yyyy'),
@@ -236,6 +266,16 @@ export const Leaves: CollectionConfig = {
     ],
   },
   fields: [
+    {
+      name: 'resendButton',
+      type: 'ui',
+      admin: {
+        components: {
+          Field: '@/components/admin/ResendLeaveEmailButton#ResendLeaveEmailButton',
+        },
+        position: 'sidebar',
+      },
+    },
     {
       name: 'user',
       type: 'relationship',

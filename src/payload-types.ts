@@ -619,7 +619,7 @@ export interface WorkSetting {
    */
   workEndTime: string;
   /**
-   * Specify the email address where notifications (leaves, work summaries) will be sent.
+   * This is the main admin email address where all system notifications (Leave Requests, Status Updates, Work Summaries) will be sent.
    */
   notificationEmails?:
     | {

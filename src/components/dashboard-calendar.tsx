@@ -4,14 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { motion } from 'framer-motion'
 import {
   Select,
   SelectContent,
@@ -374,7 +368,6 @@ export function DashboardCalendar({
         </div>
       </CardContent>
 
-      {/* Leave Request Dialog */}
       <Dialog
         open={isLeaveDialogOpen}
         onOpenChange={(open) => {
@@ -382,75 +375,139 @@ export function DashboardCalendar({
           if (!open) setLeaveError(null)
         }}
       >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Request Leave</DialogTitle>
-            <DialogDescription>
-              Submit a leave request for {date ? format(date, 'PPPP') : ''}.
-            </DialogDescription>
-          </DialogHeader>
-          {leaveError && (
-            <Alert variant="destructive" className="mt-2">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{leaveError}</AlertDescription>
-            </Alert>
-          )}
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="leave-type" className="text-right">
-                Type
-              </Label>
-              <Select value={leaveType} onValueChange={setLeaveType}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full_day">Full Day</SelectItem>
-                  <SelectItem value="half_day">Half Day</SelectItem>
-                  <SelectItem value="paid">Paid Leave</SelectItem>
-                  <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="reason" className="text-right">
-                Reason
-              </Label>
-              <Textarea
-                id="reason"
-                placeholder="Why are you taking leave?"
-                className="col-span-3"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-              />
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-[32px]">
+          <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-400/20 rounded-full translate-y-12 -translate-x-12 blur-xl" />
+            <div className="relative z-10">
+              <DialogTitle className="text-2xl font-black italic mb-2">
+                Request <span className="text-indigo-200">Leave</span>
+              </DialogTitle>
+              <DialogDescription className="text-indigo-100 font-medium opacity-90">
+                Planning some time off? Submit your request for{' '}
+                <span className="font-bold text-white underline decoration-indigo-300 underline-offset-4">
+                  {date ? format(date, 'MMM dd, yyyy') : ''}
+                </span>
+              </DialogDescription>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsLeaveDialogOpen(false)
-                setReason('')
-                setLeaveError(null)
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleLeaveRequest}
-              disabled={isDateDisabled(date || new Date()) || leaveSubmitting}
-            >
-              {leaveSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                'Submit Request'
-              )}
-            </Button>
-          </DialogFooter>
+
+          <div className="p-8 pb-10 space-y-6">
+            {leaveError && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                <Alert
+                  variant="destructive"
+                  className="bg-red-50 border-red-100 text-red-700 rounded-2xl"
+                >
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertTitle className="font-bold">Submission Error</AlertTitle>
+                  <AlertDescription className="text-xs">{leaveError}</AlertDescription>
+                </Alert>
+              </motion.div>
+            )}
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="leave-type"
+                  className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
+                >
+                  Leave Type
+                </Label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10 pointer-events-none">
+                    <CalendarDays className="w-4 h-4" />
+                  </div>
+                  <Select value={leaveType} onValueChange={setLeaveType}>
+                    <SelectTrigger
+                      id="leave-type"
+                      className="pl-11 h-14 rounded-2xl border-slate-200 focus:ring-indigo-600/20 transition-all font-bold text-slate-700"
+                    >
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl border-slate-100 shadow-xl p-1">
+                      <SelectItem
+                        value="full_day"
+                        className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700"
+                      >
+                        Full Working Day
+                      </SelectItem>
+                      <SelectItem
+                        value="half_day"
+                        className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700"
+                      >
+                        Half Day (4 hrs)
+                      </SelectItem>
+                      <SelectItem
+                        value="paid"
+                        className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700 font-bold"
+                      >
+                        Paid Leave
+                      </SelectItem>
+                      <SelectItem
+                        value="unpaid"
+                        className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700"
+                      >
+                        Unpaid / LWP
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="reason"
+                  className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
+                >
+                  Reason for Leave
+                </Label>
+                <div className="relative">
+                  <Textarea
+                    id="reason"
+                    placeholder="Briefly describe your reason for absence..."
+                    className="min-h-[120px] rounded-2xl border-slate-200 focus:ring-indigo-600/20 transition-all p-4 pt-4 resize-none font-medium text-slate-700"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                  <div className="absolute right-4 bottom-4 text-slate-300">
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-14 rounded-2xl border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                onClick={() => {
+                  setIsLeaveDialogOpen(false)
+                  setReason('')
+                  setLeaveError(null)
+                }}
+              >
+                Discard
+              </Button>
+              <Button
+                className="flex-[2] h-14 rounded-2xl bg-indigo-600 hover:bg-slate-900 text-white font-bold shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] group disabled:opacity-50"
+                onClick={handleLeaveRequest}
+                disabled={isDateDisabled(date || new Date()) || leaveSubmitting}
+              >
+                {leaveSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>Submit Request</span>
+                    <AlertCircle className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>

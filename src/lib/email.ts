@@ -20,8 +20,11 @@ export async function sendEmail({
     const resend = new Resend(process.env.RESEND_API_KEY)
     console.log('[Email Service] Resend client initialized, sending...')
 
+    const fromEmail =
+      process.env.RESEND_FROM_EMAIL || 'Rocket Genie Attendance <onboarding@resend.dev>'
+
     const data = await resend.emails.send({
-      from: 'Rocket Genie Attendance <onboarding@resend.dev>', // Use verified domain if available
+      from: fromEmail,
       to,
       subject,
       html,
