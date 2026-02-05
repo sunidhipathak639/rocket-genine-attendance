@@ -17,9 +17,11 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { format, isSameDay } from 'date-fns'
+import * as LucideIcons from 'lucide-react'
 import { CalendarDays, AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CalendarDayButton } from '@/components/ui/calendar'
 
 interface DashboardCalendarProps {
   user: { id: string | number }
@@ -39,6 +41,10 @@ interface HolidayRecord {
   date: string
   name: string
   type: string
+  iconType?: 'lucide' | 'upload' | 'svg'
+  lucideIcon?: string
+  uploadedIcon?: string | { url: string }
+  svgCode?: string
 }
 
 interface LeaveRecord {
@@ -46,6 +52,85 @@ interface LeaveRecord {
   endDate: string
   bookingStatus: 'pending' | 'approved' | 'rejected'
   type: 'full_day' | 'half_day' | 'paid' | 'unpaid'
+}
+
+const RenderHolidayIcon = ({
+  holiday,
+  size = 16,
+  className,
+}: {
+  holiday: HolidayRecord
+  size?: number
+  className?: string
+}) => {
+  const getIconContent = () => {
+    if (holiday.iconType === 'lucide' && holiday.lucideIcon) {
+      const Icon = (LucideIcons as any)[holiday.lucideIcon]
+      return Icon ? <Icon size={size} className={className} strokeWidth={2} /> : null
+    }
+    if (holiday.iconType === 'svg' && holiday.svgCode) {
+      return (
+        <div
+          style={!className ? { width: size, height: size } : {}}
+          className={`[&>svg]:w-full [&>svg]:h-full ${className || ''}`}
+          dangerouslySetInnerHTML={{ __html: holiday.svgCode }}
+        />
+      )
+    }
+    if (holiday.iconType === 'upload' && holiday.uploadedIcon) {
+      const url =
+        typeof holiday.uploadedIcon === 'object' ? holiday.uploadedIcon.url : holiday.uploadedIcon
+      return (
+        <img
+          src={url}
+          alt={holiday.name}
+          style={
+            !className
+              ? { width: size, height: size, objectFit: 'contain' }
+              : { objectFit: 'contain' }
+          }
+          className={className}
+        />
+      )
+    }
+    return null
+  }
+
+  const iconContent = getIconContent()
+  if (!iconContent) return null
+
+  return (
+    <div style={{ perspective: '800px' }} className="relative drop-shadow-2xl">
+      <motion.div
+        animate={{
+          y: [0, -4, 0],
+          rotateY: [-10, 10, -10],
+          rotateX: [5, -5, 5],
+          scale: [1, 1.05, 1],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+        style={{ transformStyle: 'preserve-3d' }}
+      >
+        {iconContent}
+      </motion.div>
+      <motion.div
+        animate={{
+          scale: [0.8, 1.2, 0.8],
+          opacity: [0.2, 0.4, 0.2],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 bg-black/20 rounded-full blur-[2px]"
+      />
+    </div>
+  )
 }
 
 export function DashboardCalendar({
@@ -84,7 +169,7 @@ export function DashboardCalendar({
         }
 
         // Fetch Holidays
-        const holRes = await fetch(`/api/holidays?limit=100`, { credentials: 'include' })
+        const holRes = await fetch(`/api/holidays?limit=100&depth=1`, { credentials: 'include' })
         const holJson = await holRes.json()
         if (holJson.docs) {
           setHolidays(holJson.docs)
@@ -328,7 +413,23 @@ export function DashboardCalendar({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-xl font-black text-slate-900 italic">
-              <CalendarDays className="w-5 h-5 text-indigo-600" />
+              <div style={{ perspective: '800px' }}>
+                <motion.div
+                  animate={{
+                    y: [0, -3, 0],
+                    rotateY: [-12, 12, -12],
+                    rotateX: [8, -8, 8],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                  style={{ transformStyle: 'preserve-3d' }}
+                >
+                  <CalendarDays className="w-5 h-5 text-indigo-600 drop-shadow-md" />
+                </motion.div>
+              </div>
               Session <span className="text-indigo-600">Calendar</span>
             </CardTitle>
             <CardDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -364,18 +465,17 @@ export function DashboardCalendar({
             selected={date}
             onSelect={setDate}
             onDayClick={handleDayClick}
-            className="rounded-[24px] border border-slate-100 shadow-xl w-full max-w-full bg-white transition-all [&_table]:w-full [&_td]:p-0"
+            className="rounded-[24px] border border-slate-100 shadow-xl w-full max-w-full bg-white transition-all [&_table]:w-full [&_td]:p-0 [--cell-size:2.5rem] sm:[--cell-size:3rem]"
             modifiers={modifiers}
             modifiersClassNames={modifiersClassNames}
             disabled={(day) => isDateDisabled(day)}
             components={{
-              // @ts-expect-error - DayContent is a custom component prop
-              DayContent: (props: { date: Date }) => {
-                const isHol = holidays.find((h) => isSameDay(new Date(h.date), props.date))
+              DayButton: (props) => {
+                const isHol = holidays.find((h) => isSameDay(new Date(h.date), props.day.date))
                 const isLeave = leaves.some((leave) => {
                   const start = new Date(leave.startDate)
                   const end = new Date(leave.endDate)
-                  const d = new Date(props.date)
+                  const d = new Date(props.day.date)
                   d.setHours(0, 0, 0, 0)
                   const s = new Date(start)
                   s.setHours(0, 0, 0, 0)
@@ -383,30 +483,41 @@ export function DashboardCalendar({
                   e.setHours(0, 0, 0, 0)
                   return d >= s && d <= e
                 })
-                const isSunday = props.date.getDay() === 0
-                const isDisabled = isDateDisabled(props.date)
+                const isSunday = props.day.date.getDay() === 0
+                const isDisabled = isDateDisabled(props.day.date)
+
+                if (isHol) {
+                  return (
+                    <CalendarDayButton {...props}>
+                      <div className="flex flex-col items-center justify-center w-full h-full relative p-1">
+                        <div className="flex items-center justify-center animate-in zoom-in duration-300 transform group-hover:scale-125 transition-transform mb-1 w-full h-full">
+                          <RenderHolidayIcon holiday={isHol} className="w-8 h-8 sm:w-10 sm:h-10" />
+                        </div>
+                        <div
+                          className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                          title={isHol.name}
+                        ></div>
+                      </div>
+                    </CalendarDayButton>
+                  )
+                }
+
                 return (
-                  <div
-                    className={`relative w-full h-full flex items-center justify-center p-2 sm:p-3 group transition-all ${isDisabled && !isLeave ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:scale-110'}`}
-                  >
-                    <span
-                      className={`text-xs sm:text-sm font-bold ${isLeave ? 'text-white' : isDisabled ? 'text-slate-300' : 'text-slate-700'}`}
-                    >
-                      {props.date.getDate()}
-                    </span>
-                    {isHol && (
-                      <div
-                        className="absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-1 sm:w-1.5 h-1 sm:h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                        title={isHol.name}
-                      ></div>
-                    )}
-                    {isSunday && !isHol && (
-                      <div
-                        className="absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 w-1 sm:w-1.5 h-1 sm:h-1.5 bg-slate-300 rounded-full"
-                        title="Sunday"
-                      ></div>
-                    )}
-                  </div>
+                  <CalendarDayButton {...props}>
+                    <div className="relative w-full h-full flex flex-col items-center justify-center">
+                      <span
+                        className={`text-xs sm:text-sm font-bold ${isLeave ? 'text-white' : isDisabled ? 'text-slate-300' : 'text-slate-700'}`}
+                      >
+                        {props.day.date.getDate()}
+                      </span>
+                      {isSunday && !isHol && (
+                        <div
+                          className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-slate-200 rounded-full"
+                          title="Sunday"
+                        ></div>
+                      )}
+                    </div>
+                  </CalendarDayButton>
                 )
               },
             }}
@@ -462,7 +573,22 @@ export function DashboardCalendar({
                 </Label>
                 <div className="relative group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10 pointer-events-none">
-                    <CalendarDays className="w-4 h-4" />
+                    <div style={{ perspective: '800px' }}>
+                      <motion.div
+                        animate={{
+                          rotateY: [-10, 10, -10],
+                          rotateX: [5, -5, 5],
+                        }}
+                        transition={{
+                          duration: 3,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
+                        style={{ transformStyle: 'preserve-3d' }}
+                      >
+                        <CalendarDays className="w-4 h-4" />
+                      </motion.div>
+                    </div>
                   </div>
                   <Select value={leaveType} onValueChange={setLeaveType}>
                     <SelectTrigger

@@ -9,6 +9,8 @@ import { format, isSameDay, isSameMonth } from 'date-fns'
 import { CalendarDays, Info, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion } from 'framer-motion'
+import * as LucideIcons from 'lucide-react'
+import { CalendarDayButton } from '@/components/ui/calendar'
 
 interface HolidaysCalendarProps {
   user?: {
@@ -25,6 +27,10 @@ interface HolidayRecord {
   name: string
   type: 'public' | 'company' | 'optional'
   description?: string | null
+  iconType?: 'lucide' | 'upload' | 'svg'
+  lucideIcon?: string
+  uploadedIcon?: string | { url: string }
+  svgCode?: string
 }
 
 interface LeaveRecord {
@@ -50,6 +56,85 @@ const item = {
   show: { opacity: 1, y: 0 },
 }
 
+const RenderHolidayIcon = ({
+  holiday,
+  size = 16,
+  className,
+}: {
+  holiday: HolidayRecord
+  size?: number
+  className?: string
+}) => {
+  const getIconContent = () => {
+    if (holiday.iconType === 'lucide' && holiday.lucideIcon) {
+      const Icon = (LucideIcons as any)[holiday.lucideIcon]
+      return Icon ? <Icon size={size} className={className} strokeWidth={2} /> : null
+    }
+    if (holiday.iconType === 'svg' && holiday.svgCode) {
+      return (
+        <div
+          style={!className ? { width: size, height: size } : {}}
+          className={`[&>svg]:w-full [&>svg]:h-full ${className || ''}`}
+          dangerouslySetInnerHTML={{ __html: holiday.svgCode }}
+        />
+      )
+    }
+    if (holiday.iconType === 'upload' && holiday.uploadedIcon) {
+      const url =
+        typeof holiday.uploadedIcon === 'object' ? holiday.uploadedIcon.url : holiday.uploadedIcon
+      return (
+        <img
+          src={url}
+          alt={holiday.name}
+          style={
+            !className
+              ? { width: size, height: size, objectFit: 'contain' }
+              : { objectFit: 'contain' }
+          }
+          className={className}
+        />
+      )
+    }
+    return null
+  }
+
+  const iconContent = getIconContent()
+  if (!iconContent) return null
+
+  return (
+    <div style={{ perspective: '800px' }} className="relative drop-shadow-2xl">
+      <motion.div
+        animate={{
+          y: [0, -4, 0],
+          rotateY: [-10, 10, -10],
+          rotateX: [5, -5, 5],
+          scale: [1, 1.05, 1],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+        style={{ transformStyle: 'preserve-3d' }}
+      >
+        {iconContent}
+      </motion.div>
+      <motion.div
+        animate={{
+          scale: [0.8, 1.2, 0.8],
+          opacity: [0.2, 0.4, 0.2],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 bg-black/20 rounded-full blur-[2px]"
+      />
+    </div>
+  )
+}
+
 export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
@@ -62,7 +147,7 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
     const fetchHolidays = async () => {
       try {
         setLoading(true)
-        const res = await fetch(`/api/holidays?limit=100&sort=date`)
+        const res = await fetch(`/api/holidays?limit=100&sort=date&depth=1`)
         const data = await res.json()
         if (data.docs) {
           setHolidays(data.docs)
@@ -191,7 +276,23 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <CardTitle className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4 uppercase">
-                    <CalendarDays className="w-6 h-6 text-indigo-600" />
+                    <div style={{ perspective: '800px' }}>
+                      <motion.div
+                        animate={{
+                          y: [0, -4, 0],
+                          rotateY: [-15, 15, -15],
+                          rotateX: [10, -10, 10],
+                        }}
+                        transition={{
+                          duration: 4,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
+                        style={{ transformStyle: 'preserve-3d' }}
+                      >
+                        <CalendarDays className="w-6 h-6 text-indigo-600 drop-shadow-lg" />
+                      </motion.div>
+                    </div>
                     Holiday <span className="text-indigo-600">Explorer</span>
                   </CardTitle>
                   <CardDescription className="pl-5 text-slate-500 font-medium">
@@ -207,9 +308,61 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                   selected={date}
                   onSelect={setDate}
                   onDayClick={handleDayClick}
-                  className="rounded-3xl border border-slate-100 shadow-sm w-full max-w-full bg-white p-6"
+                  className="rounded-3xl border border-slate-100 shadow-sm w-full max-w-full bg-white p-6 [--cell-size:2.5rem] sm:[--cell-size:3rem]"
                   modifiers={modifiers}
                   modifiersClassNames={modifiersClassNames}
+                  components={{
+                    DayButton: (props) => {
+                      const isHol = holidays.find((h) =>
+                        isSameDay(new Date(h.date), props.day.date),
+                      )
+                      const isLeave = leaves.some((leave) => {
+                        const start = new Date(leave.startDate)
+                        const end = new Date(leave.endDate)
+                        const d = new Date(props.day.date)
+                        d.setHours(0, 0, 0, 0)
+                        const s = new Date(start)
+                        s.setHours(0, 0, 0, 0)
+                        const e = new Date(end)
+                        e.setHours(0, 0, 0, 0)
+                        return d >= s && d <= e
+                      })
+                      const isSunday = props.day.date.getDay() === 0
+
+                      if (isHol) {
+                        return (
+                          <CalendarDayButton {...props}>
+                            <div className="flex flex-col items-center justify-center w-full h-full relative p-1">
+                              <div className="flex items-center justify-center animate-in zoom-in duration-300 transform group-hover:scale-125 transition-transform w-full h-full">
+                                <RenderHolidayIcon
+                                  holiday={isHol}
+                                  className="w-8 h-8 sm:w-10 sm:h-10"
+                                />
+                              </div>
+                            </div>
+                          </CalendarDayButton>
+                        )
+                      }
+
+                      return (
+                        <CalendarDayButton {...props}>
+                          <div className="relative w-full h-full flex items-center justify-center">
+                            <span
+                              className={`text-xs font-bold ${
+                                isLeave
+                                  ? 'text-white'
+                                  : isSunday
+                                    ? 'text-slate-300'
+                                    : 'text-slate-700'
+                              }`}
+                            >
+                              {props.day.date.getDate()}
+                            </span>
+                          </div>
+                        </CalendarDayButton>
+                      )
+                    },
+                  }}
                 />
               </div>
               <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-4 pt-8 border-t border-slate-100/50">
@@ -275,13 +428,18 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                           setIsHolidayDialogOpen(true)
                         }}
                       >
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-black text-base text-slate-900 truncate mb-1">
-                            {holiday.name}
-                          </h4>
-                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 inline-block px-2 py-0.5 rounded-full border border-indigo-100">
-                            {format(new Date(holiday.date), 'EEEE, MMM dd')}
-                          </p>
+                        <div className="flex-1 min-w-0 flex items-center gap-3">
+                          <div className="p-2 bg-indigo-50 rounded-xl group-hover/hol:bg-white transition-colors">
+                            <RenderHolidayIcon holiday={holiday} size={20} />
+                          </div>
+                          <div>
+                            <h4 className="font-black text-base text-slate-900 truncate mb-1">
+                              {holiday.name}
+                            </h4>
+                            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 group-hover/hol:bg-white inline-block px-2 py-0.5 rounded-full border border-indigo-100 transition-colors">
+                              {format(new Date(holiday.date), 'EEEE, MMM dd')}
+                            </p>
+                          </div>
                         </div>
                         <div className="ml-4 text-right">
                           <p className="text-xl font-black text-indigo-600 leading-none">
@@ -330,7 +488,10 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                           setIsHolidayDialogOpen(true)
                         }}
                       >
-                        <span className="font-bold text-slate-700 text-sm">{holiday.name}</span>
+                        <div className="flex items-center gap-3">
+                          <RenderHolidayIcon holiday={holiday} size={14} />
+                          <span className="font-bold text-slate-700 text-sm">{holiday.name}</span>
+                        </div>
                         <span className="text-xs font-black text-slate-400">
                           {format(new Date(holiday.date), 'MMM dd')}
                         </span>
@@ -352,10 +513,17 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
               animate={{ scale: 1 }}
               className="absolute -right-8 -top-8 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"
             />
-            <h2 className="text-3xl font-black mb-2 relative z-10">{selectedHoliday?.name}</h2>
-            <p className="opacity-60 text-base font-medium relative z-10">
-              {selectedHoliday && format(new Date(selectedHoliday.date), 'EEEE, MMMM dd, yyyy')}
-            </p>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30">
+                {selectedHoliday && <RenderHolidayIcon holiday={selectedHoliday} size={32} />}
+              </div>
+              <div>
+                <h2 className="text-3xl font-black mb-1">{selectedHoliday?.name}</h2>
+                <p className="opacity-60 text-base font-medium">
+                  {selectedHoliday && format(new Date(selectedHoliday.date), 'EEEE, MMMM dd, yyyy')}
+                </p>
+              </div>
+            </div>
           </div>
           <div className="p-10 space-y-8">
             <div className="flex items-center gap-3">

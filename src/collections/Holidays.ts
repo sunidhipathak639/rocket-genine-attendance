@@ -43,5 +43,47 @@ export const Holidays: CollectionConfig = {
       name: 'description',
       type: 'textarea',
     },
+    {
+      name: 'iconType',
+      type: 'select',
+      label: 'Icon Source',
+      options: [
+        { label: 'Lucide Icon Library', value: 'lucide' },
+        { label: 'Upload Icon (PNG/SVG)', value: 'upload' },
+        { label: 'Direct SVG Code', value: 'svg' },
+      ],
+      defaultValue: 'lucide',
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'lucideIcon',
+      type: 'text',
+      label: 'Selected Lucide Icon',
+      admin: {
+        condition: (data) => data?.iconType === 'lucide',
+        components: {
+          Field: '@/components/admin/LucideIconPicker#LucideIconPicker',
+        },
+      },
+    },
+    {
+      name: 'uploadedIcon',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'Upload Icon File',
+      admin: {
+        condition: (data) => data?.iconType === 'upload',
+      },
+    },
+    {
+      name: 'svgCode',
+      type: 'textarea',
+      label: 'Paste SVG Code',
+      admin: {
+        condition: (data) => data?.iconType === 'svg',
+      },
+    },
   ],
 }

@@ -337,6 +337,10 @@ export interface Holiday {
   date: string;
   type: 'public' | 'company' | 'optional';
   description?: string | null;
+  iconType?: ('lucide' | 'upload' | 'svg') | null;
+  lucideIcon?: string | null;
+  uploadedIcon?: (number | null) | Media;
+  svgCode?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -566,6 +570,10 @@ export interface HolidaysSelect<T extends boolean = true> {
   date?: T;
   type?: T;
   description?: T;
+  iconType?: T;
+  lucideIcon?: T;
+  uploadedIcon?: T;
+  svgCode?: T;
   updatedAt?: T;
   createdAt?: T;
 }
