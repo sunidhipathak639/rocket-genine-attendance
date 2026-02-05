@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    let result
     let subject = ''
     let html = ''
 
@@ -65,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[Test Email] Sending ${type} email to: ${to}`)
-    result = await sendEmail({ to, subject, html })
+    const result = await sendEmail({ to, subject, html })
 
     return NextResponse.json({
       message: `Test ${type} email sent!`,
