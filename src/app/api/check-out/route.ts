@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest) {
       overrideAccess: true,
     })
 
-    // Send email to configured notification emails or default admins
+    // Send email to admin (Work Settings → Admin Notification Email) and to the user (employee)
     try {
       console.log('[Check-out Email] Starting email process...')
       const settings = await payload.findGlobal({
@@ -85,11 +85,11 @@ export async function PATCH(request: NextRequest) {
         overrideAccess: true,
       })
 
-      let targetEmails: string[] = []
+      let adminEmails: string[] = []
 
       if ((settings as any).notificationEmails && (settings as any).notificationEmails.length > 0) {
         console.log('[Check-out Email] Using notification emails from settings')
-        targetEmails = (settings as any).notificationEmails.map((e: any) => e.email).filter(Boolean)
+        adminEmails = (settings as any).notificationEmails.map((e: any) => e.email).filter(Boolean)
       } else {
         console.log('[Check-out Email] No notification emails found, searching for admins')
         const admins = await payload.find({
@@ -98,9 +98,13 @@ export async function PATCH(request: NextRequest) {
           limit: 10,
           overrideAccess: true,
         })
-        targetEmails = admins.docs.map((a: any) => a.email).filter(Boolean) as string[]
+        adminEmails = admins.docs.map((a: any) => a.email).filter(Boolean) as string[]
       }
 
+      const userEmail = user.email
+      const targetEmails = [...new Set([...adminEmails, ...(userEmail ? [userEmail] : [])])].filter(
+        Boolean,
+      )
       console.log('[Check-out Email] Target emails:', targetEmails)
 
       if (targetEmails.length > 0) {

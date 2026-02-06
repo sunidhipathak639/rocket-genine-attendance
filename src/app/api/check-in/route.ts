@@ -6,7 +6,7 @@ import { getCheckInNotificationEmail } from '@/lib/email-templates'
 
 /**
  * Custom route for staff check-in. Creates attendance record; user is identified by userId in body.
- * Sends a check-in notification email to admin (Work Settings → Admin Notification Email).
+ * Sends a check-in notification email to admin (Work Settings → Admin Notification Email) and to the user (employee).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -51,9 +51,9 @@ export async function POST(request: NextRequest) {
         slug: 'work-settings',
         overrideAccess: true,
       })
-      let targetEmails: string[] = []
+      let adminEmails: string[] = []
       if ((settings as any).notificationEmails?.length > 0) {
-        targetEmails = (settings as any).notificationEmails.map((e: any) => e.email).filter(Boolean)
+        adminEmails = (settings as any).notificationEmails.map((e: any) => e.email).filter(Boolean)
       } else {
         const admins = await payload.find({
           collection: 'users',
@@ -61,8 +61,12 @@ export async function POST(request: NextRequest) {
           limit: 10,
           overrideAccess: true,
         })
-        targetEmails = admins.docs.map((a: any) => (a as any).email).filter(Boolean)
+        adminEmails = admins.docs.map((a: any) => (a as any).email).filter(Boolean)
       }
+      const userEmail = (userDoc as any).email
+      const targetEmails = [...new Set([...adminEmails, ...(userEmail ? [userEmail] : [])])].filter(
+        Boolean,
+      )
       if (targetEmails.length > 0) {
         const timeInStr = doc.timeIn ? new Date(doc.timeIn).toLocaleTimeString() : 'N/A'
         const dateFormatted = new Date(doc.date).toLocaleDateString('en-US', {
