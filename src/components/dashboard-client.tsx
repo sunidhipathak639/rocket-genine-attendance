@@ -36,16 +36,10 @@ import { SyncUserTheme, useTheme } from '@/components/theme-provider'
 import 'react-circular-progressbar/dist/styles.css'
 
 interface DashboardClientProps {
-  user: {
-    id: string | number
-    name?: string | null
-    email?: string | null
-    role?: string | null
-    salary?: number | null
-    profileImage?: { url: string } | number | null
-    timeFormat?: '12h' | '24h' | null
-    theme?: 'light' | 'dark' | 'auto' | null
-  }
+  user: Pick<
+    User,
+    'id' | 'name' | 'email' | 'role' | 'salary' | 'profileImage' | 'timeFormat' | 'theme'
+  >
   initialTab?: 'dashboard' | 'history' | 'leaves' | 'holidays'
   allUsers?: User[]
   allAttendance?: Attendance[]
