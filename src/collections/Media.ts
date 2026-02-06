@@ -9,7 +9,7 @@ export const Media: CollectionConfig = {
     delete: () => true,
   },
   upload: {
-    staticDir: 'media',
+    // Storage is handled by @payloadcms/storage-vercel-blob (disableLocalStorage set by plugin)
     mimeTypes: ['image/*'],
     imageSizes: [
       { name: 'thumbnail', width: 400, height: 400, position: 'centre' },
