@@ -15,6 +15,21 @@ const nextConfig = {
         hostname: '*.blob.vercel-storage.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'attendance-rocket.vercel.app',
+        pathname: '/api/media/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.vercel.app',
+        pathname: '/api/media/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        pathname: '/api/media/**',
+      },
     ],
   },
   webpack: (webpackConfig) => {

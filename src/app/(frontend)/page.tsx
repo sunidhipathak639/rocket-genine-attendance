@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import type { Attendance } from '@/payload-types'
+import type { Attendance, Leaf, Holiday } from '@/payload-types'
 import { DashboardClient } from '@/components/dashboard-client'
 
 export const dynamic = 'force-dynamic'
@@ -44,27 +44,42 @@ export default async function DashboardPage() {
       depth: 1,
     })
 
-    // If admin, fetch all users and their attendance data
+    // If admin, fetch all users, attendance, pending leaves, and upcoming holidays
     let allUsers = null
     let allAttendance = null
+    let pendingLeaves: Leaf[] | null = null
+    let upcomingHolidays: Holiday[] | null = null
 
     if (user.role === 'admin') {
-      // Fetch all users
-      const usersResult = await payload.find({
-        collection: 'users',
-        limit: 100,
-        sort: 'createdAt',
-      })
-      allUsers = usersResult.docs
+      const todayStr = new Date().toISOString().split('T')[0]
 
-      // Fetch all attendance records
-      const attendanceResult = await payload.find({
-        collection: 'attendance',
-        limit: 1000,
-        sort: '-date',
-        depth: 1, // Populate user relationship
-      })
+      const [usersResult, attendanceResult, leavesResult, holidaysResult] = await Promise.all([
+        payload.find({ collection: 'users', limit: 200, sort: 'createdAt' }),
+        payload.find({
+          collection: 'attendance',
+          limit: 2000,
+          sort: '-date',
+          depth: 1,
+        }),
+        payload.find({
+          collection: 'leaves',
+          where: { bookingStatus: { equals: 'pending' } },
+          limit: 20,
+          sort: '-createdAt',
+          depth: 1,
+        }),
+        payload.find({
+          collection: 'holidays',
+          where: { date: { greater_than_equal: todayStr } },
+          limit: 10,
+          sort: 'date',
+        }),
+      ])
+
+      allUsers = usersResult.docs
       allAttendance = attendanceResult.docs
+      pendingLeaves = leavesResult.docs
+      upcomingHolidays = holidaysResult.docs
     }
 
     // Fetch work settings for all users
@@ -99,6 +114,8 @@ export default async function DashboardPage() {
         user={user}
         allUsers={allUsers || undefined}
         allAttendance={allAttendance || undefined}
+        pendingLeaves={pendingLeaves || undefined}
+        upcomingHolidays={upcomingHolidays || undefined}
         workSettings={workSettings || undefined}
         userAttendance={userAttendance}
       />

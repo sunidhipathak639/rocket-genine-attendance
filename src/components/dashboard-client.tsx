@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { usePathname } from 'next/navigation'
 
-import type { Attendance, User } from '@/payload-types'
+import type { Attendance, User, Leaf, Holiday } from '@/payload-types'
 import { AdminDashboardViewEnhanced } from './admin-dashboard-view-enhanced'
 import { MyLeaveStatusList } from './my-leave-status-list'
 import { formatTime, getProfileImageUrl } from '@/lib/utils'
@@ -43,6 +43,8 @@ interface DashboardClientProps {
   initialTab?: 'dashboard' | 'history' | 'leaves' | 'holidays'
   allUsers?: User[]
   allAttendance?: Attendance[]
+  pendingLeaves?: Leaf[]
+  upcomingHolidays?: Holiday[]
   workSettings?: {
     saturdayWorkingDay?: boolean | null
     workStartTime?: string | null
@@ -109,6 +111,8 @@ export function DashboardClient({
   initialTab = 'dashboard',
   allUsers,
   allAttendance,
+  pendingLeaves,
+  upcomingHolidays,
   workSettings: workSettingsProp,
   userAttendance = [],
 }: DashboardClientProps) {
@@ -568,7 +572,12 @@ export function DashboardClient({
             </p>
           </div>
 
-          <AdminDashboardViewEnhanced allUsers={allUsers} allAttendance={allAttendance} />
+          <AdminDashboardViewEnhanced
+            allUsers={allUsers}
+            allAttendance={allAttendance}
+            pendingLeaves={pendingLeaves}
+            upcomingHolidays={upcomingHolidays}
+          />
         </main>
       </div>
     )
