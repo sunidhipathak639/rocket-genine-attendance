@@ -146,7 +146,7 @@ export function ProfilePageClient({ user: initialUser }: ProfilePageClientProps)
   return (
     <div className="min-h-screen bg-transparent">
       <SyncUserTheme theme={theme} />
-      <div className="border-b border-border bg-white/60 dark:bg-card/70 backdrop-blur-2xl sticky top-0 z-10">
+      <div className="border-b border-border/80 bg-white/50 dark:bg-card/60 backdrop-blur-[20px] sticky top-0 z-10">
         <div className="container mx-auto px-4 md:px-8 py-4 max-w-[900px] flex items-center gap-4">
           <Link
             href="/"

@@ -368,7 +368,7 @@ export function DashboardClient({
         <SyncUserTheme theme={user.theme ?? undefined} />
         <CustomCursor type="five" showImages imageSize={30} imageFollowDelay={20} />
         {/* Premium Header */}
-        <header className="sticky top-0 z-30 bg-white/70 dark:bg-card/80 backdrop-blur-xl border-b border-border px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-white/50 dark:bg-card/60 backdrop-blur-[20px] border-b border-border/80 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-8">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="w-11 h-11 md:w-14 md:h-14 relative">
@@ -569,7 +569,7 @@ export function DashboardClient({
       </Dialog>
 
       {/* Premium Navigation */}
-      <header className="fixed top-0 inset-x-0 z-50 w-full bg-white/60 dark:bg-card/70 backdrop-blur-2xl border-b border-border px-4 md:px-8 py-3 flex items-center justify-between">
+      <header className="fixed top-0 inset-x-0 z-50 w-full bg-white/50 dark:bg-card/60 backdrop-blur-[20px] border-b border-border/80 px-4 md:px-8 py-3 flex items-center justify-between">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
