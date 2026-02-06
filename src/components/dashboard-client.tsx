@@ -94,6 +94,21 @@ function approvedLeaveDaysInMonth(
   return days
 }
 
+// Parse work-settings time (ISO string) to today's date at that local time
+function getTodayAtTime(isoTime: string | null | undefined): Date | null {
+  if (!isoTime) return null
+  const d = new Date(isoTime)
+  if (Number.isNaN(d.getTime())) return null
+  const t = new Date()
+  t.setHours(d.getHours(), d.getMinutes(), d.getSeconds(), 0)
+  return t
+}
+
+// Format time as HH:MM from Date
+function formatTimeHHMM(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 export function DashboardClient({
   user,
   initialTab = 'dashboard',
@@ -103,6 +118,7 @@ export function DashboardClient({
   userAttendance = [],
 }: DashboardClientProps) {
   const [timeFormat] = useState<'12h' | '24h'>('12h')
+  const [, setShiftTick] = useState(0)
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] = useState<
     { startDate: string; endDate: string; type?: string }[]
@@ -141,6 +157,12 @@ export function DashboardClient({
       })
       .catch(() => {})
   }, [workSettingsProp])
+
+  // Re-render every minute so Shift Status circle updates
+  useEffect(() => {
+    const id = setInterval(() => setShiftTick((t) => t + 1), 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
 
   const bgRef = useRef<HTMLDivElement>(null)
 
@@ -187,14 +209,14 @@ export function DashboardClient({
 
   // Monthly earnings: base salary minus approved leave days (live)
   const baseSalary = user.salary || 0
-  const { estimatedSalary, dailyRate, payableDays } = useMemo(() => {
+  const { estimatedSalary, dailyRate, payableDays, totalWorkingDays } = useMemo(() => {
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth() + 1
     const saturdayWorking = !!workSettings?.saturdayWorkingDay
     const total = totalWorkingDaysInMonth(year, month, saturdayWorking)
     const leaveDays = approvedLeaveDaysInMonth(
-      approvedLeavesThisMonth,
+      approvedLeavesThisMonth ?? [],
       year,
       month,
       saturdayWorking,
@@ -203,11 +225,40 @@ export function DashboardClient({
     const daily = total > 0 ? baseSalary / total : baseSalary / 30
     const estimated = total > 0 ? baseSalary * (payable / total) : daily * 22
     return {
-      estimatedSalary: estimated.toFixed(2),
+      estimatedSalary: estimated,
       dailyRate: total > 0 ? baseSalary / total : baseSalary / 30,
       payableDays: payable,
+      totalWorkingDays: total,
     }
   }, [baseSalary, workSettings?.saturdayWorkingDay, approvedLeavesThisMonth])
+
+  // Shift Status: labels from work settings (memoized); percent computed in render for live updates
+  const shiftLabels = useMemo(() => {
+    const start =
+      getTodayAtTime(workSettings?.workStartTime ?? undefined) ??
+      (() => {
+        const t = new Date()
+        t.setHours(9, 0, 0, 0)
+        return t
+      })()
+    const end =
+      getTodayAtTime(workSettings?.workEndTime ?? undefined) ??
+      (() => {
+        const t = new Date()
+        t.setHours(18, 0, 0, 0)
+        return t
+      })()
+    return { startLabel: formatTimeHHMM(start), endLabel: formatTimeHHMM(end), start, end }
+  }, [workSettings?.workStartTime, workSettings?.workEndTime])
+
+  function getShiftPercent(): number {
+    const now = new Date()
+    if (now < shiftLabels.start) return 0
+    if (now > shiftLabels.end) return 100
+    const totalMs = shiftLabels.end.getTime() - shiftLabels.start.getTime()
+    const elapsedMs = now.getTime() - shiftLabels.start.getTime()
+    return Math.round((elapsedMs / totalMs) * 100)
+  }
 
   // Week summary variables were unused and removed
 
@@ -734,38 +785,8 @@ export function DashboardClient({
                           <div className="flex flex-col items-center">
                             <div className="w-48 h-48 mb-6 relative">
                               <CircularProgressbar
-                                value={
-                                  // Calculate elapsed time percentage roughly for visual
-                                  // Assuming 9 to 6 (9 hours)
-                                  (() => {
-                                    const now = new Date()
-                                    const start = new Date()
-                                    start.setHours(9, 0, 0, 0)
-                                    const end = new Date()
-                                    end.setHours(18, 0, 0, 0)
-
-                                    if (now < start) return 0
-                                    if (now > end) return 100
-
-                                    const total = end.getTime() - start.getTime()
-                                    const elapsed = now.getTime() - start.getTime()
-                                    return Math.round((elapsed / total) * 100)
-                                  })()
-                                }
-                                text={`${(() => {
-                                  const now = new Date()
-                                  const start = new Date()
-                                  start.setHours(9, 0, 0, 0)
-                                  const end = new Date()
-                                  end.setHours(18, 0, 0, 0)
-
-                                  if (now < start) return 0
-                                  if (now > end) return 100
-
-                                  const total = end.getTime() - start.getTime()
-                                  const elapsed = now.getTime() - start.getTime()
-                                  return Math.round((elapsed / total) * 100)
-                                })()}%`}
+                                value={getShiftPercent()}
+                                text={`${getShiftPercent()}%`}
                                 styles={buildStyles({
                                   textSize: '16px',
                                   pathColor: '#4f46e5',
@@ -776,7 +797,7 @@ export function DashboardClient({
                               />
                               <div className="absolute inset-0 flex items-center justify-center flex-col pt-8 pointer-events-none">
                                 <span className="text-[10px] font-black uppercase text-slate-400">
-                                  Complete
+                                  Shift elapsed
                                 </span>
                               </div>
                             </div>
@@ -786,13 +807,17 @@ export function DashboardClient({
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                   Start
                                 </p>
-                                <p className="text-lg font-black text-slate-900">09:00</p>
+                                <p className="text-lg font-black text-slate-900">
+                                  {shiftLabels.startLabel}
+                                </p>
                               </div>
                               <div className="p-4 bg-white/60 rounded-2xl border border-indigo-50 text-center">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                   End
                                 </p>
-                                <p className="text-lg font-black text-slate-900">18:00</p>
+                                <p className="text-lg font-black text-slate-900">
+                                  {shiftLabels.endLabel}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -802,7 +827,7 @@ export function DashboardClient({
 
                     {user.role === 'staff' && (
                       <div className="dashboard-card p-8 bg-indigo-600 text-white relative overflow-hidden group">
-                        {!approvedLeavesThisMonth ? (
+                        {!workSettings ? (
                           <div className="space-y-6">
                             <Skeleton className="h-4 w-24 bg-white/20" />
                             <Skeleton className="h-40 w-full rounded-full bg-white/10" />
@@ -818,8 +843,12 @@ export function DashboardClient({
 
                               <div className="w-48 h-48 mb-8 relative">
                                 <CircularProgressbar
-                                  value={(payableDays / 30) * 100} // Approximate 30 days
-                                  text={`${Math.round((payableDays / 30) * 100)}%`}
+                                  value={
+                                    totalWorkingDays > 0
+                                      ? (payableDays / totalWorkingDays) * 100
+                                      : 0
+                                  }
+                                  text={`${totalWorkingDays > 0 ? Math.round((payableDays / totalWorkingDays) * 100) : 0}%`}
                                   styles={buildStyles({
                                     textSize: '16px',
                                     pathColor: '#ffffff',
@@ -830,14 +859,20 @@ export function DashboardClient({
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center flex-col pt-8 pointer-events-none">
                                   <span className="text-[10px] font-black uppercase text-indigo-200">
-                                    Earned
+                                    Working days
                                   </span>
                                 </div>
                               </div>
 
                               <div className="flex flex-col items-center gap-1 mb-8">
                                 <span className="text-4xl font-black tracking-tighter">
-                                  ₹{estimatedSalary.toLocaleString()}
+                                  ₹
+                                  {typeof estimatedSalary === 'number'
+                                    ? estimatedSalary.toLocaleString('en-IN', {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0,
+                                      })
+                                    : String(estimatedSalary)}
                                 </span>
                                 <span className="text-indigo-200 text-xs font-bold uppercase tracking-widest">
                                   Net Payable
@@ -847,15 +882,19 @@ export function DashboardClient({
                               <div className="grid grid-cols-2 gap-4 w-full">
                                 <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 text-center">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
-                                    Rate
+                                    Daily rate
                                   </p>
-                                  <p className="text-sm font-black">₹{dailyRate.toFixed(0)}</p>
+                                  <p className="text-sm font-black">
+                                    ₹{Math.round(dailyRate).toLocaleString('en-IN')}
+                                  </p>
                                 </div>
                                 <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 text-center">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
-                                    Days
+                                    Payable days
                                   </p>
-                                  <p className="text-sm font-black">{payableDays}</p>
+                                  <p className="text-sm font-black">
+                                    {payableDays} of {totalWorkingDays}
+                                  </p>
                                 </div>
                               </div>
                             </div>
