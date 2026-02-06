@@ -33,9 +33,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Attendance } from '@/payload-types'
 import Tilt from 'react-parallax-tilt'
-import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
-import 'react-circular-progressbar/dist/styles.css'
-import { cn } from '@/lib/utils'
+import * as faceapi from '@vladmandic/face-api'
 
 interface AttendanceCardProps {
   user: {
@@ -73,6 +71,15 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
   const [address, setAddress] = useState<string | null>(null)
   const [displayAddress, setDisplayAddress] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Face Detection State
+  const [modelsLoaded, setModelsLoaded] = useState(false)
+  const [faceDetectionStatus, setFaceDetectionStatus] = useState<
+    'idle' | 'detecting' | 'valid' | 'invalid' | 'covered'
+  >('idle')
+  const [detectionMsg, setDetectionMsg] = useState('Initializing Face ID...')
+  const overlayRef = useRef<HTMLCanvasElement>(null)
+  const detectionInterval = useRef<NodeJS.Timeout | null>(null)
 
   const fetchTodayAttendance = useCallback(async () => {
     if (!user?.id) return
@@ -163,13 +170,142 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
     fetchAddress()
   }, [location])
 
+  // Load Face API Models
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        ])
+        setModelsLoaded(true)
+        console.log('FaceAPI Models Loaded')
+      } catch (err) {
+        console.error('Failed to load FaceAPI models:', err)
+        toast.error('Failed to load biometric models. Please refresh.')
+      }
+    }
+    loadModels()
+  }, [])
+
+  const startFaceDetection = async () => {
+    if (!videoRef.current || !overlayRef.current || !modelsLoaded) return
+
+    if (detectionInterval.current) clearInterval(detectionInterval.current)
+
+    const video = videoRef.current
+    const canvas = overlayRef.current
+
+    // Match canvas size to video
+    // We need to wait for video to play to get dims, but usually handled by layout
+    // We'll update dims in the loop or set them once
+
+    detectionInterval.current = setInterval(async () => {
+      if (video.paused || video.ended) return
+
+      // Ensure canvas matches video dims
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+      }
+
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+      const detection = await faceapi.detectSingleFace(video, options).withFaceLandmarks()
+
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+
+      if (detection) {
+        const { score } = detection.detection
+        const box = detection.detection.box
+        const dims = faceapi.matchDimensions(canvas, video, true)
+        const resized = faceapi.resizeResults(detection, dims)
+
+        // Human face check: face-api only detects real faces; score indicates confidence
+        const MIN_FACE_WIDTH = 80
+        const SCORE_VALID = 0.72
+        const SCORE_LOW = 0.5
+        const isFaceTooSmall = box.width < MIN_FACE_WIDTH
+
+        // Coverage check: use mouth landmarks (48-67) - if mouth region height is too small, face may be covered
+        let likelyCovered = false
+        if (detection.landmarks?.positions?.length >= 68) {
+          const mouthPoints = detection.landmarks.positions.slice(48, 68)
+          const mouthYs = mouthPoints.map((p: { x: number; y: number }) => p.y)
+          const mouthHeight = Math.max(...mouthYs) - Math.min(...mouthYs)
+          const faceHeight = box.height
+          if (faceHeight > 0 && mouthHeight / faceHeight < 0.06) {
+            likelyCovered = true
+          }
+        }
+
+        if (ctx) {
+          const b = resized.detection.box
+          const strokeColor =
+            likelyCovered || score < SCORE_LOW
+              ? '#dc2626'
+              : score >= SCORE_VALID && !isFaceTooSmall
+                ? '#16a34a'
+                : '#4f46e5'
+          ctx.strokeStyle = strokeColor
+          ctx.lineWidth = 4
+          ctx.beginPath()
+          ctx.moveTo(b.x, b.y + 20)
+          ctx.lineTo(b.x, b.y)
+          ctx.lineTo(b.x + 20, b.y)
+          ctx.moveTo(b.x + b.width - 20, b.y)
+          ctx.lineTo(b.x + b.width, b.y)
+          ctx.lineTo(b.x + b.width, b.y + 20)
+          ctx.moveTo(b.x + b.width, b.y + b.height - 20)
+          ctx.lineTo(b.x + b.width, b.y + b.height)
+          ctx.lineTo(b.x + b.width - 20, b.y + b.height)
+          ctx.moveTo(b.x + 20, b.y + b.height)
+          ctx.lineTo(b.x, b.y + b.height)
+          ctx.lineTo(b.x, b.y + b.height - 20)
+          ctx.stroke()
+        }
+
+        if (likelyCovered) {
+          setFaceDetectionStatus('covered')
+          setDetectionMsg('Remove obstructions from face')
+        } else if (isFaceTooSmall) {
+          setFaceDetectionStatus('invalid')
+          setDetectionMsg('Move closer')
+        } else if (score < SCORE_LOW) {
+          setFaceDetectionStatus('invalid')
+          setDetectionMsg('Face not clearly visible')
+        } else if (score >= SCORE_VALID) {
+          setFaceDetectionStatus('valid')
+          setDetectionMsg('Face verified')
+        } else {
+          setFaceDetectionStatus('invalid')
+          setDetectionMsg('Center your face in frame')
+        }
+      } else {
+        setFaceDetectionStatus('idle')
+        setDetectionMsg('Position your face in the frame')
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+    }, 200) // Run every 200ms
+  }
+
   const startCamera = async () => {
     setCameraError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
       })
-      if (videoRef.current) videoRef.current.srcObject = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        // Wait for video to be ready then start detection
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play()
+          startFaceDetection()
+        }
+      }
     } catch (err) {
       console.error('Camera error:', err)
       setCameraError('Could not access camera. Please allow permissions.')
@@ -177,11 +313,16 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
   }
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
+    if (detectionInterval.current) {
+      clearInterval(detectionInterval.current)
+      detectionInterval.current = null
+    }
+    if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream
       stream.getTracks().forEach((track) => track.stop())
       videoRef.current.srcObject = null
     }
+    setFaceDetectionStatus('idle')
   }
 
   const capturePhoto = () => {
@@ -658,7 +799,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     <div className="relative w-full h-24 bg-indigo-50/50 rounded-[3rem] p-2 border border-indigo-100 shadow-inner overflow-hidden select-none">
                       {/* Slider Track Text */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <span className="text-indigo-300 font-black text-lg md:text-xl uppercase tracking-[0.2em] animate-pulse">
+                        <span className="text-indigo-400 font-black text-sm md:text-base uppercase tracking-widest animate-pulse whitespace-nowrap pl-16">
                           Slide to Check In
                         </span>
                         <div className="absolute left-0 top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
@@ -697,29 +838,93 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
 
       <Dialog open={showSelfieModal} onOpenChange={handleModalOpenChange}>
         <DialogContent className="sm:max-w-md rounded-3xl p-0 border-none shadow-2xl overflow-hidden">
-          <div className="bg-slate-900 p-8 text-white">
-            <h2 className="text-2xl font-black">Identity Verification</h2>
-            <p className="opacity-60 text-sm">Please center your face.</p>
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8 text-white border-b border-slate-700/50">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center">
+                <Smile className="w-5 h-5 text-indigo-300" />
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-black tracking-tight">
+                  Identity Verification
+                </h2>
+                <p className="text-slate-400 text-xs md:text-sm font-medium">
+                  Live face check • No masks or obstructions
+                </p>
+              </div>
+            </div>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-3">
+              <li className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/80" />
+                Real human face detected
+              </li>
+              <li className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/80" />
+                Face fully visible
+              </li>
+            </ul>
           </div>
-          <div className="p-8">
-            <div className="relative aspect-square w-full bg-slate-100 rounded-[32px] overflow-hidden group mb-8">
+          <div className="p-6 md:p-8">
+            <div className="relative aspect-square w-full bg-slate-900 rounded-[28px] overflow-hidden border border-slate-700/50 mb-6">
               {cameraError ? (
-                <div className="h-full flex items-center justify-center p-8 text-red-500 font-bold">
-                  {cameraError}
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                  <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+                  <p className="text-red-400 font-bold mb-2">Camera access needed</p>
+                  <p className="text-slate-400 text-sm">{cameraError}</p>
                 </div>
               ) : !capturedImage ? (
                 <>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-slate-900/70 z-10 pointer-events-none" />
+
+                  {/* Face oval guide (subtle) */}
+                  <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+                    <div
+                      className="w-[70%] aspect-[3/4] rounded-full border-2 border-dashed border-white/10"
+                      style={{ maxWidth: '220px' }}
+                    />
+                  </div>
+
+                  {/* Status pill */}
+                  <div className="absolute top-4 left-0 right-0 z-20 flex justify-center px-4">
+                    <div
+                      className={`px-4 py-2.5 rounded-full backdrop-blur-md border shadow-lg transition-all duration-300 ${
+                        faceDetectionStatus === 'valid'
+                          ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-200'
+                          : faceDetectionStatus === 'covered'
+                            ? 'bg-amber-500/25 border-amber-400/50 text-amber-200'
+                            : faceDetectionStatus === 'invalid'
+                              ? 'bg-amber-500/25 border-amber-400/50 text-amber-200'
+                              : 'bg-slate-700/60 border-slate-600 text-slate-300'
+                      }`}
+                    >
+                      <p className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                        {faceDetectionStatus === 'valid' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <Target className="w-4 h-4 shrink-0 animate-pulse" />
+                        )}
+                        {detectionMsg}
+                      </p>
+                    </div>
+                  </div>
+
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transform scale-x-[-1]"
                   />
-                  <div
-                    className="absolute inset-0 border-[40px] border-black/40"
-                    style={{ borderRadius: '50%' }}
+                  <canvas
+                    ref={overlayRef}
+                    className="absolute inset-0 w-full h-full pointer-events-none transform scale-x-[-1] z-20"
                   />
+
+                  {faceDetectionStatus !== 'valid' && (
+                    <div className="absolute inset-0 z-[5] opacity-20 pointer-events-none overflow-hidden">
+                      <div className="w-full h-[2px] bg-indigo-400 shadow-[0_0_16px_rgba(99,102,241,0.8)] animate-[scan_2s_ease-in-out_infinite]" />
+                    </div>
+                  )}
+
                   <canvas ref={canvasRef} className="hidden" />
                 </>
               ) : (
@@ -728,13 +933,29 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                 </div>
               )}
             </div>
+            <p className="text-xs text-slate-500 text-center mb-4">
+              {!capturedImage
+                ? faceDetectionStatus === 'valid'
+                  ? 'Face verified. You can capture now.'
+                  : 'Ensure your full face is visible with no mask or hands.'
+                : 'Review your photo below.'}
+            </p>
             <div className="flex gap-4">
               {!capturedImage ? (
                 <Button
                   onClick={capturePhoto}
-                  className="w-full bg-indigo-600 text-white py-7 rounded-2xl font-bold"
+                  disabled={faceDetectionStatus !== 'valid'}
+                  className={`w-full py-7 rounded-2xl font-bold text-base transition-all duration-300 ${
+                    faceDetectionStatus === 'valid'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_0_24px_rgba(79,70,229,0.35)]'
+                      : 'bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800'
+                  }`}
                 >
-                  Capture
+                  {faceDetectionStatus === 'valid' ? (
+                    <>Capture photo</>
+                  ) : (
+                    <>Align face to enable capture</>
+                  )}
                 </Button>
               ) : (
                 <>

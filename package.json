@@ -33,6 +33,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@tailwindcss/postcss": "^4.1.18",
     "@vercel/blob": "^2.1.0",
+    "@vladmandic/face-api": "^1.7.15",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cross-env": "^7.0.3",
