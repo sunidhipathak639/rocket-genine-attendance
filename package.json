@@ -58,6 +58,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "typewriter-effect": "^2.22.0",
     "zither": "^0.1.6",
     "zod": "^4.3.6"
   },

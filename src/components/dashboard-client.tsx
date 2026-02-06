@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
 import { CustomCursor } from 'cursor-style'
 import { useIdleTimer } from 'react-idle-timer'
+import Typewriter from 'typewriter-effect'
 
 interface DashboardClientProps {
   user: {
@@ -313,18 +314,27 @@ export function DashboardClient({
             <div className="flex items-center gap-2 md:gap-3">
               <div className="w-8 h-8 md:w-10 md:h-10 relative">
                 <Image
-                  src="/rocket-genie-logo.webp"
+                  src="/rocket-genine-logo.webp"
                   alt="Rocket Genie"
                   fill
                   className="object-contain"
                 />
               </div>
-              <span className="font-black text-2xl tracking-tighter text-slate-900">
-                Rocket <span className="text-indigo-600">Genie</span>
+              <span className="font-black text-2xl tracking-tighter text-indigo-600 flex items-center">
+                <Typewriter
+                  options={{
+                    strings: ['Rocket Genie'],
+                    autoStart: true,
+                    loop: true,
+                    delay: 50,
+                    deleteSpeed: 25,
+                    cursor: '',
+                  }}
+                />
               </span>
             </div>
 
-            <nav className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
+            <nav className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 absolute left-1/2 -translate-x-1/2">
               <button
                 className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${pathname === '/' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
               >
@@ -489,14 +499,23 @@ export function DashboardClient({
         >
           <div className="w-8 h-8 md:w-10 md:h-10 relative">
             <Image
-              src="/rocket-genie-logo.webp"
+              src="/rocket-genine-logo.webp"
               alt="Rocket Genie"
               fill
               className="object-contain"
             />
           </div>
-          <span className="font-black text-xl md:text-2xl tracking-tighter text-slate-900">
-            Rocket <span className="text-indigo-600">Genie</span>
+          <span className="font-black text-xl md:text-2xl tracking-tighter text-indigo-600 flex items-center">
+            <Typewriter
+              options={{
+                strings: ['Rocket Genie'],
+                autoStart: true,
+                loop: true,
+                delay: 50,
+                deleteSpeed: 25,
+                cursor: '',
+              }}
+            />
           </span>
         </motion.div>
 
@@ -504,7 +523,7 @@ export function DashboardClient({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50"
+          className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 absolute left-1/2 -translate-x-1/2"
         >
           {[
             { label: 'Dashboard', href: '/', id: 'overview' },
@@ -538,7 +557,15 @@ export function DashboardClient({
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-black text-xl tracking-tighter text-slate-900">
-                    Rocket <span className="text-indigo-600">Genie</span>
+                    Rocket{' '}
+                    <motion.span
+                      animate={{
+                        color: ['#4f46e5', '#8b5cf6', '#ec4899', '#4f46e5'],
+                      }}
+                      transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      Genie
+                    </motion.span>
                   </span>
                 </div>
                 <div className="flex flex-col gap-2">
