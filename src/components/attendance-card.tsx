@@ -32,6 +32,10 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Attendance } from '@/payload-types'
+import Tilt from 'react-parallax-tilt'
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
+import 'react-circular-progressbar/dist/styles.css'
+import { cn } from '@/lib/utils'
 
 interface AttendanceCardProps {
   user: {
@@ -449,7 +453,14 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
 
   return (
     <>
-      <div className="dashboard-card overflow-hidden">
+      <Tilt
+        tiltMaxAngleX={2}
+        tiltMaxAngleY={2}
+        perspective={1000}
+        scale={1.01}
+        transitionSpeed={1000}
+        className="dashboard-card overflow-hidden transform-gpu"
+      >
         <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
           <div className="flex-1 p-5 md:p-10 bg-gradient-to-br from-white to-slate-200/20">
             <div className="flex items-center justify-between mb-8 md:mb-12">
@@ -605,13 +616,36 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     exit={{ opacity: 0 }}
                     className="w-full"
                   >
-                    <Button
-                      className="w-full bg-slate-900 text-white py-10 rounded-[32px] font-black text-xl shadow-xl"
-                      onClick={handleCheckOut}
-                      disabled={loading || !location}
-                    >
-                      Check Out
-                    </Button>
+                    <div className="relative w-full h-20 bg-slate-100 rounded-full overflow-hidden flex items-center p-2 shadow-inner border border-slate-200">
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span className="text-slate-400 font-bold text-sm uppercase tracking-[0.2em] animate-pulse">
+                          Hold to Check Out
+                        </span>
+                      </div>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        className="h-16 w-full bg-slate-900 rounded-full flex items-center justify-center text-white font-black text-xl shadow-xl relative z-10"
+                        onPointerDown={(e) => {
+                          const btn = e.currentTarget
+                          let pressTimer: NodeJS.Timeout
+                          const start = () => {
+                            btn.style.transform = 'scale(0.95)'
+                            pressTimer = setTimeout(() => {
+                              handleCheckOut()
+                            }, 1000)
+                          }
+                          const cancel = () => {
+                            clearTimeout(pressTimer)
+                            btn.style.transform = 'scale(1)'
+                          }
+                          btn.addEventListener('pointerup', cancel, { once: true })
+                          btn.addEventListener('pointerleave', cancel, { once: true })
+                          start()
+                        }}
+                      >
+                        <LogOut className="w-6 h-6 mr-2" /> Check Out
+                      </motion.button>
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -621,13 +655,35 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     exit={{ opacity: 0 }}
                     className="w-full"
                   >
-                    <Button
-                      className="w-full bg-indigo-600 text-white py-12 rounded-[40px] font-black text-2xl shadow-2xl shadow-indigo-100"
-                      onClick={() => handleModalOpenChange(true)}
-                      disabled={loading || !location}
-                    >
-                      Check In
-                    </Button>
+                    <div className="relative w-full h-24 bg-indigo-50/50 rounded-[3rem] p-2 border border-indigo-100 shadow-inner overflow-hidden select-none">
+                      {/* Slider Track Text */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <span className="text-indigo-300 font-black text-lg md:text-xl uppercase tracking-[0.2em] animate-pulse">
+                          Slide to Check In
+                        </span>
+                        <div className="absolute left-0 top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                      </div>
+
+                      {/* Draggable Button */}
+                      <motion.div
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 240 }}
+                        dragElastic={0.1}
+                        dragMomentum={false}
+                        onDragEnd={(e, info) => {
+                          if (info.offset.x > 150) {
+                            handleModalOpenChange(true)
+                          }
+                        }}
+                        className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center shadow-xl shadow-indigo-200 cursor-grab active:cursor-grabbing relative z-10"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <div className="bg-white/20 p-3 rounded-full">
+                          <LogIn className="w-8 h-8 text-white" />
+                        </div>
+                      </motion.div>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -637,7 +693,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
             </div>
           </div>
         </div>
-      </div>
+      </Tilt>
 
       <Dialog open={showSelfieModal} onOpenChange={handleModalOpenChange}>
         <DialogContent className="sm:max-w-md rounded-3xl p-0 border-none shadow-2xl overflow-hidden">

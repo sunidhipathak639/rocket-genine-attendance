@@ -29,6 +29,8 @@ import gsap from 'gsap'
 import { CustomCursor } from 'cursor-style'
 import { useIdleTimer } from 'react-idle-timer'
 import Typewriter from 'typewriter-effect'
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
+import 'react-circular-progressbar/dist/styles.css'
 
 interface DashboardClientProps {
   user: {
@@ -383,8 +385,12 @@ export function DashboardClient({
                   ADMINISTRATOR
                 </span>
               </div>
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-indigo-50 text-xs md:text-base">
-                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+              <div className="relative">
+                <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-20" />
+                <div className="absolute -inset-1 bg-indigo-500/20 rounded-full animate-pulse" />
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-indigo-50 text-xs md:text-base relative z-10 transition-transform hover:scale-105">
+                  {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+                </div>
               </div>
               <Button
                 variant="ghost"
@@ -598,8 +604,12 @@ export function DashboardClient({
                 {user.role?.toUpperCase()}
               </span>
             </div>
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-indigo-50 flex-shrink-0 text-xs md:text-sm">
-              {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+            <div className="relative">
+              <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-20" />
+              <div className="absolute -inset-1 bg-emerald-500/20 rounded-full animate-pulse" />
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-indigo-50 flex-shrink-0 text-xs md:text-sm relative z-10 transition-transform hover:scale-105">
+                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+              </div>
             </div>
             <Button
               variant="ghost"
@@ -703,70 +713,86 @@ export function DashboardClient({
                     transition={{ delay: 0.2 }}
                     className="lg:col-span-4 space-y-6"
                   >
-                    {/* Salary Card Skeleton or Real */}
                     <div className="dashboard-card p-8 bg-white/40 backdrop-blur-xl border-white/20 relative overflow-hidden">
                       {!workSettings ? (
                         <div className="space-y-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <Skeleton className="h-4 w-24" />
-                            <Skeleton className="w-10 h-10 rounded-xl" />
-                          </div>
-                          <div className="space-y-4">
-                            <Skeleton className="h-16 w-full rounded-2xl" />
-                            <Skeleton className="h-16 w-full rounded-2xl" />
-                          </div>
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-40 w-full rounded-full" />
                         </div>
                       ) : (
                         <>
                           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-16 -mt-16" />
                           <div className="flex items-center justify-between mb-8 relative z-10">
                             <h4 className="font-black text-slate-900 tracking-tighter uppercase text-xs opacity-50">
-                              Standard Schedule
+                              Shift Status
                             </h4>
-                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                              <Clock className="w-5 h-5" />
+                            <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                              <Clock className="w-4 h-4" />
                             </div>
                           </div>
-                          <div className="space-y-6">
-                            {/* Schedule entries */}
-                            <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
-                              <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
-                                  <Clock className="w-6 h-6" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
-                                    Shift Start
-                                  </p>
-                                  <p className="text-xl font-black text-slate-900">
-                                    {workSettings?.workStartTime
-                                      ? formatTime(
-                                          new Date(workSettings.workStartTime),
-                                          timeFormat === '12h',
-                                        )
-                                      : '09:00 AM'}
-                                  </p>
-                                </div>
+
+                          <div className="flex flex-col items-center">
+                            <div className="w-48 h-48 mb-6 relative">
+                              <CircularProgressbar
+                                value={
+                                  // Calculate elapsed time percentage roughly for visual
+                                  // Assuming 9 to 6 (9 hours)
+                                  (() => {
+                                    const now = new Date()
+                                    const start = new Date()
+                                    start.setHours(9, 0, 0, 0)
+                                    const end = new Date()
+                                    end.setHours(18, 0, 0, 0)
+
+                                    if (now < start) return 0
+                                    if (now > end) return 100
+
+                                    const total = end.getTime() - start.getTime()
+                                    const elapsed = now.getTime() - start.getTime()
+                                    return Math.round((elapsed / total) * 100)
+                                  })()
+                                }
+                                text={`${(() => {
+                                  const now = new Date()
+                                  const start = new Date()
+                                  start.setHours(9, 0, 0, 0)
+                                  const end = new Date()
+                                  end.setHours(18, 0, 0, 0)
+
+                                  if (now < start) return 0
+                                  if (now > end) return 100
+
+                                  const total = end.getTime() - start.getTime()
+                                  const elapsed = now.getTime() - start.getTime()
+                                  return Math.round((elapsed / total) * 100)
+                                })()}%`}
+                                styles={buildStyles({
+                                  textSize: '16px',
+                                  pathColor: '#4f46e5',
+                                  textColor: '#0f172a',
+                                  trailColor: '#e2e8f0',
+                                  pathTransitionDuration: 1,
+                                })}
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center flex-col pt-8 pointer-events-none">
+                                <span className="text-[10px] font-black uppercase text-slate-400">
+                                  Complete
+                                </span>
                               </div>
                             </div>
-                            <div className="p-5 bg-white/60 rounded-[28px] border border-white/40 shadow-sm relative group/stat transition-all hover:bg-white hover:shadow-md">
-                              <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold shadow-sm">
-                                  <LogOut className="w-6 h-6" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
-                                    Shift End
-                                  </p>
-                                  <p className="text-xl font-black text-slate-900">
-                                    {workSettings?.workEndTime
-                                      ? formatTime(
-                                          new Date(workSettings.workEndTime),
-                                          timeFormat === '12h',
-                                        )
-                                      : '06:00 PM'}
-                                  </p>
-                                </div>
+
+                            <div className="grid grid-cols-2 gap-4 w-full">
+                              <div className="p-4 bg-white/60 rounded-2xl border border-indigo-50 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                  Start
+                                </p>
+                                <p className="text-lg font-black text-slate-900">09:00</p>
+                              </div>
+                              <div className="p-4 bg-white/60 rounded-2xl border border-indigo-50 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                  End
+                                </p>
+                                <p className="text-lg font-black text-slate-900">18:00</p>
                               </div>
                             </div>
                           </div>
@@ -779,44 +805,57 @@ export function DashboardClient({
                         {!approvedLeavesThisMonth ? (
                           <div className="space-y-6">
                             <Skeleton className="h-4 w-24 bg-white/20" />
-                            <Skeleton className="h-10 w-48 bg-white/20" />
-                            <Skeleton className="h-4 w-32 bg-white/20" />
+                            <Skeleton className="h-40 w-full rounded-full bg-white/10" />
                           </div>
                         ) : (
                           <>
                             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-white/20 transition-colors duration-700" />
-                            <div className="relative z-10">
-                              <h4 className="font-black text-indigo-200 tracking-widest uppercase text-[10px] mb-6">
+                            <div className="relative z-10 flex flex-col items-center">
+                              <h4 className="font-black text-indigo-200 tracking-widest uppercase text-[10px] mb-8 self-start">
                                 Estimated Salary •{' '}
                                 {new Date().toLocaleDateString('en-US', { month: 'long' })}
                               </h4>
-                              <div className="flex items-baseline gap-2 mb-2">
+
+                              <div className="w-48 h-48 mb-8 relative">
+                                <CircularProgressbar
+                                  value={(payableDays / 30) * 100} // Approximate 30 days
+                                  text={`${Math.round((payableDays / 30) * 100)}%`}
+                                  styles={buildStyles({
+                                    textSize: '16px',
+                                    pathColor: '#ffffff',
+                                    textColor: '#ffffff',
+                                    trailColor: 'rgba(255,255,255,0.2)',
+                                    pathTransitionDuration: 1.5,
+                                  })}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center flex-col pt-8 pointer-events-none">
+                                  <span className="text-[10px] font-black uppercase text-indigo-200">
+                                    Earned
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-center gap-1 mb-8">
                                 <span className="text-4xl font-black tracking-tighter">
                                   ₹{estimatedSalary.toLocaleString()}
                                 </span>
                                 <span className="text-indigo-200 text-xs font-bold uppercase tracking-widest">
-                                  Net
+                                  Net Payable
                                 </span>
                               </div>
-                              <p className="text-xs font-bold text-indigo-100/80 mb-8 flex items-center gap-2">
-                                <Briefcase className="w-3 h-3" />
-                                {payableDays} payable days this month
-                              </p>
 
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
+                              <div className="grid grid-cols-2 gap-4 w-full">
+                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 text-center">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
-                                    Daily Rate
+                                    Rate
                                   </p>
                                   <p className="text-sm font-black">₹{dailyRate.toFixed(0)}</p>
                                 </div>
-                                <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
+                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 text-center">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
-                                    Base Pay
+                                    Days
                                   </p>
-                                  <p className="text-sm font-black">
-                                    ₹{baseSalary.toLocaleString()}
-                                  </p>
+                                  <p className="text-sm font-black">{payableDays}</p>
                                 </div>
                               </div>
                             </div>
