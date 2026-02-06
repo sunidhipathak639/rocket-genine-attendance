@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { usePathname } from 'next/navigation'
+import { format } from 'date-fns'
 
 import type { Attendance, User, Leaf, Holiday } from '@/payload-types'
 import { AdminDashboardViewEnhanced } from './admin-dashboard-view-enhanced'
@@ -378,14 +379,43 @@ export function DashboardClient({
     }
   }
 
-  // Check if user is checked in TODAY (server data or local callback from AttendanceCard)
+  // Check if user is checked in TODAY (server data, client fetch fallback, or local callback)
   const [localCheckedInToday, setLocalCheckedInToday] = useState<boolean | null>(null)
-  const nowStr = new Date().toISOString().split('T')[0]
+  const [clientFetchedCheckedIn, setClientFetchedCheckedIn] = useState<boolean | null>(null)
+  const todayLocalStr = format(new Date(), 'yyyy-MM-dd')
   const serverCheckedInToday = userAttendance?.some((a) => {
     const aDate = typeof a.date === 'string' ? a.date.split('T')[0] : ''
-    return aDate === nowStr && a.timeIn && !a.timeOut
+    return aDate === todayLocalStr && a.timeIn && !a.timeOut
   })
-  const isCheckedInToday = localCheckedInToday ?? serverCheckedInToday ?? false
+  const isCheckedInToday =
+    localCheckedInToday ?? clientFetchedCheckedIn ?? serverCheckedInToday ?? false
+
+  // Production fallback: fetch today's attendance client-side so popup works after refresh or when server didn't pass it
+  useEffect(() => {
+    if (user.role !== 'staff' || !user.id) return
+    if (serverCheckedInToday === true || localCheckedInToday === true) return
+
+    let cancelled = false
+    const check = async () => {
+      try {
+        const res = await fetch(
+          `/api/attendance?where[user][equals]=${user.id}&where[date][equals]=${todayLocalStr}&limit=1&sort=-createdAt`,
+          { credentials: 'include' },
+        )
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (cancelled) return
+        const hasOpen = data.docs?.some((a: Attendance) => a.timeIn && !a.timeOut)
+        setClientFetchedCheckedIn(hasOpen ?? false)
+      } catch {
+        if (!cancelled) setClientFetchedCheckedIn(false)
+      }
+    }
+    check()
+    return () => {
+      cancelled = true
+    }
+  }, [user.role, user.id, todayLocalStr, serverCheckedInToday, localCheckedInToday])
 
   const intervalMinutesFromSettings = workSettings?.activityCheckInterval ?? 10
   const intervalMs = intervalMinutesFromSettings * 60 * 1000
