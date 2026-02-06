@@ -26,6 +26,9 @@ export default buildConfig({
   serverURL: process.env.NEXT_PUBLIC_SERVER_URL || '',
   admin: {
     user: Users.slug,
+    avatar: {
+      Component: '/components/admin/AdminAccountAvatar',
+    },
     importMap: {
       baseDir: path.resolve(dirname),
     },
