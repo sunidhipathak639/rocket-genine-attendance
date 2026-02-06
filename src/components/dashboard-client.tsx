@@ -24,7 +24,7 @@ import { usePathname } from 'next/navigation'
 import type { Attendance, User } from '@/payload-types'
 import { AdminDashboardViewEnhanced } from './admin-dashboard-view-enhanced'
 import { MyLeaveStatusList } from './my-leave-status-list'
-import { formatTime } from '@/lib/utils'
+import { formatTime, getProfileImageUrl } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
 import gsap from 'gsap'
@@ -134,6 +134,7 @@ export function DashboardClient({
   const pathname = usePathname()
 
   const workSettings = workSettingsProp ?? workSettingsLocal
+  const profileImageUrl = getProfileImageUrl(user.profileImage)
 
   // Fetch approved leaves for current month (staff) and work settings when not provided
   useEffect(() => {
@@ -512,14 +513,14 @@ export function DashboardClient({
                 <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-20" />
                 <div className="absolute -inset-1 bg-indigo-500/20 rounded-full animate-pulse" />
                 <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-border text-xs md:text-base z-10 transition-transform hover:scale-105 overflow-hidden">
-                  {typeof user.profileImage === 'object' && user.profileImage?.url ? (
+                  {profileImageUrl ? (
                     <Image
-                      src={user.profileImage.url}
+                      src={profileImageUrl}
                       alt=""
                       fill
                       className="object-cover"
                       sizes="40px"
-                      unoptimized={user.profileImage.url.startsWith('http')}
+                      unoptimized={profileImageUrl.startsWith('http')}
                     />
                   ) : (
                     user.name?.[0] || user.email?.[0]?.toUpperCase()
@@ -835,14 +836,14 @@ export function DashboardClient({
               <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-20" />
               <div className="absolute -inset-1 bg-emerald-500/20 rounded-full animate-pulse" />
               <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-border text-xs md:text-sm z-10 transition-transform hover:scale-105 overflow-hidden">
-                {typeof user.profileImage === 'object' && user.profileImage?.url ? (
+                {profileImageUrl ? (
                   <Image
-                    src={user.profileImage.url}
+                    src={profileImageUrl}
                     alt=""
                     fill
                     className="object-cover"
                     sizes="40px"
-                    unoptimized={user.profileImage.url.startsWith('http')}
+                    unoptimized={profileImageUrl.startsWith('http')}
                   />
                 ) : (
                   user.name?.[0] || user.email?.[0]?.toUpperCase()

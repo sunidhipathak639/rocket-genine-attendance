@@ -29,18 +29,16 @@ import {
 import { toast } from 'sonner'
 import type { User as UserType } from '@/payload-types'
 import { useTheme, SyncUserTheme, type Theme } from '@/components/theme-provider'
+import { getProfileImageUrl as getProfileImageUrlFromUtils } from '@/lib/utils'
 
 const MAX_PROFILE_IMAGE_BYTES = 1024 * 1024 // 1 MB
 
 function getProfileImageUrl(user: UserWithProfileImage): string | null {
-  const img = user.profileImage
-  if (!img) return null
-  if (typeof img === 'object' && img !== null && 'url' in img && img.url) return img.url
-  return null
+  return getProfileImageUrlFromUtils(user.profileImage) ?? null
 }
 
 type UserWithProfileImage = Omit<UserType, 'profileImage'> & {
-  profileImage?: { url: string; alt?: string } | number | null
+  profileImage?: { url?: string; thumbnailURL?: string; alt?: string } | number | null
 }
 
 interface ProfilePageClientProps {
