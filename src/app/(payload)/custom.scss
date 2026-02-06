@@ -21,6 +21,25 @@ body,
 
   /* Force Light Scheme */
   color-scheme: light !important;
+
+  /* Dashboard overview card accents */
+  --theme-success-100: #dcfce7;
+  --theme-success-500: #22c55e;
+  --theme-success-600: #16a34a;
+  --theme-success-700: #15803d;
+  --theme-warning-100: #fef3c7;
+  --theme-warning-500: #f59e0b;
+  --theme-warning-700: #b45309;
+  --theme-info-100: #dbeafe;
+  --theme-info-500: #3b82f6;
+  --theme-info-700: #1d4ed8;
+  --theme-error-100: #fee2e2;
+  --theme-error-500: #ef4444;
+  --theme-error-700: #b91c1c;
+  --theme-elevation-200: #e5e5e5;
+  --theme-elevation-600: #525252;
+  --theme-elevation-800: #262626;
+  --theme-elevation-900: #171717;
 }
 
 html,

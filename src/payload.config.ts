@@ -52,6 +52,7 @@ export default buildConfig({
         Logo: '/components/graphics/Logo',
         Icon: '/components/graphics/Icon',
       },
+      beforeDashboard: ['/components/admin/AdminDashboardStats'],
       views: {
         Login: {
           Component: '/components/admin-login-form',
