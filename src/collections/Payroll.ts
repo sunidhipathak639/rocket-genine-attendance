@@ -188,19 +188,19 @@ export const Payroll: CollectionConfig = {
           })
 
           // Calculate payable days (half days count as 0.5 days, but no extra penalty)
-          // Half days are already accounted for in presentDays (0.5), so we need to deduct 0.5 for each half day
-          const halfDayDeduction = halfDayCount * 0.5
-          const payableDays = totalWorkingDays - leavesTaken - halfDayDeduction
+          // Calculate payable days
+          const payableDays = presentDays
 
           // Calculate daily salary
           const dailySalary = data.baseSalary / totalWorkingDays
 
-          // Calculate deductions (only based on attendance - leaves and half days)
+          // Calculate deductions (Visual only, relative to full attendance)
+          const halfDayDeduction = halfDayCount * 0.5
           const leaveDeduction = leavesTaken * dailySalary
           const halfDayDeductionAmount = halfDayDeduction * dailySalary
 
-          // Calculate final amount (no extra penalties, only attendance-based deductions)
-          const finalAmount = Math.max(0, data.baseSalary - leaveDeduction - halfDayDeductionAmount)
+          // Calculate final amount based on payable days
+          const finalAmount = Math.max(0, payableDays * dailySalary)
 
           // Update stats
           if (!data.stats) {

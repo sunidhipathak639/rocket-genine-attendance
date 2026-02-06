@@ -12,9 +12,10 @@ export async function POST(request: NextRequest) {
     const payload = await getPayload({ config: await configPromise })
     const { user } = await payload.auth({ headers: request.headers })
 
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin only' }, { status: 403 })
-    }
+    // Authentication check removed as per request for unrestricted access
+    // if (!user) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // }
 
     const body = await request.json().catch(() => ({}))
     const userIdRaw = body.userId
@@ -31,30 +32,33 @@ export async function POST(request: NextRequest) {
 
     let targetUser: { id: number | string; salary?: number | null; email?: string; name?: string }
     try {
-      targetUser = await payload.findByID({
+      targetUser = (await payload.findByID({
         collection: 'users',
         id: userIdRaw,
         overrideAccess: true,
-      }) as any
+      })) as any
     } catch {
-      return NextResponse.json({ error: 'User not found. Please refresh and try again.' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'User not found. Please refresh and try again.' },
+        { status: 404 },
+      )
     }
 
     const baseSalary = targetUser.salary
     if (baseSalary == null || baseSalary <= 0) {
       return NextResponse.json(
-        { error: 'This user has no salary set. Set a salary on the user first, then generate payroll.' },
-        { status: 400 }
+        {
+          error:
+            'This user has no salary set. Set a salary on the user first, then generate payroll.',
+        },
+        { status: 400 },
       )
     }
 
     const existing = await payload.find({
       collection: 'payroll',
       where: {
-        and: [
-          { user: { equals: targetUser.id } },
-          { month: { equals: month } },
-        ],
+        and: [{ user: { equals: targetUser.id } }, { month: { equals: month } }],
       },
       limit: 1,
       overrideAccess: true,
@@ -62,8 +66,11 @@ export async function POST(request: NextRequest) {
 
     if (existing.docs.length > 0) {
       return NextResponse.json(
-        { error: `Payroll for ${month} already exists for this user. Edit it from Payroll if needed.`, doc: existing.docs[0] },
-        { status: 409 }
+        {
+          error: `Payroll for ${month} already exists for this user. Edit it from Payroll if needed.`,
+          doc: existing.docs[0],
+        },
+        { status: 409 },
       )
     }
 

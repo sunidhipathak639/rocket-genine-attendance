@@ -42,21 +42,19 @@ export function GeneratePayrollButton() {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <Button
-        buttonStyle="secondary"
+        buttonStyle="primary"
         size="small"
         onClick={handleGenerate}
         disabled={loading}
         icon={
           loading ? (
-            <Loader2 className="w-4 h-4 animate-spin !text-white" />
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            <DollarSign className="w-4 h-4 !text-white" />
+            <DollarSign className="w-4 h-4" />
           )
         }
       >
-        <span style={{ color: 'white' }}>
-          {loading ? 'Generating…' : 'Generate payroll for this month'}
-        </span>
+        {loading ? 'Generating…' : 'Generate payroll for this month'}
       </Button>
       {message && (
         <span
