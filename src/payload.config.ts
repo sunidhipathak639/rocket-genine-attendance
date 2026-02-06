@@ -81,8 +81,7 @@ export default buildConfig({
         media: true,
       },
       token: process.env.BLOB_READ_WRITE_TOKEN,
-      // Bypass Vercel server 4.5MB upload limit by uploading from client
-      clientUploads: true,
+      // clientUploads: false to avoid bundling plugin's @payloadcms/ui (version mismatch). Server uploads work for images under 4.5MB.
     }),
   ],
 })
