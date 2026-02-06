@@ -84,7 +84,7 @@ export function ProfilePageClient({ user: initialUser }: ProfilePageClientProps)
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileImage: mediaId }),
+        body: JSON.stringify({ profileImage: mediaId, userId: user.id }),
       })
       if (!updateRes.ok) {
         const err = await updateRes.json()
