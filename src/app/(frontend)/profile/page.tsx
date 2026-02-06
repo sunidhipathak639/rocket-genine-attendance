@@ -21,11 +21,11 @@ export default async function ProfilePage() {
     redirect('/login')
   }
 
-  const fullUser = (await payload.findByID({
+  const fullUser = await payload.findByID({
     collection: 'users',
     id: typeof user.id === 'number' ? user.id : parseInt(String(user.id), 10),
     depth: 1,
-  })) as User & { profileImage?: { url: string; alt?: string } | null }
+  })
 
   return <ProfilePageClient user={fullUser} />
 }

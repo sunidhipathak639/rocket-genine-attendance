@@ -38,7 +38,7 @@ function getProfileImageUrl(user: UserWithProfileImage): string | null {
 }
 
 type UserWithProfileImage = Omit<UserType, 'profileImage'> & {
-  profileImage?: { url?: string; thumbnailURL?: string; alt?: string } | number | null
+  profileImage?: { url?: string | null; thumbnailURL?: string | null; alt?: string } | number | null
 }
 
 interface ProfilePageClientProps {
