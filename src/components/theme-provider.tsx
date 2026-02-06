@@ -24,6 +24,12 @@ function applyTheme(dark: boolean) {
   }
 }
 
+const defaultThemeContext = {
+  theme: 'auto' as Theme,
+  setTheme: (_: Theme) => {},
+  effectiveDark: false,
+}
+
 const ThemeContext = createContext<{
   theme: Theme
   setTheme: (theme: Theme) => void
@@ -32,8 +38,7 @@ const ThemeContext = createContext<{
 
 export function useTheme() {
   const ctx = useContext(ThemeContext)
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider')
-  return ctx
+  return ctx ?? defaultThemeContext
 }
 
 /** Call from pages that have user.theme to sync server preference into theme state. */
@@ -99,7 +104,7 @@ export function ThemeProvider({ children, initialTheme }: ThemeProviderProps) {
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next)
-    localStorage.setItem(STORAGE_KEY, next)
+    if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, next)
     const dark =
       next === 'dark' ||
       (next === 'auto' &&
@@ -109,10 +114,7 @@ export function ThemeProvider({ children, initialTheme }: ThemeProviderProps) {
     applyTheme(dark)
   }, [])
 
-  if (!mounted) {
-    return <>{children}</>
-  }
-
+  // Always provide context so useTheme() never throws (e.g. before mount or during SSR)
   return (
     <ThemeContext.Provider value={{ theme, setTheme, effectiveDark }}>
       {children}

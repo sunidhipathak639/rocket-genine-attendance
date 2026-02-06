@@ -52,9 +52,18 @@ interface AttendanceCardProps {
     role?: string | null
   }
   timeFormat: '12h' | '24h'
+  /** Called after successful check-in so the dashboard can enable the activity popup timer */
+  onCheckInSuccess?: () => void
+  /** Called after successful check-out so the dashboard can disable the activity popup timer */
+  onCheckOutSuccess?: () => void
 }
 
-export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
+export function AttendanceCard({
+  user,
+  timeFormat,
+  onCheckInSuccess,
+  onCheckOutSuccess,
+}: AttendanceCardProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
@@ -466,6 +475,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
       if (res.ok) {
         setAttendanceRecord(data.doc)
         setCheckInTime(now.toISOString())
+        onCheckInSuccess?.()
         toast.success('Successfully checked in!')
         handleModalOpenChange(false)
         router.refresh()
@@ -561,6 +571,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
       if (res.ok) {
         setAttendanceRecord(data.doc)
         setShowSummaryModal(false)
+        onCheckOutSuccess?.()
         toast.success('Shift report submitted! Have a great evening.')
         router.refresh()
       } else {
@@ -779,36 +790,14 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     exit={{ opacity: 0 }}
                     className="w-full"
                   >
-                    <div className="relative w-full h-20 bg-slate-100 dark:bg-muted rounded-full overflow-hidden flex items-center p-2 shadow-inner border border-border">
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <span className="text-slate-400 dark:text-muted-foreground font-bold text-sm uppercase tracking-[0.2em] animate-pulse">
-                          Hold to Check Out
-                        </span>
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        className="h-16 w-full bg-slate-900 rounded-full flex items-center justify-center text-white font-black text-xl shadow-xl relative z-10"
-                        onPointerDown={(e) => {
-                          const btn = e.currentTarget
-                          let pressTimer: NodeJS.Timeout
-                          const start = () => {
-                            btn.style.transform = 'scale(0.95)'
-                            pressTimer = setTimeout(() => {
-                              handleCheckOut()
-                            }, 1000)
-                          }
-                          const cancel = () => {
-                            clearTimeout(pressTimer)
-                            btn.style.transform = 'scale(1)'
-                          }
-                          btn.addEventListener('pointerup', cancel, { once: true })
-                          btn.addEventListener('pointerleave', cancel, { once: true })
-                          start()
-                        }}
-                      >
-                        <LogOut className="w-6 h-6 mr-2" /> Check Out
-                      </motion.button>
-                    </div>
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleCheckOut()}
+                      className="w-full h-16 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center gap-2 text-white font-black text-xl shadow-xl border border-slate-700/50 transition-colors"
+                    >
+                      <LogOut className="w-6 h-6" /> Check Out
+                    </motion.button>
                   </motion.div>
                 ) : (
                   <motion.div

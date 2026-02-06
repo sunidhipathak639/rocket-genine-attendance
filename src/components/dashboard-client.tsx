@@ -319,17 +319,18 @@ export function DashboardClient({
     }
   }
 
-  // Check if user is checked in TODAY
+  // Check if user is checked in TODAY (server data or local callback from AttendanceCard)
+  const [localCheckedInToday, setLocalCheckedInToday] = useState<boolean | null>(null)
   const nowStr = new Date().toISOString().split('T')[0]
-  const isCheckedInToday = userAttendance?.some((a) => {
+  const serverCheckedInToday = userAttendance?.some((a) => {
     const aDate = typeof a.date === 'string' ? a.date.split('T')[0] : ''
     return aDate === nowStr && a.timeIn && !a.timeOut
   })
+  const isCheckedInToday = localCheckedInToday ?? serverCheckedInToday ?? false
 
   const intervalMinutes = workSettings?.activityCheckInterval ?? 10
   const promptBeforeIdleMs = 60 * 1000 // 60 seconds to respond
-  // Timeout is the TOTAL time (Idle + Prompt).
-  // We want the prompt to show AFTER intervalMinutes of idleness.
+  // Timeout is the TOTAL time (Idle + Prompt). Prompt shows after intervalMinutes of idleness.
   const timeoutMs = intervalMinutes * 60 * 1000 + promptBeforeIdleMs
 
   const { getRemainingTime, activate } = useIdleTimer({
@@ -790,7 +791,12 @@ export function DashboardClient({
                     transition={{ delay: 0.1, type: 'spring', damping: 20 }}
                     className="lg:col-span-8"
                   >
-                    <AttendanceCard user={user} timeFormat={timeFormat} />
+                    <AttendanceCard
+                      user={user}
+                      timeFormat={timeFormat}
+                      onCheckInSuccess={() => setLocalCheckedInToday(true)}
+                      onCheckOutSuccess={() => setLocalCheckedInToday(false)}
+                    />
                   </motion.div>
 
                   {/* Quick Stats Sidebar */}
