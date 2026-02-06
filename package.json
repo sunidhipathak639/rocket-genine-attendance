@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@lottiefiles/react-lottie-player": "^3.6.0",
     "@payloadcms/db-postgres": "^3.74.0",
     "@payloadcms/next": "3.74.0",
     "@payloadcms/richtext-lexical": "3.74.0",

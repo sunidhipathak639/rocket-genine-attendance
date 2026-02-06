@@ -452,7 +452,7 @@ export function DashboardCalendar({
             <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-full text-blue-600 border border-blue-100">
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>Holiday
             </div>
-            <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-full text-slate-400 border border-slate-200">
+            <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-full text-slate-400 border border-border">
               <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>Sunday
             </div>
           </div>
@@ -465,7 +465,7 @@ export function DashboardCalendar({
             selected={date}
             onSelect={setDate}
             onDayClick={handleDayClick}
-            className="rounded-[24px] border border-slate-100 shadow-xl w-full max-w-full bg-white transition-all [&_table]:w-full [&_td]:p-0 [--cell-size:2.5rem] sm:[--cell-size:3rem]"
+            className="rounded-[24px] border border-border shadow-xl w-full max-w-full bg-white transition-all [&_table]:w-full [&_td]:p-0 [--cell-size:2.5rem] sm:[--cell-size:3rem]"
             modifiers={modifiers}
             modifiersClassNames={modifiersClassNames}
             disabled={(day) => isDateDisabled(day)}
@@ -593,11 +593,11 @@ export function DashboardCalendar({
                   <Select value={leaveType} onValueChange={setLeaveType}>
                     <SelectTrigger
                       id="leave-type"
-                      className="pl-11 h-14 rounded-2xl border-slate-200 focus:ring-indigo-600/20 transition-all font-bold text-slate-700"
+                      className="pl-11 h-14 rounded-2xl border-border focus:ring-indigo-600/20 transition-all font-bold text-slate-700"
                     >
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-slate-100 shadow-xl p-1">
+                    <SelectContent className="rounded-2xl border-border shadow-xl p-1">
                       <SelectItem
                         value="full_day"
                         className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700"
@@ -638,7 +638,7 @@ export function DashboardCalendar({
                   <Textarea
                     id="reason"
                     placeholder="Briefly describe your reason for absence..."
-                    className="min-h-[120px] rounded-2xl border-slate-200 focus:ring-indigo-600/20 transition-all p-4 pt-4 resize-none font-medium text-slate-700"
+                    className="min-h-[120px] rounded-2xl border-border focus:ring-indigo-600/20 transition-all p-4 pt-4 resize-none font-medium text-slate-700"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                   />
@@ -652,7 +652,7 @@ export function DashboardCalendar({
             <div className="flex gap-3 pt-2">
               <Button
                 variant="outline"
-                className="flex-1 h-14 rounded-2xl border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                className="flex-1 h-14 rounded-2xl border-border font-bold text-slate-600 hover:bg-slate-50 transition-all"
                 onClick={() => {
                   setIsLeaveDialogOpen(false)
                   setReason('')

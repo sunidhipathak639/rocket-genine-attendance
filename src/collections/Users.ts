@@ -100,5 +100,32 @@ export const Users: CollectionConfig = {
         description: 'Profile picture. Users can update this from their profile page (max 1MB).',
       },
     },
+    {
+      name: 'timeFormat',
+      type: 'select',
+      options: [
+        { label: '12 hour', value: '12h' },
+        { label: '24 hour', value: '24h' },
+      ],
+      defaultValue: '12h',
+      admin: {
+        description: 'Time display format. User can change this in Profile → Settings.',
+      },
+      saveToJWT: true,
+    },
+    {
+      name: 'theme',
+      type: 'select',
+      options: [
+        { label: 'Light', value: 'light' },
+        { label: 'Dark', value: 'dark' },
+        { label: 'Auto (system)', value: 'auto' },
+      ],
+      defaultValue: 'auto',
+      admin: {
+        description: 'App theme. User can change this in Profile → Settings.',
+      },
+      saveToJWT: true,
+    },
   ],
 }

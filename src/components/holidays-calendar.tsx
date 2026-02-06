@@ -197,7 +197,7 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
       case 'optional':
         return 'bg-amber-100 text-amber-700 border-amber-200'
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-200'
+        return 'bg-slate-100 text-slate-700 border-border'
     }
   }
 
@@ -308,7 +308,7 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                   selected={date}
                   onSelect={setDate}
                   onDayClick={handleDayClick}
-                  className="rounded-3xl border border-slate-100 shadow-sm w-full max-w-full bg-white p-6 [--cell-size:2.5rem] sm:[--cell-size:3rem]"
+                  className="rounded-3xl border border-border shadow-sm w-full max-w-full bg-white p-6 [--cell-size:2.5rem] sm:[--cell-size:3rem]"
                   modifiers={modifiers}
                   modifiersClassNames={modifiersClassNames}
                   components={{
@@ -365,7 +365,7 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                   }}
                 />
               </div>
-              <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-4 pt-8 border-t border-slate-100/50">
+              <div className="grid grid-cols-2 md:flex md:flex-wrap items-center gap-4 pt-8 border-t border-border/50">
                 <div className="flex items-center gap-3">
                   <div className="w-4 h-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg"></div>
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -422,7 +422,7 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                         key={holiday.id}
                         variants={item}
                         whileHover={{ scale: 1.02 }}
-                        className="flex items-center justify-between p-5 bg-white rounded-3xl border border-slate-100 hover:border-indigo-100 transition-all shadow-sm hover:shadow-md cursor-pointer group/hol"
+                        className="flex items-center justify-between p-5 bg-white rounded-3xl border border-border hover:border-indigo-100 transition-all shadow-sm hover:shadow-md cursor-pointer group/hol"
                         onClick={() => {
                           setSelectedHoliday(holiday)
                           setIsHolidayDialogOpen(true)
@@ -482,7 +482,7 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                     {currentMonthHolidays.map((holiday) => (
                       <div
                         key={holiday.id}
-                        className="flex items-center justify-between p-3 bg-white/50 rounded-2xl border border-slate-100 hover:border-indigo-50 cursor-pointer transition-all"
+                        className="flex items-center justify-between p-3 bg-white/50 rounded-2xl border border-border hover:border-indigo-50 cursor-pointer transition-all"
                         onClick={() => {
                           setSelectedHoliday(holiday)
                           setIsHolidayDialogOpen(true)
@@ -538,12 +538,12 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                 <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] flex items-center gap-2">
                   Holiday Insight
                 </h4>
-                <p className="text-slate-700 bg-slate-50 p-6 rounded-3xl border border-slate-100 font-medium leading-relaxed">
+                <p className="text-slate-700 bg-slate-50 p-6 rounded-3xl border border-border font-medium leading-relaxed">
                   {selectedHoliday.description}
                 </p>
               </div>
             ) : (
-              <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+              <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-border">
                 <Info className="w-12 h-12 mx-auto mb-4 opacity-20" />
                 <p className="font-bold uppercase tracking-widest text-[10px]">
                   Registry details pending

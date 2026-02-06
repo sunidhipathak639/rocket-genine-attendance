@@ -130,7 +130,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
       case 'half-day':
         return 'bg-blue-50 text-blue-700 border-blue-200'
       default:
-        return 'bg-gray-50 text-gray-700 border-gray-200'
+        return 'bg-gray-50 text-gray-700 border-border'
     }
   }
 
@@ -164,7 +164,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-full sm:w-64 bg-white border-slate-200"
+              className="pl-10 w-full sm:w-64 bg-white border-border"
             />
           </div>
         </div>
@@ -207,7 +207,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                     return (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-gray-100"
+                        className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-border"
                       >
                         <span className="font-medium text-gray-900">{name}</span>
                         <div className="flex items-center gap-2">
@@ -242,7 +242,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                   notCheckedInToday.map((u) => (
                     <div
                       key={u.id}
-                      className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-gray-100"
+                      className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-border"
                     >
                       <span className="font-medium text-gray-700">{u.name || u.email}</span>
                       <span className="text-xs text-gray-400">—</span>
@@ -361,7 +361,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                         isSelected
                           ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          : 'border-border hover:border-primary/50 hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-start justify-between">
@@ -495,7 +495,7 @@ export function AdminDashboardView({ allUsers, allAttendance }: AdminDashboardVi
                                 </div>
                               </div>
                               <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
-                                <div className="bg-white/60 px-3 py-1.5 rounded-full border border-slate-200/60 shadow-sm flex items-center gap-1.5">
+                                <div className="bg-white/60 px-3 py-1.5 rounded-full border border-border/80 shadow-sm flex items-center gap-1.5">
                                   <DollarSign className="w-3.5 h-3.5 text-green-600" />
                                   <p className="text-sm font-black text-slate-900">
                                     Payable: ₹{dailySalary}

@@ -147,6 +147,14 @@ export interface User {
    * Profile picture. Users can update this from their profile page (max 1MB).
    */
   profileImage?: (number | null) | Media;
+  /**
+   * Time display format. User can change this in Profile → Settings.
+   */
+  timeFormat?: ('12h' | '24h') | null;
+  /**
+   * App theme. User can change this in Profile → Settings.
+   */
+  theme?: ('light' | 'dark' | 'auto') | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -468,6 +476,8 @@ export interface UsersSelect<T extends boolean = true> {
   salary?: T;
   department?: T;
   profileImage?: T;
+  timeFormat?: T;
+  theme?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;

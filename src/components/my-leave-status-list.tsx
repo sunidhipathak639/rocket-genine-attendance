@@ -128,7 +128,7 @@ export function MyLeaveStatusList({ user }: MyLeaveStatusListProps) {
             key="empty"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-slate-400 text-sm py-10 text-center font-medium bg-slate-50/50 rounded-3xl border border-dashed border-slate-200"
+            className="text-slate-400 text-sm py-10 text-center font-medium bg-slate-50/50 rounded-3xl border border-dashed border-border"
           >
             No leave records found in the archive.
           </motion.p>
@@ -141,7 +141,7 @@ export function MyLeaveStatusList({ user }: MyLeaveStatusListProps) {
                   key={leave.id}
                   variants={item}
                   whileHover={{ scale: 1.01 }}
-                  className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4 transition-all hover:shadow-md"
+                  className="p-5 bg-white rounded-2xl border border-border shadow-sm space-y-4 transition-all hover:shadow-md"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -181,11 +181,11 @@ export function MyLeaveStatusList({ user }: MyLeaveStatusListProps) {
             </div>
 
             {/* Table View for Desktop */}
-            <div className="hidden sm:block rounded-[32px] border border-slate-100 overflow-hidden bg-white/50 backdrop-blur-sm shadow-sm transition-all hover:shadow-md">
+            <div className="hidden sm:block rounded-[32px] border border-border overflow-hidden bg-white/50 backdrop-blur-sm shadow-sm transition-all hover:shadow-md">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-100/50">
+                    <tr className="bg-slate-50/80 border-b border-border/50">
                       <th className="text-left py-5 px-8 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
                         Date Range
                       </th>

@@ -133,13 +133,13 @@ export function AdminDashboardViewEnhanced({
     <div className="space-y-6">
       {/* Top Action Buttons */}
       <div className="flex items-center justify-end gap-3">
-        <Button className="bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 font-semibold">
+        <Button className="bg-white text-slate-900 border border-border hover:bg-slate-50 font-semibold">
           Create New Task
         </Button>
-        <Button className="bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 font-semibold">
+        <Button className="bg-white text-slate-900 border border-border hover:bg-slate-50 font-semibold">
           New Tracker
         </Button>
-        <Button className="bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 font-semibold">
+        <Button className="bg-white text-slate-900 border border-border hover:bg-slate-50 font-semibold">
           Add Payroll
         </Button>
       </div>
@@ -147,7 +147,7 @@ export function AdminDashboardViewEnhanced({
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Company Performance */}
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between pb-2">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">
@@ -183,7 +183,7 @@ export function AdminDashboardViewEnhanced({
         </Card>
 
         {/* Company Job Levels */}
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between pb-2">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">
@@ -245,7 +245,7 @@ export function AdminDashboardViewEnhanced({
         </Card>
 
         {/* Attendance Report */}
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between pb-2">
             <div>
               <CardTitle className="text-lg font-semibold text-slate-900">
@@ -300,7 +300,7 @@ export function AdminDashboardViewEnhanced({
       {/* Tasks Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {tasks.map((task, idx) => (
-          <Card key={idx} className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <Card key={idx} className="border-border shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <p className="text-sm text-slate-700 mb-4 min-h-[40px]">{task.title}</p>
               <div className="flex items-center justify-between">
@@ -320,7 +320,7 @@ export function AdminDashboardViewEnhanced({
       </div>
 
       {/* Employee Attendance Table */}
-      <Card className="border-slate-200 shadow-sm">
+      <Card className="border-border shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-lg font-semibold text-slate-900">
@@ -344,7 +344,7 @@ export function AdminDashboardViewEnhanced({
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-200">
+                <tr className="border-b border-border">
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">
                     Employee ID
                   </th>
@@ -386,7 +386,7 @@ export function AdminDashboardViewEnhanced({
                     const scheduleOut = userTodayAtt?.timeOut || '-'
 
                     return (
-                      <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <tr key={user.id} className="border-b border-border hover:bg-slate-50">
                         <td className="py-3 px-4 text-sm text-slate-900">EM-{user.id}</td>
                         <td className="py-3 px-4 text-sm font-medium text-slate-900">
                           {user.name || 'N/A'}

@@ -5,6 +5,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   ArrowLeft,
   User,
   Mail,
@@ -14,9 +21,14 @@ import {
   Loader2,
   Camera,
   AlertCircle,
+  Clock,
+  Moon,
+  Sun,
+  Monitor,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { User as UserType } from '@/payload-types'
+import { useTheme, SyncUserTheme, type Theme } from '@/components/theme-provider'
 
 const MAX_PROFILE_IMAGE_BYTES = 1024 * 1024 // 1 MB
 
@@ -38,8 +50,36 @@ interface ProfilePageClientProps {
 export function ProfilePageClient({ user: initialUser }: ProfilePageClientProps) {
   const [user, setUser] = useState(initialUser)
   const [uploading, setUploading] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const profileImageUrl = getProfileImageUrl(user)
+  const { setTheme: applyTheme } = useTheme()
+
+  const timeFormat = (user as UserType).timeFormat ?? '12h'
+  const theme = ((user as UserType).theme ?? 'auto') as Theme
+
+  const updateSettings = async (updates: { timeFormat?: '12h' | '24h'; theme?: Theme }) => {
+    setSavingSettings(true)
+    try {
+      const res = await fetch('/api/user-settings', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, ...updates }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.message || 'Failed to update settings')
+      }
+      setUser((prev) => ({ ...prev, ...updates }))
+      if (updates.theme !== undefined) applyTheme(updates.theme)
+      toast.success('Settings saved.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save settings')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -104,21 +144,24 @@ export function ProfilePageClient({ user: initialUser }: ProfilePageClientProps)
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+    <div className="min-h-screen bg-transparent">
+      <SyncUserTheme theme={theme} />
+      <div className="border-b border-border bg-white/60 dark:bg-card/70 backdrop-blur-2xl sticky top-0 z-10">
         <div className="container mx-auto px-4 md:px-8 py-4 max-w-[900px] flex items-center gap-4">
           <Link
             href="/"
-            className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
+            className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">My Profile</h1>
+          <h1 className="text-xl font-black text-slate-900 dark:text-foreground tracking-tight">
+            My Profile
+          </h1>
         </div>
       </div>
 
       <div className="container mx-auto px-4 md:px-8 py-8 md:py-12 max-w-[900px]">
-        <div className="dashboard-card p-6 md:p-10 bg-white/80 backdrop-blur-xl border-white/20 shadow-xl rounded-3xl">
+        <div className="dashboard-card p-6 md:p-10 shadow-xl rounded-3xl">
           {/* Profile picture */}
           <div className="flex flex-col items-center mb-10">
             <div className="relative group">
@@ -186,12 +229,83 @@ export function ProfilePageClient({ user: initialUser }: ProfilePageClientProps)
             )}
           </div>
 
+          {/* Settings */}
+          <div className="mt-10 pt-10 border-t border-border">
+            <h3 className="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-6">
+              Settings
+            </h3>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                    Time format
+                  </label>
+                </div>
+                <Select
+                  value={timeFormat}
+                  onValueChange={(v) => updateSettings({ timeFormat: v as '12h' | '24h' })}
+                  disabled={savingSettings}
+                >
+                  <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-800 border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12h">12 hour (AM/PM)</SelectItem>
+                    <SelectItem value="24h">24 hour</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <Moon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                    Appearance
+                  </label>
+                </div>
+                <Select
+                  value={theme}
+                  onValueChange={(v) => updateSettings({ theme: v as Theme })}
+                  disabled={savingSettings}
+                >
+                  <SelectTrigger className="h-12 rounded-xl bg-white dark:bg-slate-800 border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">
+                      <span className="flex items-center gap-2">
+                        <Sun className="w-4 h-4" /> Light
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="dark">
+                      <span className="flex items-center gap-2">
+                        <Moon className="w-4 h-4" /> Dark
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="auto">
+                      <span className="flex items-center gap-2">
+                        <Monitor className="w-4 h-4" /> Auto (system)
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {savingSettings && (
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" /> Saving…
+              </p>
+            )}
+          </div>
+
           {/* Contact admin notice */}
-          <div className="mt-10 p-4 md:p-6 rounded-2xl bg-amber-50 border border-amber-200 flex gap-4">
+          <div className="mt-10 p-4 md:p-6 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex gap-4">
             <AlertCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-amber-900">Need to change any of these details?</p>
-              <p className="text-sm text-amber-800 mt-1">
+              <p className="font-bold text-amber-900 dark:text-amber-200">
+                Need to change any of these details?
+              </p>
+              <p className="text-sm text-amber-800 dark:text-amber-300 mt-1">
                 To update your name, email, role, department or salary, please contact your
                 administrator.
               </p>
@@ -200,7 +314,10 @@ export function ProfilePageClient({ user: initialUser }: ProfilePageClientProps)
 
           <div className="mt-8 flex justify-center">
             <Link href="/">
-              <Button variant="outline" className="rounded-xl font-bold">
+              <Button
+                variant="outline"
+                className="rounded-xl font-bold border-border text-slate-700 dark:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
                 Back to Dashboard
               </Button>
             </Link>
@@ -221,13 +338,17 @@ function DetailRow({
   value: string
 }) {
   return (
-    <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50/80 border border-slate-100">
-      <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+    <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-border">
+      <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
         <Icon className="w-5 h-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-        <p className="text-base font-bold text-slate-900 break-words">{value}</p>
+        <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+          {label}
+        </p>
+        <p className="text-base font-bold text-slate-900 dark:text-foreground break-words">
+          {value}
+        </p>
       </div>
     </div>
   )

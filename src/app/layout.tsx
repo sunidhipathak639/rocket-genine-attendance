@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { Plus_Jakarta_Sans } from 'next/font/google'
+import { ThemeProvider } from '@/components/theme-provider'
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -35,8 +36,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="en" className={jakarta.variable}>
-      <body className="min-h-screen antialiased font-sans">{children}</body>
+    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
+      <body className="min-h-screen antialiased font-sans bg-background text-foreground">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   )
 }

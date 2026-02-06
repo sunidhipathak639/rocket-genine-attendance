@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,7 +11,6 @@ import {
   LogIn,
   LogOut,
   RefreshCw,
-  PartyPopper,
   Loader2,
   Paperclip,
   Target,
@@ -33,6 +33,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Attendance } from '@/payload-types'
 import Tilt from 'react-parallax-tilt'
+
+const LottiePlayer = dynamic(
+  () =>
+    import('@lottiefiles/react-lottie-player').then((mod) => ({
+      default: mod.Player,
+    })),
+  { ssr: false },
+)
 
 type FaceApiModule = typeof import('@vladmandic/face-api')
 
@@ -603,34 +611,34 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
         transitionSpeed={1000}
         className="dashboard-card overflow-hidden transform-gpu"
       >
-        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
-          <div className="flex-1 p-5 md:p-10 bg-gradient-to-br from-white to-slate-200/20">
+        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-border">
+          <div className="flex-1 p-5 md:p-10 bg-gradient-to-br from-white to-slate-200/20 dark:from-card dark:to-muted/30">
             <div className="flex items-center justify-between mb-8 md:mb-12">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <div className="w-10 h-10 bg-indigo-600 dark:bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
                   <Clock className="w-5 h-5" />
                 </div>
-                <h2 className="font-black text-lg md:text-xl tracking-tight text-slate-900 uppercase">
-                  Session <span className="text-indigo-600">Console</span>
+                <h2 className="font-black text-lg md:text-xl tracking-tight text-slate-900 dark:text-foreground uppercase">
+                  Session <span className="text-indigo-600 dark:text-primary">Console</span>
                 </h2>
               </div>
               <button
                 onClick={() => fetchTodayAttendance()}
-                className="p-3 rounded-xl hover:bg-white hover:shadow-md text-slate-400"
+                className="p-3 rounded-xl hover:bg-white dark:hover:bg-muted hover:shadow-md text-slate-400 dark:text-muted-foreground"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
 
-            <div className="flex flex-col items-center justify-center mb-8 md:mb-12 py-10 md:py-16 bg-white rounded-[40px] md:rounded-[48px] border border-slate-100 shadow-sm relative overflow-hidden">
+            <div className="flex flex-col items-center justify-center mb-8 md:mb-12 py-10 md:py-16 bg-white/70 dark:bg-muted/50 backdrop-blur-xl rounded-[40px] md:rounded-[48px] border border-border shadow-sm relative overflow-hidden">
               <div className="flex items-baseline gap-1 relative z-10">
-                <span className="text-6xl md:text-8xl font-black tracking-tighter text-slate-900">
+                <span className="text-6xl md:text-8xl font-black tracking-tighter text-slate-900 dark:text-foreground">
                   {formattedTime.split(' ')[0]}
                 </span>
-                <span className="text-2xl md:text-4xl font-black text-indigo-600 ml-2">
+                <span className="text-2xl md:text-4xl font-black text-indigo-600 dark:text-primary ml-2">
                   {formattedSeconds}
                 </span>
-                <span className="text-sm md:text-xl font-black text-slate-400 ml-2 uppercase">
+                <span className="text-sm md:text-xl font-black text-slate-400 dark:text-muted-foreground ml-2 uppercase">
                   {formattedTime.split(' ')[1]}
                 </span>
               </div>
@@ -638,15 +646,15 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex items-center gap-2 mt-4 px-3 py-1 bg-green-50 rounded-full border border-green-100 relative z-10"
+                  className="flex items-center gap-2 mt-4 px-3 py-1 bg-green-50 dark:bg-green-500/20 rounded-full border border-green-100 dark:border-green-500/40 relative z-10"
                 >
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping" />
-                  <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">
+                  <span className="text-[10px] font-black text-green-600 dark:text-green-300 uppercase tracking-widest">
                     Live Console Active
                   </span>
                 </motion.div>
               )}
-              <p className="text-xs font-bold text-slate-400 mt-6 uppercase tracking-widest">
+              <p className="text-xs font-bold text-slate-400 dark:text-muted-foreground mt-6 uppercase tracking-widest">
                 Indian Standard Time
               </p>
               <AnimatePresence>
@@ -655,9 +663,9 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mt-8 px-6 py-2 bg-indigo-50 rounded-full border border-indigo-100 flex items-center gap-2"
+                    className="mt-8 px-6 py-2 bg-indigo-50 dark:bg-primary/20 rounded-full border border-indigo-100 dark:border-primary/30 flex items-center gap-2"
                   >
-                    <span className="text-xs md:text-sm font-black text-indigo-600">
+                    <span className="text-xs md:text-sm font-black text-indigo-600 dark:text-primary">
                       Duration: {durationWorked.h > 0 ? `${durationWorked.h}h ` : ''}
                       {durationWorked.m}m
                     </span>
@@ -667,25 +675,25 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
             </div>
 
             <div className="flex flex-col gap-4">
-              <div className="p-6 rounded-[32px] bg-slate-50/50 border border-slate-100 flex items-start gap-5">
-                <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-indigo-600 flex-shrink-0">
+              <div className="p-6 rounded-[32px] bg-slate-50/50 dark:bg-muted/50 border border-border flex items-start gap-5">
+                <div className="w-12 h-12 bg-white dark:bg-muted rounded-2xl shadow-sm flex items-center justify-center text-indigo-600 dark:text-primary flex-shrink-0">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-muted-foreground uppercase tracking-[0.2em]">
                       Presence Location
                     </p>
                     {location && (
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 rounded-md border border-green-100">
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 dark:bg-green-500/20 rounded-md border border-green-100 dark:border-green-500/40">
                         <div className="w-0.5 h-0.5 bg-green-500 rounded-full animate-pulse" />
-                        <span className="text-[8px] font-black text-green-600 uppercase tracking-widest leading-none">
+                        <span className="text-[8px] font-black text-green-600 dark:text-green-300 uppercase tracking-widest leading-none">
                           Active GPS
                         </span>
                       </div>
                     )}
                   </div>
-                  <p className="text-sm font-bold text-slate-900 leading-relaxed truncate md:whitespace-normal">
+                  <p className="text-sm font-bold text-slate-900 dark:text-foreground leading-relaxed truncate md:whitespace-normal">
                     {displayAddress ||
                       (location
                         ? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`
@@ -696,18 +704,20 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
             </div>
           </div>
 
-          <div className="w-full lg:w-96 p-6 md:p-10 flex flex-col justify-between bg-slate-50/30">
+          <div className="w-full lg:w-96 p-6 md:p-10 flex flex-col justify-between bg-slate-50/30 dark:bg-muted/20">
             <div className="space-y-6">
-              <h3 className="font-black text-slate-900 uppercase text-sm opacity-50">
+              <h3 className="font-black text-slate-900 dark:text-muted-foreground uppercase text-sm opacity-50">
                 Daily Status
               </h3>
               <div className="space-y-4">
                 {isCheckedIn && (
-                  <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center gap-5">
-                    <LogIn className="w-5 h-5 text-indigo-600" />
+                  <div className="p-5 rounded-2xl bg-indigo-50/50 dark:bg-primary/10 border border-indigo-100 dark:border-primary/20 flex items-center gap-5">
+                    <LogIn className="w-5 h-5 text-indigo-600 dark:text-primary" />
                     <div>
-                      <p className="text-[10px] font-bold text-indigo-500 uppercase">Check In</p>
-                      <p className="text-xl font-black text-slate-900">
+                      <p className="text-[10px] font-bold text-indigo-500 dark:text-primary uppercase">
+                        Check In
+                      </p>
+                      <p className="text-xl font-black text-slate-900 dark:text-foreground">
                         {new Date(attendanceRecord!.timeIn!).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -717,11 +727,13 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                   </div>
                 )}
                 {isCheckedOut && (
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-5">
-                    <LogOut className="w-5 h-5 text-slate-400" />
+                  <div className="p-5 rounded-2xl bg-slate-50 dark:bg-muted/50 border border-border flex items-center gap-5">
+                    <LogOut className="w-5 h-5 text-slate-400 dark:text-muted-foreground" />
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Check Out</p>
-                      <p className="text-xl font-black text-slate-900">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-muted-foreground uppercase">
+                        Check Out
+                      </p>
+                      <p className="text-xl font-black text-slate-900 dark:text-foreground">
                         {new Date(attendanceRecord!.timeOut!).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -731,9 +743,18 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                   </div>
                 )}
                 {!isCheckedIn && !isCheckedOut && (
-                  <div className="p-10 rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center text-center">
-                    <PartyPopper className="w-10 h-10 text-slate-300 mb-4" />
-                    <p className="text-sm font-bold text-slate-500">Session not started yet.</p>
+                  <div className="p-10 rounded-3xl bg-indigo-50/80 dark:bg-indigo-500/10 border-2 border-dashed border-border flex flex-col items-center text-center">
+                    <div className="mb-4 h-16 w-16 flex items-center justify-center [&_svg]:max-h-full [&_svg]:max-w-full">
+                      <LottiePlayer
+                        src="/Confetti.json"
+                        autoplay
+                        loop
+                        style={{ height: '64px', width: '64px' }}
+                      />
+                    </div>
+                    <p className="text-sm font-bold text-slate-600 dark:text-indigo-200/90">
+                      Session not started yet.
+                    </p>
                   </div>
                 )}
               </div>
@@ -746,7 +767,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     key="comp"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="w-full p-6 md:p-8 rounded-2xl md:rounded-3xl bg-indigo-50 text-indigo-700 font-black text-center border border-indigo-100"
+                    className="w-full p-6 md:p-8 rounded-2xl md:rounded-3xl bg-indigo-50 dark:bg-primary/10 text-indigo-700 dark:text-primary font-black text-center border border-indigo-100 dark:border-primary/20"
                   >
                     Session Completed
                   </motion.div>
@@ -758,9 +779,9 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     exit={{ opacity: 0 }}
                     className="w-full"
                   >
-                    <div className="relative w-full h-20 bg-slate-100 rounded-full overflow-hidden flex items-center p-2 shadow-inner border border-slate-200">
+                    <div className="relative w-full h-20 bg-slate-100 dark:bg-muted rounded-full overflow-hidden flex items-center p-2 shadow-inner border border-border">
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <span className="text-slate-400 font-bold text-sm uppercase tracking-[0.2em] animate-pulse">
+                        <span className="text-slate-400 dark:text-muted-foreground font-bold text-sm uppercase tracking-[0.2em] animate-pulse">
                           Hold to Check Out
                         </span>
                       </div>
@@ -797,13 +818,13 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                     exit={{ opacity: 0 }}
                     className="w-full"
                   >
-                    <div className="relative w-full h-24 bg-indigo-50/50 rounded-[3rem] p-2 border border-indigo-100 shadow-inner overflow-hidden select-none">
+                    <div className="relative w-full h-24 bg-indigo-50/50 dark:bg-primary/10 rounded-[3rem] p-2 border border-indigo-100 dark:border-primary/20 shadow-inner overflow-hidden select-none">
                       {/* Slider Track Text */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <span className="text-indigo-400 font-black text-sm md:text-base uppercase tracking-widest animate-pulse whitespace-nowrap pl-16">
+                        <span className="text-indigo-400 dark:text-primary font-black text-sm md:text-base uppercase tracking-widest animate-pulse whitespace-nowrap pl-16">
                           Slide to Check In
                         </span>
-                        <div className="absolute left-0 top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                        <div className="absolute left-0 top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/40 dark:via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
                       </div>
 
                       {/* Draggable Button */}
@@ -817,7 +838,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                             handleModalOpenChange(true)
                           }
                         }}
-                        className="w-20 h-20 bg-indigo-600 rounded-full flex items-center justify-center shadow-xl shadow-indigo-200 cursor-grab active:cursor-grabbing relative z-10"
+                        className="w-20 h-20 bg-indigo-600 dark:bg-primary rounded-full flex items-center justify-center shadow-xl shadow-indigo-200 dark:shadow-primary/30 cursor-grab active:cursor-grabbing relative z-10"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                       >
@@ -829,7 +850,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                   </motion.div>
                 )}
               </AnimatePresence>
-              <p className="text-[10px] text-center text-slate-400 font-black uppercase tracking-widest mt-8">
+              <p className="text-[10px] text-center text-slate-400 dark:text-muted-foreground font-black uppercase tracking-widest mt-8">
                 Secure Session Active
               </p>
             </div>
@@ -1000,10 +1021,10 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                 <Smile className="w-4 h-4" /> End of Day Mood
               </label>
               <Select value={mood} onValueChange={setMood}>
-                <SelectTrigger className="w-full h-14 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white text-base font-bold">
+                <SelectTrigger className="w-full h-14 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white text-base font-bold">
                   <SelectValue placeholder="How was your day?" />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-slate-200">
+                <SelectContent className="rounded-2xl border-border">
                   <SelectItem value="productive">🚀 Highly Productive</SelectItem>
                   <SelectItem value="good">✅ Good Progress</SelectItem>
                   <SelectItem value="challenging">⚠️ Challenging</SelectItem>
@@ -1019,7 +1040,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                 <FileText className="w-4 h-4" /> Shift Overview
               </label>
               <textarea
-                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
                 placeholder="A brief summary of your shift..."
                 value={workSummary}
                 onChange={(e) => setWorkSummary(e.target.value)}
@@ -1032,7 +1053,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                 <Target className="w-4 h-4" /> Key Accomplishments (Required)
               </label>
               <textarea
-                className="w-full min-h-[120px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[120px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
                 placeholder="What did you achieve today?"
                 value={accomplishments}
                 onChange={(e) => setAccomplishments(e.target.value)}
@@ -1045,7 +1066,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                 <AlertCircle className="w-4 h-4" /> Blockers & Challenges
               </label>
               <textarea
-                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
                 placeholder="Any issues that slowed you down?"
                 value={challenges}
                 onChange={(e) => setChallenges(e.target.value)}
@@ -1058,7 +1079,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                 <FileText className="w-4 h-4" /> Agenda for Tomorrow
               </label>
               <textarea
-                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
                 placeholder="Top priorities for your next shift?"
                 value={nextDayPlan}
                 onChange={(e) => setNextDayPlan(e.target.value)}
@@ -1073,7 +1094,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="group cursor-pointer p-8 rounded-3xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all flex flex-col items-center justify-center text-center gap-3"
+                className="group cursor-pointer p-8 rounded-3xl border-2 border-dashed border-border hover:border-indigo-400 hover:bg-indigo-50/50 transition-all flex flex-col items-center justify-center text-center gap-3"
               >
                 <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
                   <Paperclip className="w-6 h-6 text-slate-400 group-hover:text-indigo-600" />
@@ -1098,7 +1119,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       key={idx}
-                      className="p-4 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between group"
+                      className="p-4 rounded-xl bg-slate-100 border border-border flex items-center justify-between group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <FileText className="w-5 h-5 text-indigo-500 shrink-0" />
@@ -1119,7 +1140,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
             </div>
           </div>
 
-          <div className="p-8 border-t border-slate-100 shrink-0 bg-white">
+          <div className="p-8 border-t border-border shrink-0 bg-white">
             <div className="flex gap-4">
               <Button
                 variant="ghost"

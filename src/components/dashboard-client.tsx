@@ -30,6 +30,7 @@ import { CustomCursor } from 'cursor-style'
 import { useIdleTimer } from 'react-idle-timer'
 import Typewriter from 'typewriter-effect'
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
+import { SyncUserTheme, useTheme } from '@/components/theme-provider'
 import 'react-circular-progressbar/dist/styles.css'
 
 interface DashboardClientProps {
@@ -40,6 +41,8 @@ interface DashboardClientProps {
     role?: string | null
     salary?: number | null
     profileImage?: { url: string } | number | null
+    timeFormat?: '12h' | '24h' | null
+    theme?: 'light' | 'dark' | 'auto' | null
   }
   initialTab?: 'dashboard' | 'history' | 'leaves' | 'holidays'
   allUsers?: User[]
@@ -118,7 +121,8 @@ export function DashboardClient({
   workSettings: workSettingsProp,
   userAttendance = [],
 }: DashboardClientProps) {
-  const [timeFormat] = useState<'12h' | '24h'>('12h')
+  const timeFormat = user.timeFormat ?? '12h'
+  const { effectiveDark } = useTheme()
   const [, setShiftTick] = useState(0)
   const [logoutLoading, setLogoutLoading] = useState(false)
   const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] = useState<
@@ -360,15 +364,16 @@ export function DashboardClient({
   // Show admin dashboard if user is admin
   if (user.role === 'admin' && allUsers && allAttendance) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC]/50 text-slate-900 font-sans selection:bg-indigo-100">
+      <div className="min-h-screen bg-transparent text-slate-900 dark:text-foreground font-sans selection:bg-indigo-100">
+        <SyncUserTheme theme={user.theme ?? undefined} />
         <CustomCursor type="five" showImages imageSize={30} imageFollowDelay={20} />
         {/* Premium Header */}
-        <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-white/70 dark:bg-card/80 backdrop-blur-xl border-b border-border px-4 md:px-8 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-8">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 relative">
+              <div className="w-11 h-11 md:w-14 md:h-14 relative">
                 <Image
-                  src="/rocket-genine-logo.webp"
+                  src="/rocket-genie-logo.webp"
                   alt="Rocket Genie"
                   fill
                   className="object-contain"
@@ -388,9 +393,9 @@ export function DashboardClient({
               </span>
             </div>
 
-            <nav className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 absolute left-1/2 -translate-x-1/2">
+            <nav className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-border/80 absolute left-1/2 -translate-x-1/2">
               <button
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${pathname === '/' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${pathname === '/' ? 'bg-white dark:bg-muted text-indigo-600 dark:text-primary shadow-sm' : 'text-slate-500 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-foreground'}`}
               >
                 Dashboard
               </button>
@@ -414,7 +419,7 @@ export function DashboardClient({
               <input
                 type="text"
                 placeholder="Search anything..."
-                className="pl-10 pr-4 py-2.5 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-64 transition-all"
+                className="pl-10 pr-4 py-2.5 bg-slate-100/50 border border-border/80 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-64 transition-all"
               />
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,9 +433,9 @@ export function DashboardClient({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 md:gap-3 pl-4 md:pl-6 border-l border-slate-200">
+            <div className="flex items-center gap-2 md:gap-3 pl-4 md:pl-6 border-l border-border">
               <div className="text-right hidden sm:block">
-                <span className="block text-xs md:text-sm font-bold text-slate-900 truncate max-w-[100px] md:max-w-none">
+                <span className="block text-xs md:text-sm font-bold text-slate-900 dark:text-foreground truncate max-w-[100px] md:max-w-none">
                   {user.name || user.email}
                 </span>
                 <span className="block text-[8px] md:text-[10px] uppercase tracking-widest font-black text-slate-400">
@@ -443,7 +448,7 @@ export function DashboardClient({
               >
                 <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-20" />
                 <div className="absolute -inset-1 bg-indigo-500/20 rounded-full animate-pulse" />
-                <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-indigo-50 text-xs md:text-base z-10 transition-transform hover:scale-105 overflow-hidden">
+                <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-border text-xs md:text-base z-10 transition-transform hover:scale-105 overflow-hidden">
                   {typeof user.profileImage === 'object' && user.profileImage?.url ? (
                     <Image
                       src={user.profileImage.url}
@@ -485,7 +490,7 @@ export function DashboardClient({
 
         <main className="container mx-auto px-4 md:px-8 py-6 md:py-10 max-w-[1600px]">
           <div className="mb-6 md:mb-10 text-center md:text-left">
-            <h1 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900 mb-1 md:mb-2 italic">
+            <h1 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-foreground mb-1 md:mb-2 italic">
               Hello, {user.name?.split(' ')[0] || 'Admin'}
             </h1>
             <p className="text-slate-500 font-medium">
@@ -506,13 +511,14 @@ export function DashboardClient({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 relative" ref={bgRef}>
+    <div className="min-h-screen bg-transparent relative" ref={bgRef}>
+      <SyncUserTheme theme={user.theme ?? undefined} />
       <CustomCursor type="five" showImages imageSize={30} imageFollowDelay={20} />
-      {/* Dynamic Background Blobs */}
+      {/* Extra moving blobs (on top of layout fluid) for more depth */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="bg-blob-1 absolute -top-24 -left-24 w-96 h-96 bg-indigo-200/20 rounded-full blur-[100px]" />
-        <div className="bg-blob-2 absolute top-1/2 -right-24 w-[500px] h-[500px] bg-blue-200/10 rounded-full blur-[120px]" />
-        <div className="bg-blob-3 absolute -bottom-24 left-1/3 w-80 h-80 bg-violet-200/20 rounded-full blur-[90px]" />
+        <div className="bg-blob-1 absolute -top-24 -left-24 w-96 h-96 bg-indigo-300/15 dark:bg-indigo-500/10 rounded-full blur-[100px]" />
+        <div className="bg-blob-2 absolute top-1/2 -right-24 w-[500px] h-[500px] bg-blue-300/12 dark:bg-indigo-500/8 rounded-full blur-[120px]" />
+        <div className="bg-blob-3 absolute -bottom-24 left-1/3 w-80 h-80 bg-violet-300/15 dark:bg-violet-500/10 rounded-full blur-[90px]" />
       </div>
 
       {/* Activity Check Popup */}
@@ -523,37 +529,37 @@ export function DashboardClient({
         }}
       >
         <DialogContent
-          className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0"
+          className="sm:max-w-md rounded-3xl border-none shadow-2xl overflow-hidden p-0 bg-white/80 dark:bg-card/90 backdrop-blur-xl border dark:border-border"
           onPointerDownOutside={(e) => e.preventDefault()}
         >
-          <div className="bg-indigo-600 p-8 text-white">
+          <div className="bg-indigo-600 dark:bg-primary p-8 text-white">
             <h2 className="text-2xl font-black mb-2">Are you still working?</h2>
             <p className="opacity-80 font-medium">
               We monitor activity to ensure accurate time logs.
             </p>
           </div>
-          <div className="p-8 space-y-4">
-            <div className="flex flex-col items-center justify-center mb-12 py-16 bg-white rounded-[48px] border border-slate-100 shadow-[0_20px_50px_rgba(79,70,229,0.05)] relative overflow-hidden group/clock">
-              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-50/10 via-transparent to-transparent opacity-0 group-hover/clock:opacity-100 transition-opacity duration-700" />
-              <div className="absolute -right-12 -top-12 w-48 h-48 bg-indigo-600/5 rounded-full blur-3xl group-hover/clock:bg-indigo-600/10 transition-colors duration-700" />
+          <div className="p-8 space-y-4 bg-white/70 dark:bg-card/80 backdrop-blur-xl">
+            <div className="flex flex-col items-center justify-center mb-12 py-16 bg-white/60 dark:bg-muted/40 backdrop-blur-lg rounded-[48px] border border-border shadow-[0_20px_50px_rgba(79,70,229,0.05)] relative overflow-hidden group/clock">
+              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-50/10 dark:from-primary/10 via-transparent to-transparent opacity-0 group-hover/clock:opacity-100 transition-opacity duration-700" />
+              <div className="absolute -right-12 -top-12 w-48 h-48 bg-indigo-600/5 dark:bg-primary/10 rounded-full blur-3xl group-hover/clock:bg-indigo-600/10 transition-colors duration-700" />
               <div
                 className="absolute top-0 left-0 h-1.5 bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-600 transition-all duration-1000 ease-linear"
                 style={{ width: `${(timeToResponse / 60) * 100}%` }}
               />
-              <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-4 animate-pulse">
+              <div className="w-16 h-16 bg-indigo-50 dark:bg-primary/20 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-primary mb-4 animate-pulse">
                 <Clock className="w-8 h-8" />
               </div>
               <div className="text-center">
-                <p className="font-black text-4xl text-slate-900 tabular-nums">
+                <p className="font-black text-4xl text-slate-900 dark:text-foreground tabular-nums">
                   00:{String(timeToResponse).padStart(2, '0')}
                 </p>
-                <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-2">
+                <p className="text-xs text-slate-400 dark:text-muted-foreground font-black uppercase tracking-widest mt-2">
                   Seconds Remaining
                 </p>
               </div>
             </div>
             <Button
-              className="w-full bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl py-6 font-bold text-base shadow-lg shadow-indigo-100 transition-all hover:-translate-y-0.5"
+              className="w-full bg-indigo-600 dark:bg-primary hover:bg-slate-900 dark:hover:bg-primary/90 text-white rounded-2xl py-6 font-bold text-base shadow-lg shadow-indigo-100 dark:shadow-none transition-all hover:-translate-y-0.5"
               onClick={handleConfirmPresence}
             >
               Yes, I&apos;m Working
@@ -563,15 +569,15 @@ export function DashboardClient({
       </Dialog>
 
       {/* Premium Navigation */}
-      <header className="fixed top-0 inset-x-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-200/50 px-4 md:px-8 py-3 flex items-center justify-between">
+      <header className="fixed top-0 inset-x-0 z-50 w-full bg-white/60 dark:bg-card/70 backdrop-blur-2xl border-b border-border px-4 md:px-8 py-3 flex items-center justify-between">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center gap-3 md:gap-4 group cursor-pointer"
         >
-          <div className="w-8 h-8 md:w-10 md:h-10 relative">
+          <div className="w-11 h-11 md:w-14 md:h-14 relative">
             <Image
-              src="/rocket-genine-logo.webp"
+              src="/rocket-genie-logo.webp"
               alt="Rocket Genie"
               fill
               className="object-contain"
@@ -595,7 +601,7 @@ export function DashboardClient({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="hidden lg:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 absolute left-1/2 -translate-x-1/2"
+          className="hidden lg:flex items-center gap-1 bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-xl border border-border/80 dark:border-border absolute left-1/2 -translate-x-1/2"
         >
           {[
             { label: 'Dashboard', href: '/', id: 'overview' },
@@ -606,7 +612,7 @@ export function DashboardClient({
             <Link
               key={item.id}
               href={item.href}
-              className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${pathname === item.href ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${pathname === item.href ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
             >
               {item.label}
             </Link>
@@ -620,15 +626,15 @@ export function DashboardClient({
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-xl border border-slate-200 lg:hidden"
+                className="rounded-xl border border-border lg:hidden"
               >
                 <Menu className="w-5 h-5 text-slate-600" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-full left-1/2 -translate-x-1/2 top-4 translate-y-0 rounded-2xl border-none shadow-2xl p-6 lg:hidden">
+            <DialogContent className="max-w-[90vw] w-full left-1/2 -translate-x-1/2 top-4 translate-y-0 rounded-2xl border-none shadow-2xl p-6 lg:hidden bg-white/80 dark:bg-card/90 backdrop-blur-xl border dark:border-border">
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-black text-xl tracking-tighter text-slate-900">
+                  <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-foreground">
                     Rocket{' '}
                     <motion.span
                       animate={{
@@ -650,7 +656,7 @@ export function DashboardClient({
                     <Link
                       key={item.id}
                       href={item.href}
-                      className={`px-4 py-3 text-base font-bold rounded-xl transition-all ${pathname === item.href ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 active:bg-slate-50'}`}
+                      className={`px-4 py-3 text-base font-bold rounded-xl transition-all ${pathname === item.href ? 'bg-indigo-50 dark:bg-primary/20 text-indigo-600 dark:text-primary' : 'text-slate-500 dark:text-muted-foreground active:bg-slate-50 dark:active:bg-muted'}`}
                     >
                       {item.label}
                     </Link>
@@ -661,12 +667,12 @@ export function DashboardClient({
           </Dialog>
         </div>
         <div className="flex items-center gap-2 md:gap-6">
-          <div className="flex items-center gap-2 md:gap-3 md:pl-6 md:border-l border-slate-200">
+          <div className="flex items-center gap-2 md:gap-3 md:pl-6 md:border-l border-border">
             <div className="hidden sm:block text-right">
-              <span className="block text-sm font-bold text-slate-900 line-clamp-1">
+              <span className="block text-sm font-bold text-slate-900 dark:text-foreground line-clamp-1">
                 {user.name || user.email}
               </span>
-              <span className="block text-[10px] uppercase tracking-widest font-black text-slate-400">
+              <span className="block text-[10px] uppercase tracking-widest font-black text-slate-400 dark:text-muted-foreground">
                 {user.role?.toUpperCase()}
               </span>
             </div>
@@ -676,7 +682,7 @@ export function DashboardClient({
             >
               <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-20" />
               <div className="absolute -inset-1 bg-emerald-500/20 rounded-full animate-pulse" />
-              <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-indigo-50 text-xs md:text-sm z-10 transition-transform hover:scale-105 overflow-hidden">
+              <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-border text-xs md:text-sm z-10 transition-transform hover:scale-105 overflow-hidden">
                 {typeof user.profileImage === 'object' && user.profileImage?.url ? (
                   <Image
                     src={user.profileImage.url}
@@ -727,10 +733,10 @@ export function DashboardClient({
               className="flex flex-col md:flex-row md:items-end md:justify-between gap-6"
             >
               <div className="text-center md:text-left">
-                <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-1 md:mb-2">
+                <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-foreground mb-1 md:mb-2">
                   Hello, {user.name?.split(' ')[0] || 'Staff'}
                 </h1>
-                <p className="text-sm md:text-base text-slate-500 font-medium">
+                <p className="text-sm md:text-base text-slate-500 dark:text-muted-foreground font-medium">
                   Its{' '}
                   {new Date().toLocaleDateString('en-US', {
                     weekday: 'long',
@@ -745,20 +751,20 @@ export function DashboardClient({
                 <Dialog>
                   <DialogTrigger asChild>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button className="w-full sm:w-auto bg-white border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-sm transition-all">
+                      <Button className="w-full sm:w-auto bg-white dark:bg-card border-2 border-indigo-100 dark:border-border text-indigo-600 dark:text-primary hover:bg-indigo-50 dark:hover:bg-muted font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-sm transition-all">
                         <CalendarIcon className="w-5 h-5 mr-3" />
                         My Calendar
                       </Button>
                     </motion.div>
                   </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] md:max-w-5xl rounded-2xl md:rounded-3xl p-0 border-none shadow-2xl">
+                  <DialogContent className="max-w-[95vw] md:max-w-5xl rounded-2xl md:rounded-3xl p-0 border-none shadow-2xl bg-white/85 dark:bg-card/90 backdrop-blur-xl border dark:border-border">
                     <DashboardCalendar user={user} />
                   </DialogContent>
                 </Dialog>
 
                 <Link href="/leaves" className="w-full sm:w-auto">
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button className="w-full bg-indigo-600 text-white hover:bg-slate-900 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-lg shadow-indigo-100 transition-all">
+                    <Button className="w-full bg-indigo-600 dark:bg-primary text-white hover:bg-slate-900 dark:hover:bg-primary/90 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all">
                       Apply Leave
                     </Button>
                   </motion.div>
@@ -793,7 +799,7 @@ export function DashboardClient({
                     transition={{ delay: 0.2 }}
                     className="lg:col-span-4 space-y-6"
                   >
-                    <div className="dashboard-card p-8 bg-white/40 backdrop-blur-xl border-white/20 relative overflow-hidden">
+                    <div className="dashboard-card p-8 border border-border relative overflow-hidden">
                       {!workSettings ? (
                         <div className="space-y-6">
                           <Skeleton className="h-4 w-24" />
@@ -801,12 +807,12 @@ export function DashboardClient({
                         </div>
                       ) : (
                         <>
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-16 -mt-16" />
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 dark:bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
                           <div className="flex items-center justify-between mb-8 relative z-10">
-                            <h4 className="font-black text-slate-900 tracking-tighter uppercase text-xs opacity-50">
+                            <h4 className="font-black text-slate-900 dark:text-muted-foreground tracking-tighter uppercase text-xs opacity-50">
                               Shift Status
                             </h4>
-                            <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                            <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                               <Clock className="w-4 h-4" />
                             </div>
                           </div>
@@ -818,33 +824,33 @@ export function DashboardClient({
                                 text={`${getShiftPercent()}%`}
                                 styles={buildStyles({
                                   textSize: '16px',
-                                  pathColor: '#4f46e5',
-                                  textColor: '#0f172a',
-                                  trailColor: '#e2e8f0',
+                                  pathColor: '#6366f1',
+                                  textColor: effectiveDark ? '#e2e8f0' : '#0f172a',
+                                  trailColor: effectiveDark ? '#2d3548' : '#e2e8f0',
                                   pathTransitionDuration: 1,
                                 })}
                               />
                               <div className="absolute inset-0 flex items-center justify-center flex-col pt-8 pointer-events-none">
-                                <span className="text-[10px] font-black uppercase text-slate-400">
+                                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-muted-foreground">
                                   Shift elapsed
                                 </span>
                               </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 w-full">
-                              <div className="p-4 bg-white/60 rounded-2xl border border-indigo-50 text-center">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                              <div className="p-4 bg-white/60 dark:bg-muted rounded-2xl border border-border text-center">
+                                <p className="text-[10px] font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest mb-1">
                                   Start
                                 </p>
-                                <p className="text-lg font-black text-slate-900">
+                                <p className="text-lg font-black text-slate-900 dark:text-foreground">
                                   {shiftLabels.startLabel}
                                 </p>
                               </div>
-                              <div className="p-4 bg-white/60 rounded-2xl border border-indigo-50 text-center">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                              <div className="p-4 bg-white/60 dark:bg-muted rounded-2xl border border-border text-center">
+                                <p className="text-[10px] font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest mb-1">
                                   End
                                 </p>
-                                <p className="text-lg font-black text-slate-900">
+                                <p className="text-lg font-black text-slate-900 dark:text-foreground">
                                   {shiftLabels.endLabel}
                                 </p>
                               </div>
@@ -909,7 +915,7 @@ export function DashboardClient({
                               </div>
 
                               <div className="grid grid-cols-2 gap-4 w-full">
-                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 text-center">
+                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-indigo-400/50 text-center">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
                                     Daily rate
                                   </p>
@@ -917,7 +923,7 @@ export function DashboardClient({
                                     ₹{Math.round(dailyRate).toLocaleString('en-IN')}
                                   </p>
                                 </div>
-                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 text-center">
+                                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-indigo-400/50 text-center">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
                                     Payable days
                                   </p>
@@ -942,11 +948,11 @@ export function DashboardClient({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="dashboard-card p-6 md:p-10 bg-white/50 backdrop-blur-sm border-white/20"
+                  className="dashboard-card p-6 md:p-10 border-white/20 dark:border-border"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <div>
-                      <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                      <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-foreground border-l-4 border-indigo-600 dark:border-primary pl-4">
                         Session <span className="text-indigo-600">Archive</span>
                       </h2>
                       <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
@@ -971,10 +977,10 @@ export function DashboardClient({
                   className="space-y-6 md:space-y-8"
                 >
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
-                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
+                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 dark:border-border">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                         <div>
-                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-foreground border-l-4 border-indigo-600 dark:border-primary pl-4">
                             Leave <span className="text-indigo-600">Ledger</span>
                           </h2>
                           <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
@@ -984,10 +990,10 @@ export function DashboardClient({
                       </div>
                       <MyLeaveStatusList user={user} />
                     </div>
-                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 bg-white/40">
+                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 dark:border-border">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                         <div>
-                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 border-l-4 border-indigo-600 pl-4">
+                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-foreground border-l-4 border-indigo-600 dark:border-primary pl-4">
                             Request <span className="text-indigo-600">Time Off</span>
                           </h2>
                           <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
