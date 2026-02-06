@@ -33,7 +33,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Attendance } from '@/payload-types'
 import Tilt from 'react-parallax-tilt'
-import * as faceapi from '@vladmandic/face-api'
+
+type FaceApiModule = typeof import('@vladmandic/face-api')
 
 interface AttendanceCardProps {
   user: {
@@ -80,6 +81,7 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
   const [detectionMsg, setDetectionMsg] = useState('Initializing Face ID...')
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const detectionInterval = useRef<NodeJS.Timeout | null>(null)
+  const faceApiRef = useRef<FaceApiModule | null>(null)
 
   const fetchTodayAttendance = useCallback(async () => {
     if (!user?.id) return
@@ -170,17 +172,20 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
     fetchAddress()
   }, [location])
 
-  // Load Face API Models
+  // Load Face API only in browser (avoids SSR TextEncoder / TensorFlow errors)
   useEffect(() => {
+    if (typeof window === 'undefined') return
     const loadModels = async () => {
       try {
+        const faceapi = await import('@vladmandic/face-api')
+        faceApiRef.current = faceapi
         const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         ])
         setModelsLoaded(true)
-        console.log('FaceAPI Models Loaded')
+        setDetectionMsg('Position your face in the frame')
       } catch (err) {
         console.error('Failed to load FaceAPI models:', err)
         toast.error('Failed to load biometric models. Please refresh.')
@@ -190,21 +195,17 @@ export function AttendanceCard({ user, timeFormat }: AttendanceCardProps) {
   }, [])
 
   const startFaceDetection = async () => {
-    if (!videoRef.current || !overlayRef.current || !modelsLoaded) return
+    const faceapi = faceApiRef.current
+    if (!videoRef.current || !overlayRef.current || !modelsLoaded || !faceapi) return
 
     if (detectionInterval.current) clearInterval(detectionInterval.current)
 
     const video = videoRef.current
     const canvas = overlayRef.current
 
-    // Match canvas size to video
-    // We need to wait for video to play to get dims, but usually handled by layout
-    // We'll update dims in the loop or set them once
-
     detectionInterval.current = setInterval(async () => {
       if (video.paused || video.ended) return
 
-      // Ensure canvas matches video dims
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
         canvas.width = video.videoWidth
         canvas.height = video.videoHeight
