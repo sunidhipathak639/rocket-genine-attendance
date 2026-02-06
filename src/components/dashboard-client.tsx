@@ -17,7 +17,7 @@ import {
 import { HolidaysCalendar } from './holidays-calendar'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { usePathname } from 'next/navigation'
 
@@ -387,21 +387,24 @@ export function DashboardClient({
   })
   const isCheckedInToday = localCheckedInToday ?? serverCheckedInToday ?? false
 
-  const intervalMinutes = workSettings?.activityCheckInterval ?? 10
-  const promptBeforeIdleMs = 60 * 1000 // 60 seconds to respond
-  // Timeout is the TOTAL time (Idle + Prompt). Prompt shows after intervalMinutes of idleness.
-  const timeoutMs = intervalMinutes * 60 * 1000 + promptBeforeIdleMs
+  const intervalMinutesFromSettings = workSettings?.activityCheckInterval ?? 10
+  const intervalMs = intervalMinutesFromSettings * 60 * 1000
+  const intervalDisplayText = `${intervalMinutesFromSettings} min`
 
-  const { getRemainingTime, activate } = useIdleTimer({
+  const promptBeforeIdleMs = 60 * 1000 // 60 seconds to respond
+  // Timeout is the TOTAL time (Idle + Prompt). Prompt shows after interval of idleness.
+  const timeoutMs = intervalMs + promptBeforeIdleMs
+
+  const { getRemainingTime, getLastActiveTime, activate } = useIdleTimer({
     onPrompt,
     onIdle,
     onActive,
     timeout: timeoutMs,
     promptBeforeIdle: promptBeforeIdleMs,
-    throttle: 500,
+    throttle: 250,
     disabled: !isCheckedInToday,
-    crossTab: true,
-    leaderElection: true,
+    crossTab: false,
+    leaderElection: false,
     syncTimers: 200,
   })
 
@@ -416,6 +419,66 @@ export function DashboardClient({
 
     return () => clearInterval(interval)
   }, [showActivityPopup, getRemainingTime])
+
+  // When tab becomes visible again, show prompt if user was idle longer than the interval
+  // (timers are throttled in background tabs, so onPrompt may never fire until they return)
+  useEffect(() => {
+    if (!isCheckedInToday) return
+
+    const handleVisibility = () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
+      if (showActivityPopup) return
+
+      const lastActive = getLastActiveTime()
+      if (!lastActive) return
+
+      const idleMs = Date.now() - lastActive.getTime()
+      if (idleMs >= intervalMs) {
+        setShowActivityPopup(true)
+        setTimeToResponse(60)
+        setActivityPopupSummary('')
+        try {
+          const audio = new Audio(
+            'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+          )
+          audio.play().catch(() => {})
+        } catch {}
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [isCheckedInToday, showActivityPopup, intervalMs, getLastActiveTime])
+
+  // Reliable polling fallback: show popup when idle time exceeds configured duration
+  // (react-idle-timer's onPrompt can miss when tab is backgrounded or due to browser throttling)
+  useEffect(() => {
+    if (!isCheckedInToday || showActivityPopup) return
+
+    const pollIntervalMs =
+      intervalMs <= 60 * 1000 ? 2000 : intervalMs <= 2 * 60 * 1000 ? 5000 : 10000
+
+    const poll = () => {
+      const lastActive = getLastActiveTime()
+      if (!lastActive) return
+
+      const idleMs = Date.now() - lastActive.getTime()
+      if (idleMs >= intervalMs) {
+        setShowActivityPopup(true)
+        setTimeToResponse(60)
+        setActivityPopupSummary('')
+        try {
+          const audio = new Audio(
+            'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+          )
+          audio.play().catch(() => {})
+        } catch {}
+      }
+    }
+
+    const id = setInterval(poll, pollIntervalMs)
+    return () => clearInterval(id)
+  }, [isCheckedInToday, showActivityPopup, intervalMs, getLastActiveTime])
 
   const handleConfirmPresence = () => {
     console.log('[Activity] User confirmed presence')
@@ -606,7 +669,9 @@ export function DashboardClient({
           onPointerDownOutside={(e) => e.preventDefault()}
         >
           <div className="bg-indigo-600 dark:bg-primary p-8 text-white">
-            <h2 className="text-2xl font-black mb-2">Are you still working?</h2>
+            <DialogTitle className="text-2xl font-black mb-2 text-white">
+              Are you still working?
+            </DialogTitle>
             <p className="opacity-80 font-medium">
               We monitor activity to ensure accurate time logs.
             </p>
@@ -636,8 +701,7 @@ export function DashboardClient({
                 htmlFor="activity-interval-summary"
                 className="text-sm font-bold text-slate-700 dark:text-foreground"
               >
-                What did you work on in the last {workSettings?.activityCheckInterval ?? 10}{' '}
-                minutes? (optional)
+                What did you work on in the last {intervalDisplayText}? (optional)
               </label>
               <textarea
                 id="activity-interval-summary"
@@ -726,6 +790,7 @@ export function DashboardClient({
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[90vw] w-full left-1/2 -translate-x-1/2 top-4 translate-y-0 rounded-2xl border-none shadow-2xl p-6 lg:hidden bg-white/80 dark:bg-card/90 backdrop-blur-xl border dark:border-border">
+              <DialogTitle className="sr-only">Navigation menu</DialogTitle>
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-foreground">
@@ -920,6 +985,7 @@ export function DashboardClient({
                     </motion.div>
                   </DialogTrigger>
                   <DialogContent className="max-w-[95vw] md:max-w-5xl rounded-2xl md:rounded-3xl p-0 border-none shadow-2xl bg-white/85 dark:bg-card/90 backdrop-blur-xl border dark:border-border">
+                    <DialogTitle className="sr-only">My Calendar</DialogTitle>
                     <DashboardCalendar user={user} />
                   </DialogContent>
                 </Dialog>
@@ -966,6 +1032,19 @@ export function DashboardClient({
                     transition={{ delay: 0.2 }}
                     className="lg:col-span-4 space-y-6"
                   >
+                    {/* Popup duration from backend (Work Settings) */}
+                    {/* {workSettings != null && (
+                      <div className="rounded-xl border border-border bg-slate-50/80 dark:bg-slate-900/50 px-4 py-3">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Activity popup: after{' '}
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {intervalMinutesFromSettings} min
+                          </span>{' '}
+                          of no activity (from Work Settings)
+                        </p>
+                      </div>
+                    )} */}
+
                     <div className="dashboard-card p-8 border border-border relative overflow-hidden">
                       {!workSettings ? (
                         <div className="space-y-6">

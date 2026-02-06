@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { format, isSameDay, isSameMonth } from 'date-fns'
 import { CalendarDays, Info, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -518,7 +518,9 @@ export function HolidaysCalendar({ user }: HolidaysCalendarProps) {
                 {selectedHoliday && <RenderHolidayIcon holiday={selectedHoliday} size={32} />}
               </div>
               <div>
-                <h2 className="text-3xl font-black mb-1">{selectedHoliday?.name}</h2>
+                <DialogTitle className="text-3xl font-black mb-1 text-white">
+                  {selectedHoliday?.name ?? 'Holiday'}
+                </DialogTitle>
                 <p className="opacity-60 text-base font-medium">
                   {selectedHoliday && format(new Date(selectedHoliday.date), 'EEEE, MMMM dd, yyyy')}
                 </p>

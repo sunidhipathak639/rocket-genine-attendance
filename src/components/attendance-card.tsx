@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -855,9 +855,9 @@ export function AttendanceCard({
                 <Smile className="w-5 h-5 text-indigo-300" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-black tracking-tight">
+                <DialogTitle className="text-xl md:text-2xl font-black tracking-tight text-white">
                   Identity Verification
-                </h2>
+                </DialogTitle>
                 <p className="text-slate-400 text-xs md:text-sm font-medium">
                   Live face check • No masks or obstructions
                 </p>
@@ -999,7 +999,9 @@ export function AttendanceCard({
       <Dialog open={showSummaryModal} onOpenChange={setShowSummaryModal}>
         <DialogContent className="sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
           <div className="bg-slate-900 p-8 text-white shrink-0">
-            <h2 className="text-2xl md:text-3xl font-black">Daily Shift Report</h2>
+            <DialogTitle className="text-2xl md:text-3xl font-black text-white">
+              Daily Shift Report
+            </DialogTitle>
             <p className="opacity-60 text-sm">Review your achievements and plan for tomorrow.</p>
           </div>
 
