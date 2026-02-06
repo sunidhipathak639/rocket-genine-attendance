@@ -108,11 +108,6 @@ function getTodayAtTime(isoTime: string | null | undefined): Date | null {
   return t
 }
 
-// Format time as HH:MM from Date
-function formatTimeHHMM(d: Date): string {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
 export function DashboardClient({
   user,
   initialTab = 'dashboard',
@@ -253,8 +248,14 @@ export function DashboardClient({
         t.setHours(18, 0, 0, 0)
         return t
       })()
-    return { startLabel: formatTimeHHMM(start), endLabel: formatTimeHHMM(end), start, end }
-  }, [workSettings?.workStartTime, workSettings?.workEndTime])
+    const hour12 = timeFormat === '12h'
+    return {
+      startLabel: formatTime(start, hour12),
+      endLabel: formatTime(end, hour12),
+      start,
+      end,
+    }
+  }, [workSettings?.workStartTime, workSettings?.workEndTime, timeFormat])
 
   function getShiftPercent(): number {
     const now = new Date()
