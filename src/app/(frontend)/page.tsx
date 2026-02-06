@@ -18,23 +18,31 @@ export default async function DashboardPage() {
     // Runtime check: show clear message in Vercel → Logs if env vars are missing
     if (process.env.NODE_ENV === 'production') {
       if (!process.env.PAYLOAD_SECRET?.trim()) {
-        const msg = '[Dashboard] PAYLOAD_SECRET is missing. Add it in Vercel: Settings → Environment Variables.'
+        const msg =
+          '[Dashboard] PAYLOAD_SECRET is missing. Add it in Vercel: Settings → Environment Variables.'
         console.error(msg)
         throw new Error(msg)
       }
       if (!process.env.POSTGRES_URL?.trim()) {
-        const msg = '[Dashboard] POSTGRES_URL is missing. Add it in Vercel: Settings → Environment Variables.'
+        const msg =
+          '[Dashboard] POSTGRES_URL is missing. Add it in Vercel: Settings → Environment Variables.'
         console.error(msg)
         throw new Error(msg)
       }
     }
 
     const payload = await getPayload({ config: configPromise })
-    const { user } = await payload.auth({ headers: await headers() })
+    const { user: authUser } = await payload.auth({ headers: await headers() })
 
-    if (!user) {
+    if (!authUser) {
       redirect('/login')
     }
+
+    const user = await payload.findByID({
+      collection: 'users',
+      id: typeof authUser.id === 'number' ? authUser.id : parseInt(String(authUser.id), 10),
+      depth: 1,
+    })
 
     // If admin, fetch all users and their attendance data
     let allUsers = null
@@ -87,8 +95,8 @@ export default async function DashboardPage() {
     }
 
     return (
-      <DashboardClient 
-        user={user} 
+      <DashboardClient
+        user={user}
         allUsers={allUsers || undefined}
         allAttendance={allAttendance || undefined}
         workSettings={workSettings || undefined}

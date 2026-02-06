@@ -143,6 +143,10 @@ export interface User {
    */
   salary?: number | null;
   department?: string | null;
+  /**
+   * Profile picture. Users can update this from their profile page (max 1MB).
+   */
+  profileImage?: (number | null) | Media;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -463,6 +467,7 @@ export interface UsersSelect<T extends boolean = true> {
   role?: T;
   salary?: T;
   department?: T;
+  profileImage?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;

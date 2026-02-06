@@ -26,7 +26,8 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') ?? ''
-  const isPayloadAdmin = pathname.startsWith('/admin')
+  // Custom admin login at /admin/login uses our document + Tailwind; only Payload panel uses fragment.
+  const isPayloadAdmin = pathname.startsWith('/admin') && pathname !== '/admin/login'
 
   // Payload admin has its own RootLayout with <html>/<body>; do not nest another document.
   if (isPayloadAdmin) {

@@ -39,6 +39,7 @@ interface DashboardClientProps {
     email?: string | null
     role?: string | null
     salary?: number | null
+    profileImage?: { url: string } | number | null
   }
   initialTab?: 'dashboard' | 'history' | 'leaves' | 'holidays'
   allUsers?: User[]
@@ -436,13 +437,27 @@ export function DashboardClient({
                   ADMINISTRATOR
                 </span>
               </div>
-              <div className="relative">
+              <Link
+                href="/profile"
+                className="relative block focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-full"
+              >
                 <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-20" />
                 <div className="absolute -inset-1 bg-indigo-500/20 rounded-full animate-pulse" />
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-indigo-50 text-xs md:text-base relative z-10 transition-transform hover:scale-105">
-                  {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+                <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border-2 border-indigo-50 text-xs md:text-base z-10 transition-transform hover:scale-105 overflow-hidden">
+                  {typeof user.profileImage === 'object' && user.profileImage?.url ? (
+                    <Image
+                      src={user.profileImage.url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                      unoptimized={user.profileImage.url.startsWith('http')}
+                    />
+                  ) : (
+                    user.name?.[0] || user.email?.[0]?.toUpperCase()
+                  )}
                 </div>
-              </div>
+              </Link>
               <Button
                 variant="ghost"
                 size="icon"
@@ -655,13 +670,27 @@ export function DashboardClient({
                 {user.role?.toUpperCase()}
               </span>
             </div>
-            <div className="relative">
+            <Link
+              href="/profile"
+              className="relative block focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-full flex-shrink-0"
+            >
               <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-20" />
               <div className="absolute -inset-1 bg-emerald-500/20 rounded-full animate-pulse" />
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-indigo-50 flex-shrink-0 text-xs md:text-sm relative z-10 transition-transform hover:scale-105">
-                {user.name?.[0] || user.email?.[0]?.toUpperCase()}
+              <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-extrabold border-2 border-indigo-50 text-xs md:text-sm z-10 transition-transform hover:scale-105 overflow-hidden">
+                {typeof user.profileImage === 'object' && user.profileImage?.url ? (
+                  <Image
+                    src={user.profileImage.url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="40px"
+                    unoptimized={user.profileImage.url.startsWith('http')}
+                  />
+                ) : (
+                  user.name?.[0] || user.email?.[0]?.toUpperCase()
+                )}
               </div>
-            </div>
+            </Link>
             <Button
               variant="ghost"
               size="icon"

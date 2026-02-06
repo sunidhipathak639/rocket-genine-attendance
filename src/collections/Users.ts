@@ -92,5 +92,13 @@ export const Users: CollectionConfig = {
       name: 'department',
       type: 'text',
     },
+    {
+      name: 'profileImage',
+      type: 'upload',
+      relationTo: 'media',
+      admin: {
+        description: 'Profile picture. Users can update this from their profile page (max 1MB).',
+      },
+    },
   ],
 }
