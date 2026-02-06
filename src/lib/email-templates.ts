@@ -317,6 +317,54 @@ export function getLeaveRequestEmail({
 }
 
 /**
+ * Check-in notification to admin (simple "Employee X checked in at Y")
+ */
+export function getCheckInNotificationEmail({
+  employeeName,
+  employeeEmail,
+  date,
+  checkInTime,
+  locationAddress,
+}: {
+  employeeName: string
+  employeeEmail: string
+  date: string
+  checkInTime: string
+  locationAddress?: string
+}): string {
+  const content = `
+    <h1>✅ Check-in Notification</h1>
+    <p><strong>${employeeName}</strong> (${employeeEmail}) has checked in.</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Employee:</span>
+        <span class="info-value">${employeeName} (${employeeEmail})</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Date:</span>
+        <span class="info-value">${date}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Check-in time:</span>
+        <span class="info-value">${checkInTime}</span>
+      </div>
+      ${
+        locationAddress
+          ? `
+      <div class="info-row">
+        <span class="info-label">Location:</span>
+        <span class="info-value">${locationAddress}</span>
+      </div>
+      `
+          : ''
+      }
+    </div>
+  `
+  return getEmailTemplate(content)
+}
+
+/**
  * Work Summary Email Template
  */
 export function getWorkSummaryEmail({

@@ -74,6 +74,7 @@ export interface Config {
     payroll: Payroll;
     holidays: Holiday;
     meetings: Meeting;
+    notifications: Notification;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -88,6 +89,7 @@ export interface Config {
     payroll: PayrollSelect<false> | PayrollSelect<true>;
     holidays: HolidaysSelect<false> | HolidaysSelect<true>;
     meetings: MeetingsSelect<false> | MeetingsSelect<true>;
+    notifications: NotificationsSelect<false> | NotificationsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -179,11 +181,42 @@ export interface User {
  */
 export interface Media {
   id: number;
-  url: string;
-  filename?: string | null;
+  /**
+   * Alt text for the image (accessibility and display).
+   */
   alt: string;
   updatedAt: string;
   createdAt: string;
+  /**
+   * Optional URL for externally hosted files (e.g. from frontend). Filled automatically for uploads in Payload.
+   */
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -212,7 +245,14 @@ export interface Attendance {
     | {
         timestamp: string;
         status: 'active' | 'inactive';
+        /**
+         * System or internal note for this check
+         */
         notes?: string | null;
+        /**
+         * What the user reported doing during this interval (from activity popup)
+         */
+        intervalSummary?: string | null;
         id?: string | null;
       }[]
     | null;
@@ -374,6 +414,31 @@ export interface Meeting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications".
+ */
+export interface Notification {
+  id: number;
+  /**
+   * User who receives this notification
+   */
+  user: number | User;
+  type: 'meeting' | 'general';
+  title: string;
+  body?: string | null;
+  /**
+   * URL to open when user clicks (e.g. meeting link)
+   */
+  link?: string | null;
+  read: boolean;
+  /**
+   * Related meeting if type is meeting
+   */
+  meeting?: (number | null) | Meeting;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -423,6 +488,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'meetings';
         value: number | Meeting;
+      } | null)
+    | ({
+        relationTo: 'notifications';
+        value: number | Notification;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -500,11 +569,42 @@ export interface UsersSelect<T extends boolean = true> {
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
-  url?: T;
-  filename?: T;
   alt?: T;
   updatedAt?: T;
   createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        card?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -530,6 +630,7 @@ export interface AttendanceSelect<T extends boolean = true> {
         timestamp?: T;
         status?: T;
         notes?: T;
+        intervalSummary?: T;
         id?: T;
       };
   activeDuration?: T;
@@ -622,6 +723,21 @@ export interface MeetingsSelect<T extends boolean = true> {
   date?: T;
   participants?: T;
   status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications_select".
+ */
+export interface NotificationsSelect<T extends boolean = true> {
+  user?: T;
+  type?: T;
+  title?: T;
+  body?: T;
+  link?: T;
+  read?: T;
+  meeting?: T;
   updatedAt?: T;
   createdAt?: T;
 }

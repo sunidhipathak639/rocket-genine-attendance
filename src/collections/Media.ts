@@ -8,20 +8,30 @@ export const Media: CollectionConfig = {
     update: () => true,
     delete: () => true,
   },
+  upload: {
+    staticDir: 'media',
+    mimeTypes: ['image/*'],
+    imageSizes: [
+      { name: 'thumbnail', width: 400, height: 400, position: 'centre' },
+      { name: 'card', width: 768, height: 768, position: 'centre' },
+    ],
+    adminThumbnail: 'thumbnail',
+  },
   fields: [
     {
       name: 'url',
       type: 'text',
-      required: true,
-    },
-    {
-      name: 'filename',
-      type: 'text',
+      required: false,
+      admin: {
+        description:
+          'Optional URL for externally hosted files (e.g. from frontend). Filled automatically for uploads in Payload.',
+      },
     },
     {
       name: 'alt',
       type: 'text',
       required: true,
+      admin: { description: 'Alt text for the image (accessibility and display).' },
     },
   ],
 }

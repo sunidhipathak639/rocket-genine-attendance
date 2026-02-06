@@ -64,6 +64,31 @@ export async function POST(request: NextRequest) {
     const successful = results.filter((r) => r && r.success).length
     const failed = results.filter((r) => r && !r.success).length
 
+    // Create in-app notification for each participant so they see it in the frontend
+    const meetingDateFormatted = format(new Date(meeting.date), 'MMMM dd, yyyy @ hh:mm a')
+    for (const participant of participants) {
+      const userId =
+        typeof participant === 'object' && participant?.id != null ? participant.id : participant
+      if (!userId) continue
+      try {
+        await payload.create({
+          collection: 'notifications',
+          data: {
+            user: userId,
+            type: 'meeting',
+            title: `📅 Meeting: ${meeting.topic}`,
+            body: `You're invited. ${meetingDateFormatted}. Join: ${meeting.meetingLink}`,
+            link: meeting.meetingLink,
+            read: false,
+            meeting: meetingId,
+          } as any,
+          overrideAccess: true,
+        })
+      } catch (notifErr) {
+        console.error('[Meeting Email] Failed to create notification for user', userId, notifErr)
+      }
+    }
+
     // Update meeting status to 'sent'
     await payload.update({
       collection: 'meetings',

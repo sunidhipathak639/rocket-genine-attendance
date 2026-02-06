@@ -4,7 +4,7 @@ export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
     useAsTitle: 'name',
-    defaultColumns: ['name', 'email', 'role', 'department'],
+    defaultColumns: ['name', 'email', 'role', 'department', 'profileImage'],
     components: {
       edit: {
         beforeDocumentControls: ['/components/admin/GeneratePayrollButton#GeneratePayrollButton'],

@@ -293,6 +293,14 @@ export const Attendance: CollectionConfig = {
         {
           name: 'notes',
           type: 'text',
+          admin: { description: 'System or internal note for this check' },
+        },
+        {
+          name: 'intervalSummary',
+          type: 'textarea',
+          admin: {
+            description: 'What the user reported doing during this interval (from activity popup)',
+          },
         },
       ],
     },

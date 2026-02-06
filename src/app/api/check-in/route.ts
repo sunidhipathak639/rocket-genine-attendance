@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload, APIError } from 'payload'
 import configPromise from '@payload-config'
+import { sendEmail } from '@/lib/email'
+import { getCheckInNotificationEmail } from '@/lib/email-templates'
 
 /**
  * Custom route for staff check-in. Creates attendance record; user is identified by userId in body.
+ * Sends a check-in notification email to admin (Work Settings → Admin Notification Email).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +44,52 @@ export async function POST(request: NextRequest) {
       } as any,
       overrideAccess: true,
     })
+
+    // Send check-in notification email to admin
+    try {
+      const settings = await payload.findGlobal({
+        slug: 'work-settings',
+        overrideAccess: true,
+      })
+      let targetEmails: string[] = []
+      if ((settings as any).notificationEmails?.length > 0) {
+        targetEmails = (settings as any).notificationEmails.map((e: any) => e.email).filter(Boolean)
+      } else {
+        const admins = await payload.find({
+          collection: 'users',
+          where: { role: { equals: 'admin' } },
+          limit: 10,
+          overrideAccess: true,
+        })
+        targetEmails = admins.docs.map((a: any) => (a as any).email).filter(Boolean)
+      }
+      if (targetEmails.length > 0) {
+        const timeInStr = doc.timeIn ? new Date(doc.timeIn).toLocaleTimeString() : 'N/A'
+        const dateFormatted = new Date(doc.date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+        const locationAddress =
+          typeof doc.location === 'object' && doc.location && 'address' in doc.location
+            ? String((doc.location as any).address || '')
+            : undefined
+        await sendEmail({
+          to: targetEmails,
+          subject: `✅ Check-in: ${(userDoc as any).name || (userDoc as any).email} - ${dateFormatted}`,
+          html: getCheckInNotificationEmail({
+            employeeName: (userDoc as any).name || 'Unknown',
+            employeeEmail: (userDoc as any).email || '',
+            date: dateFormatted,
+            checkInTime: timeInStr,
+            locationAddress: locationAddress || undefined,
+          }),
+        })
+      }
+    } catch (emailErr) {
+      console.error('[Check-in Email] Failed to send admin notification:', emailErr)
+    }
 
     return NextResponse.json({ doc })
   } catch (error: any) {

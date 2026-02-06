@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
-    const { status, timestamp, duration } = await request.json()
+    const { status, timestamp, duration, intervalSummary } = await request.json()
     const todayStr = new Date().toISOString().split('T')[0]
 
     // Find today's attendance record
@@ -56,6 +56,9 @@ export async function POST(request: NextRequest) {
             timestamp: timestamp || new Date().toISOString(),
             status: status,
             notes: `System check: ${status === 'active' ? 'User confirmed' : 'User missed check'}`,
+            ...(typeof intervalSummary === 'string' && intervalSummary.trim()
+              ? { intervalSummary: intervalSummary.trim() }
+              : {}),
           },
         ],
       },
