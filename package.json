@@ -17,7 +17,8 @@
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" pnpm exec playwright test",
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
     "list-users": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/list-users.ts",
-    "seed-staff": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/seed-staff-users.ts"
+    "seed-staff": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/seed-staff-users.ts",
+    "clear-blob": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/clear-blob-storage.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

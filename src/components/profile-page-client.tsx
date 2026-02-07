@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { User as UserType } from '@/payload-types'
+import { getUploadErrorMessage } from '@/lib/upload-errors'
 import { useTheme, SyncUserTheme, type Theme } from '@/components/theme-provider'
 import { getProfileImageUrl as getProfileImageUrlFromUtils } from '@/lib/utils'
 
@@ -101,7 +102,13 @@ export function ProfilePageClient({ user: initialUser }: ProfilePageClientProps)
           credentials: 'include',
         },
       )
-      if (!uploadRes.ok) throw new Error('Upload failed')
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}))
+        const msg = errData?.message || 'Upload failed'
+        const friendly = getUploadErrorMessage(msg)
+        toast.error(friendly)
+        throw new Error(friendly)
+      }
       const { url } = await uploadRes.json()
 
       const mediaRes = await fetch('/api/media', {

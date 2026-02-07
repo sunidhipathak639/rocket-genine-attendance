@@ -33,6 +33,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Attendance } from '@/payload-types'
 import Tilt from 'react-parallax-tilt'
+import { getUploadErrorMessage } from '@/lib/upload-errors'
 
 const LottiePlayer = dynamic(
   () =>
@@ -497,7 +498,13 @@ export function AttendanceCard({
           credentials: 'include',
         },
       )
-      if (!uploadRes.ok) throw new Error('Failed to upload selfie')
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}))
+        const msg = errData?.message || 'Failed to upload selfie'
+        const friendly = getUploadErrorMessage(msg)
+        toast.error(friendly)
+        throw new Error(friendly)
+      }
       const blobData = await uploadRes.json()
       const selfieUrl = blobData.url
       const now = new Date()
@@ -532,7 +539,7 @@ export function AttendanceCard({
       }
     } catch (err) {
       console.error(err)
-      toast.error('Failed to process check-in')
+      toast.error(err instanceof Error ? err.message : 'Failed to process check-in')
     } finally {
       setLoading(false)
     }
@@ -574,7 +581,13 @@ export function AttendanceCard({
             },
           )
 
-          if (!blobRes.ok) throw new Error(`Blob upload failed for ${file.name}`)
+          if (!blobRes.ok) {
+            const errData = await blobRes.json().catch(() => ({}))
+            const msg = errData?.message || `Could not upload ${file.name}`
+            const friendly = getUploadErrorMessage(msg)
+            toast.error(friendly)
+            throw new Error(friendly)
+          }
           const blobData = await blobRes.json()
           const blobUrl = blobData.url
 
@@ -598,7 +611,7 @@ export function AttendanceCard({
           }
         } catch (err) {
           console.error('File upload error:', err)
-          toast.error(`Could not upload ${file.name}`)
+          toast.error(err instanceof Error ? err.message : `Could not upload ${file.name}`)
         }
       }
 
