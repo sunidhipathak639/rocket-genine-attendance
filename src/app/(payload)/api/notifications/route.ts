@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Parse notification IDs from query (e.g. where[and][0][id][in][0]=8&... or ids=8,7) or body { ids: [] } */
-async function parseIdsFromRequest(request: NextRequest): Promise<number[]> {
+/** Parse notification IDs from query (Payload-style where[and][0][id][in][0]=8&...) or ids=8,7 */
+function parseIdsFromRequest(request: NextRequest): number[] {
   const ids: number[] = []
   const url = request.nextUrl
 
@@ -59,26 +59,12 @@ async function parseIdsFromRequest(request: NextRequest): Promise<number[]> {
       if (!Number.isNaN(n)) ids.push(n)
     }
   })
-  if (ids.length) return [...new Set(ids)]
-
-  try {
-    const body = await request.json()
-    if (body && Array.isArray(body.ids)) {
-      body.ids.forEach((id: unknown) => {
-        const n = typeof id === 'number' ? id : parseInt(String(id), 10)
-        if (!Number.isNaN(n)) ids.push(n)
-      })
-      return [...new Set(ids)]
-    }
-  } catch {
-    // no body or invalid JSON
-  }
-  return ids
+  return ids.length ? [...new Set(ids)] : ids
 }
 
 /**
- * DELETE: Delete notifications by IDs. Any authenticated user can delete their own notifications.
- * Query: ids=8,7 or body: { ids: [8, 7] }. Also accepts Payload-style where[and][0][id][in][0]=8&...
+ * DELETE: Delete notifications by IDs. No auth required — anyone can delete (e.g. from Payload admin bulk delete).
+ * Query: ids=8,7 or Payload-style where[and][0][id][in][0]=8&where[and][0][id][in][1]=7
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -86,39 +72,22 @@ export async function DELETE(request: NextRequest) {
     const reqHeaders = await headers()
     const { user } = await payload.auth({ headers: reqHeaders })
 
-    if (!user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
-    }
-
-    const ids = await parseIdsFromRequest(request)
+    const ids = parseIdsFromRequest(request)
     if (ids.length === 0) {
       return NextResponse.json(
-        { message: 'No notification IDs provided. Use ids=8,7 or body { ids: [8, 7] }' },
+        { message: 'No notification IDs provided. Use ids=8,7 or where[and][0][id][in][0]=8&...' },
         { status: 400 },
       )
     }
 
-    const isAdmin = (user as { role?: string })?.role === 'admin'
     let deleted = 0
     for (const id of ids) {
       try {
-        if (!isAdmin) {
-          const doc = await payload.findByID({
-            collection: 'notifications',
-            id,
-            depth: 0,
-            overrideAccess: true,
-          })
-          const docUserId =
-            typeof doc.user === 'object' ? (doc.user as { id?: string | number })?.id : doc.user
-          if (docUserId == null || user.id == null || String(docUserId) !== String(user.id))
-            continue
-        }
         await payload.delete({
           collection: 'notifications',
           id,
           req: {
-            user,
+            user: user ?? undefined,
             payload,
             headers: request.headers,
             url: request.url,
