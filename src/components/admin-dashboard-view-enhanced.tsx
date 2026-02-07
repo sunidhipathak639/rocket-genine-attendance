@@ -289,7 +289,7 @@ export function AdminDashboardViewEnhanced({
     )
     if (statusFilter !== 'all') {
       list = list.filter((r) => {
-        if (statusFilter === 'pending') return r.att.status === 'pending' || !r.att.status
+        if (statusFilter === 'pending') return !r.att.status
         return r.att.status === statusFilter
       })
     }
@@ -884,7 +884,12 @@ export function AdminDashboardViewEnhanced({
               </thead>
               <tbody>
                 {tableRows.map(({ att, user }) => {
-                  const status = att.status || 'pending'
+                  const status = (att.status ?? 'pending') as
+                    | 'present'
+                    | 'late'
+                    | 'absent'
+                    | 'half-day'
+                    | 'pending'
                   const timeIn = formatTimeForDisplay(att.timeIn as string | undefined)
                   const timeOut = formatTimeForDisplay(att.timeOut as string | undefined)
                   const profileUrl = getProfileImageUrl(user.profileImage)
