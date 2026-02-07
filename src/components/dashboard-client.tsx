@@ -329,12 +329,21 @@ export function DashboardClient({
 
   // Week summary variables were unused and removed
 
+  // ─── Check-in / Check-out / Break / Activity Popup (all connected) ─────────────────────
+  // • Check-in: onCheckInSuccess → setLocalCheckedInToday(true), activate(), setLastActivityNow() → popup can show after idle.
+  // • Check-out: onCheckOutSuccess → setLocalCheckedInToday(false) → effect closes popup, timer disabled.
+  // • Break start: setBreakEndsAt(...) → effect closes popup; useIdleTimer disabled when isOnBreak; onPrompt/showPopupIfIdleLongEnough bail out if on break.
+  // • Break end: only via "End break early" button or timer completion → then popup logic resumes.
+  // • Attendance deleted: serverCheckedInToday false → effect resets break count; isCheckedInToday false → popup closed.
+  // ─────────────────────────────────────────────────────────────────────────────────────
+
   // Activity Monitor Logic using react-idle-timer
   const [showActivityPopup, setShowActivityPopup] = useState(false)
   const [timeToResponse, setTimeToResponse] = useState(60)
   const [activityPopupSummary, setActivityPopupSummary] = useState('')
   const [activityPopupOpenedAt, setActivityPopupOpenedAt] = useState<number | null>(null)
   const breakEndsAtRef = useRef<number | null>(null)
+  const isCheckedInTodayRef = useRef(false)
 
   const timeAgoFormatter = useMemo(() => makeIntlFormatter({ numeric: 'auto' }), [])
 
@@ -368,6 +377,7 @@ export function DashboardClient({
   )
 
   const onPrompt = () => {
+    if (!isCheckedInTodayRef.current) return
     if (breakEndsAtRef.current != null && Date.now() < breakEndsAtRef.current) return
     console.log('[Activity] Triggering Prompt Popup!')
     setActivityPopupOpenedAt(Date.now())
@@ -444,6 +454,17 @@ export function DashboardClient({
   const isCheckedInToday =
     localCheckedInToday ?? clientFetchedCheckedIn ?? serverCheckedInToday ?? false
 
+  // Reset break count when today's attendance is gone (e.g. record deleted from admin)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user?.id) return
+    if (serverCheckedInToday) return
+    const key = `attendance_breaks_${user.id}_${todayLocalStr}`
+    try {
+      window.localStorage.removeItem(key)
+      setBreaksTakenToday(0)
+    } catch {}
+  }, [user?.id, todayLocalStr, serverCheckedInToday])
+
   // Production fallback: fetch today's attendance client-side so popup works after refresh or when server didn't pass it
   useEffect(() => {
     if (user.role !== 'staff' || !user.id) return
@@ -495,6 +516,7 @@ export function DashboardClient({
     [todayAttendanceId, router],
   )
 
+  // Break ends only in two ways: (1) timer completes below, or (2) "End break early" button — do not clear breakEndsAt elsewhere
   // Break countdown: tick every second so "X min Y sec left" updates; auto-end when time elapsed
   useEffect(() => {
     if (!breakEndsAt) return
@@ -513,6 +535,14 @@ export function DashboardClient({
     }, 1000)
     return () => clearInterval(id)
   }, [breakEndsAt, todayAttendanceId, recordBreakToServer])
+
+  // When break starts, close the activity popup immediately so no popup shows during break
+  useEffect(() => {
+    if (breakEndsAt != null) {
+      setShowActivityPopup(false)
+      setActivityPopupOpenedAt(null)
+    }
+  }, [breakEndsAt])
 
   const intervalMinutesFromSettings = workSettings?.activityCheckInterval ?? 10
   const intervalMs = intervalMinutesFromSettings * 60 * 1000
@@ -576,8 +606,10 @@ export function DashboardClient({
   getLastActiveTimeRef.current = getLastActiveTime
   intervalMsRef.current = intervalMs
   breakEndsAtRef.current = breakEndsAt
+  isCheckedInTodayRef.current = isCheckedInToday
 
   const showPopupIfIdleLongEnough = useCallback(() => {
+    if (!isCheckedInTodayRef.current) return
     if (breakEndsAtRef.current && Date.now() < breakEndsAtRef.current) return
     const now = Date.now()
     const fromTimer = getLastActiveTimeRef.current()?.getTime()
@@ -619,9 +651,9 @@ export function DashboardClient({
     return () => clearInterval(interval)
   }, [showActivityPopup, getRemainingTime])
 
-  // When tab becomes visible again, show prompt if user was idle longer than the interval
+  // When tab becomes visible again, show prompt if user was idle longer than the interval (not when on break)
   useEffect(() => {
-    if (!isCheckedInToday) return
+    if (!isCheckedInToday || isOnBreak) return
 
     const handleVisibility = () => {
       if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
@@ -631,16 +663,24 @@ export function DashboardClient({
 
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [isCheckedInToday, showActivityPopup, showPopupIfIdleLongEnough])
+  }, [isCheckedInToday, isOnBreak, showActivityPopup, showPopupIfIdleLongEnough])
 
-  // Primary trigger for popup: poll every 3s so we never miss (onPrompt can be unreliable in production)
+  // Close activity popup when user is no longer checked in (e.g. checked out or attendance deleted)
   useEffect(() => {
-    if (!isCheckedInToday || showActivityPopup) return
+    if (!isCheckedInToday) {
+      setShowActivityPopup(false)
+      setActivityPopupOpenedAt(null)
+    }
+  }, [isCheckedInToday])
+
+  // Primary trigger for popup: poll every 3s so we never miss (onPrompt can be unreliable in production). Do not run when on break.
+  useEffect(() => {
+    if (!isCheckedInToday || showActivityPopup || isOnBreak) return
 
     showPopupIfIdleLongEnough()
     const id = setInterval(showPopupIfIdleLongEnough, 3000)
     return () => clearInterval(id)
-  }, [isCheckedInToday, showActivityPopup, showPopupIfIdleLongEnough])
+  }, [isCheckedInToday, showActivityPopup, isOnBreak, showPopupIfIdleLongEnough])
 
   const handleConfirmPresence = () => {
     console.log('[Activity] User confirmed presence')
@@ -1196,7 +1236,11 @@ export function DashboardClient({
                       user={user}
                       timeFormat={timeFormat}
                       workEndTime={workSettings?.workEndTime ?? undefined}
-                      onCheckInSuccess={() => setLocalCheckedInToday(true)}
+                      onCheckInSuccess={() => {
+                        setLocalCheckedInToday(true)
+                        activate()
+                        setLastActivityNow()
+                      }}
                       onCheckOutSuccess={() => setLocalCheckedInToday(false)}
                     />
 
@@ -1243,6 +1287,7 @@ export function DashboardClient({
                                 setBreakEndsAt(null)
                               }}
                               className="rounded-xl"
+                              aria-label="End break early (one of two ways to end break)"
                             >
                               End break early
                             </Button>
