@@ -330,9 +330,9 @@ export function DashboardClient({
   // Week summary variables were unused and removed
 
   // ─── Check-in / Check-out / Break / Activity Popup (all connected) ─────────────────────
-  // • Check-in: onCheckInSuccess → setLocalCheckedInToday(true), activate(), setLastActivityNow() → popup can show after idle.
+  // • Check-in: onCheckInSuccess → setLocalCheckedInToday(true), lastActivityCheckAtRef = now, activate() → popup shows after intervalMs (no idle check).
   // • Check-out: onCheckOutSuccess → setLocalCheckedInToday(false) → effect closes popup, timer disabled.
-  // • Break start: setBreakEndsAt(...) → effect closes popup; useIdleTimer disabled when isOnBreak; onPrompt/showPopupIfIdleLongEnough bail out if on break.
+  // • Break start: setBreakEndsAt(...) → effect closes popup; useIdleTimer disabled when isOnBreak; triggerPopupIfDue bails out if on break.
   // • Break end: only via "End break early" button or timer completion → then popup logic resumes.
   // • Attendance deleted: serverCheckedInToday false → effect resets break count; isCheckedInToday false → popup closed.
   // ─────────────────────────────────────────────────────────────────────────────────────
@@ -344,12 +344,14 @@ export function DashboardClient({
   const [activityPopupOpenedAt, setActivityPopupOpenedAt] = useState<number | null>(null)
   const breakEndsAtRef = useRef<number | null>(null)
   const isCheckedInTodayRef = useRef(false)
+  const lastActivityCheckAtRef = useRef<number>(0)
 
   const timeAgoFormatter = useMemo(() => makeIntlFormatter({ numeric: 'auto' }), [])
 
   const handleActivityResponse = useCallback(
     async (status: 'active' | 'inactive', customDuration?: number, intervalSummary?: string) => {
       console.log(`[Activity] API Call: Logging as ${status}`)
+      lastActivityCheckAtRef.current = Date.now()
       setShowActivityPopup(false)
       setActivityPopupOpenedAt(null)
       const duration = customDuration ?? workSettings?.activityCheckInterval ?? 10
@@ -377,17 +379,7 @@ export function DashboardClient({
   )
 
   const onPrompt = () => {
-    if (!isCheckedInTodayRef.current) return
-    if (breakEndsAtRef.current != null && Date.now() < breakEndsAtRef.current) return
-    console.log('[Activity] Triggering Prompt Popup!')
-    setActivityPopupOpenedAt(Date.now())
-    setShowActivityPopup(true)
-    setTimeToResponse(60)
-    setActivityPopupSummary('')
-    try {
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
-      audio.play().catch(() => {})
-    } catch {}
+    // Popup is shown only by fixed-interval polling (showPopupIfIntervalElapsed), not by idle — no-op here
   }
 
   const onIdle = () => {
@@ -548,46 +540,11 @@ export function DashboardClient({
   const intervalMs = intervalMinutesFromSettings * 60 * 1000
   const intervalDisplayText = `${intervalMinutesFromSettings} min`
 
-  const promptBeforeIdleMs = 60 * 1000 // 60 seconds to respond
-  // Timeout is the TOTAL time (Idle + Prompt). Prompt shows after interval of idleness.
+  const promptBeforeIdleMs = 60 * 1000 // 60 seconds to respond to the popup
   const timeoutMs = intervalMs + promptBeforeIdleMs
 
-  const activityStorageKey = `activity_last_active_${user?.id ?? 'anon'}`
-
-  const setLastActivityNow = useCallback(() => {
-    try {
-      if (typeof window !== 'undefined')
-        window.localStorage.setItem(activityStorageKey, String(Date.now()))
-    } catch {}
-  }, [activityStorageKey])
-
-  // Init last-activity to now when checked in and key missing (avoid stale value from previous session)
-  useEffect(() => {
-    if (!isCheckedInToday || typeof window === 'undefined') return
-    try {
-      if (!window.localStorage.getItem(activityStorageKey)) setLastActivityNow()
-    } catch {}
-  }, [isCheckedInToday, activityStorageKey, setLastActivityNow])
-
-  // Persist last-activity to localStorage (throttled) so popup works after tab background/refresh
-  useEffect(() => {
-    if (!isCheckedInToday || typeof window === 'undefined') return
-    let lastWritten = 0
-    const throttleMs = 1000
-    const handleActivity = () => {
-      const now = Date.now()
-      if (now - lastWritten >= throttleMs) {
-        lastWritten = now
-        window.localStorage.setItem(activityStorageKey, String(now))
-      }
-    }
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click']
-    events.forEach((e) => window.addEventListener(e, handleActivity))
-    return () => events.forEach((e) => window.removeEventListener(e, handleActivity))
-  }, [isCheckedInToday, activityStorageKey])
-
   const isOnBreak = breakEndsAt != null && Date.now() < breakEndsAt
-  const { getRemainingTime, getLastActiveTime, activate } = useIdleTimer({
+  const { getRemainingTime, activate } = useIdleTimer({
     onPrompt,
     onIdle,
     onActive,
@@ -601,43 +558,35 @@ export function DashboardClient({
   })
 
   // Refs so polling/visibility don't depend on changing function refs (fixes production popup not showing)
-  const getLastActiveTimeRef = useRef(getLastActiveTime)
   const intervalMsRef = useRef(intervalMs)
-  getLastActiveTimeRef.current = getLastActiveTime
   intervalMsRef.current = intervalMs
   breakEndsAtRef.current = breakEndsAt
   isCheckedInTodayRef.current = isCheckedInToday
+  if (isCheckedInTodayRef.current && lastActivityCheckAtRef.current === 0) {
+    lastActivityCheckAtRef.current = Date.now()
+  }
 
-  const showPopupIfIdleLongEnough = useCallback(() => {
+  // Show popup every intervalMs (from Work Settings) regardless of mouse/keyboard — no idle validation
+  const showPopupIfIntervalElapsed = useCallback((activateTimer: () => void) => {
     if (!isCheckedInTodayRef.current) return
     if (breakEndsAtRef.current && Date.now() < breakEndsAtRef.current) return
     const now = Date.now()
-    const fromTimer = getLastActiveTimeRef.current()?.getTime()
-    let fromStorage: number | null = null
+    if (now - lastActivityCheckAtRef.current < intervalMsRef.current) return
+    setActivityPopupOpenedAt(now)
+    setShowActivityPopup(true)
+    setTimeToResponse(60)
+    setActivityPopupSummary('')
+    activateTimer()
     try {
-      if (typeof window !== 'undefined') {
-        const raw = window.localStorage.getItem(activityStorageKey)
-        if (raw) fromStorage = parseInt(raw, 10)
-      }
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+      audio.play().catch(() => {})
     } catch {}
-    const lastActive = [fromTimer, fromStorage].filter(
-      (t): t is number => typeof t === 'number' && !Number.isNaN(t),
-    ).length
-      ? Math.max(fromTimer ?? 0, fromStorage ?? 0)
-      : null
-    if (lastActive == null) return
-    const idleMs = now - lastActive
-    if (idleMs >= intervalMsRef.current) {
-      setActivityPopupOpenedAt(Date.now())
-      setShowActivityPopup(true)
-      setTimeToResponse(60)
-      setActivityPopupSummary('')
-      try {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
-        audio.play().catch(() => {})
-      } catch {}
-    }
-  }, [activityStorageKey])
+  }, [])
+
+  const triggerPopupIfDue = useCallback(
+    () => showPopupIfIntervalElapsed(activate),
+    [showPopupIfIntervalElapsed, activate],
+  )
 
   // Sync countdown UI with remaining prompt time
   useEffect(() => {
@@ -651,19 +600,19 @@ export function DashboardClient({
     return () => clearInterval(interval)
   }, [showActivityPopup, getRemainingTime])
 
-  // When tab becomes visible again, show prompt if user was idle longer than the interval (not when on break)
+  // When tab becomes visible again, show prompt if interval has elapsed (not when on break)
   useEffect(() => {
     if (!isCheckedInToday || isOnBreak) return
 
     const handleVisibility = () => {
       if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
       if (showActivityPopup) return
-      showPopupIfIdleLongEnough()
+      triggerPopupIfDue()
     }
 
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [isCheckedInToday, isOnBreak, showActivityPopup, showPopupIfIdleLongEnough])
+  }, [isCheckedInToday, isOnBreak, showActivityPopup, triggerPopupIfDue])
 
   // Close activity popup when user is no longer checked in (e.g. checked out or attendance deleted)
   useEffect(() => {
@@ -673,22 +622,21 @@ export function DashboardClient({
     }
   }, [isCheckedInToday])
 
-  // Primary trigger for popup: poll every 3s so we never miss (onPrompt can be unreliable in production). Do not run when on break.
+  // Primary trigger for popup: poll every 3s; show every intervalMs regardless of mouse/keyboard. Do not run when on break.
   useEffect(() => {
     if (!isCheckedInToday || showActivityPopup || isOnBreak) return
 
-    showPopupIfIdleLongEnough()
-    const id = setInterval(showPopupIfIdleLongEnough, 3000)
+    triggerPopupIfDue()
+    const id = setInterval(triggerPopupIfDue, 3000)
     return () => clearInterval(id)
-  }, [isCheckedInToday, showActivityPopup, isOnBreak, showPopupIfIdleLongEnough])
+  }, [isCheckedInToday, showActivityPopup, isOnBreak, triggerPopupIfDue])
 
   const handleConfirmPresence = () => {
     console.log('[Activity] User confirmed presence')
     confirmedByButtonRef.current = true
     handleActivityResponse('active', undefined, activityPopupSummary)
     setActivityPopupSummary('')
-    activate() // Reset idle timer
-    setLastActivityNow() // Sync localStorage so next idle check is accurate
+    activate()
   }
 
   // Show admin dashboard if user is admin
@@ -1238,8 +1186,8 @@ export function DashboardClient({
                       workEndTime={workSettings?.workEndTime ?? undefined}
                       onCheckInSuccess={() => {
                         setLocalCheckedInToday(true)
+                        lastActivityCheckAtRef.current = Date.now()
                         activate()
-                        setLastActivityNow()
                       }}
                       onCheckOutSuccess={() => setLocalCheckedInToday(false)}
                     />

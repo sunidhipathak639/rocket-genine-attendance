@@ -16,8 +16,22 @@ import {
   ChevronRight,
   AlertCircle,
   PartyPopper,
+  Download,
+  CalendarRange,
 } from 'lucide-react'
-import { format, subDays, differenceInDays, differenceInMinutes } from 'date-fns'
+import {
+  format,
+  subDays,
+  differenceInDays,
+  differenceInMinutes,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  parseISO,
+} from 'date-fns'
 import type { User, Attendance, Leaf, Holiday } from '@/payload-types'
 import {
   BarChart,
@@ -125,6 +139,39 @@ function LiveIndianClock() {
   )
 }
 
+type DateRangePreset = 'today' | 'this_week' | 'this_month' | 'year_to_date' | 'custom'
+
+function getRangeForPreset(
+  preset: DateRangePreset,
+  customStart: string,
+  customEnd: string,
+): { start: string; end: string } {
+  const now = new Date()
+  const todayStr = format(now, 'yyyy-MM-dd')
+  if (preset === 'today') return { start: todayStr, end: todayStr }
+  if (preset === 'this_week') {
+    const start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    const end = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    return { start, end }
+  }
+  if (preset === 'this_month') {
+    return {
+      start: format(startOfMonth(now), 'yyyy-MM-dd'),
+      end: format(endOfMonth(now), 'yyyy-MM-dd'),
+    }
+  }
+  if (preset === 'year_to_date') {
+    return {
+      start: format(startOfYear(now), 'yyyy-MM-dd'),
+      end: format(endOfYear(now), 'yyyy-MM-dd'),
+    }
+  }
+  if (preset === 'custom' && customStart && customEnd) {
+    return { start: customStart, end: customEnd }
+  }
+  return { start: todayStr, end: todayStr }
+}
+
 export function AdminDashboardViewEnhanced({
   allUsers,
   allAttendance,
@@ -135,9 +182,24 @@ export function AdminDashboardViewEnhanced({
   const [statusFilter, setStatusFilter] = useState<
     'all' | 'present' | 'late' | 'absent' | 'pending'
   >('all')
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('today')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
   const todayStr = format(new Date(), 'yyyy-MM-dd')
 
   const staffUsers = useMemo(() => allUsers.filter((u) => u.role === 'staff'), [allUsers])
+
+  const { start: rangeStart, end: rangeEnd } = useMemo(
+    () => getRangeForPreset(dateRangePreset, customStart, customEnd),
+    [dateRangePreset, customStart, customEnd],
+  )
+
+  const attendanceInRange = useMemo(() => {
+    return allAttendance.filter((a) => {
+      const d = getDateStr(a.date)
+      return d >= rangeStart && d <= rangeEnd
+    })
+  }, [allAttendance, rangeStart, rangeEnd])
 
   const todayAttendance = useMemo(
     () => allAttendance.filter((a) => getDateStr(a.date) === todayStr),
@@ -145,12 +207,14 @@ export function AdminDashboardViewEnhanced({
   )
 
   const stats = useMemo(() => {
-    const present = todayAttendance.filter((a) => a.status === 'present').length
-    const late = todayAttendance.filter((a) => a.status === 'late').length
-    const absent = todayAttendance.filter((a) => a.status === 'absent').length
-    const halfDay = todayAttendance.filter((a) => a.status === 'half-day').length
-    const checkedIn = present + late + halfDay
-    const pending = Math.max(0, staffUsers.length - checkedIn - absent)
+    const present = attendanceInRange.filter((a) => a.status === 'present').length
+    const late = attendanceInRange.filter((a) => a.status === 'late').length
+    const absent = attendanceInRange.filter((a) => a.status === 'absent').length
+    const halfDay = attendanceInRange.filter((a) => a.status === 'half-day').length
+    const distinctUsersInRange = new Set(
+      attendanceInRange.map((a) => (typeof a.user === 'object' ? a.user?.id : a.user)),
+    ).size
+    const pending = Math.max(0, staffUsers.length - distinctUsersInRange)
 
     return {
       total: staffUsers.length,
@@ -158,21 +222,26 @@ export function AdminDashboardViewEnhanced({
       late,
       absent,
       halfDay,
-      checkedIn,
       pending,
+      recordsInRange: attendanceInRange.length,
     }
-  }, [todayAttendance, staffUsers.length])
+  }, [attendanceInRange, staffUsers.length])
 
   const weeklyTrend = useMemo(() => {
-    const days = []
-    for (let i = 6; i >= 0; i--) {
-      const d = subDays(new Date(), i)
+    const startDate = parseISO(rangeStart)
+    const endDate = parseISO(rangeEnd)
+    const days: { day: string; fullDate: string; present: number; total: number; pct: number }[] =
+      []
+    const numDays = differenceInDays(endDate, startDate) + 1
+    const maxPoints = 31
+    const step = numDays <= maxPoints ? 1 : Math.ceil(numDays / maxPoints)
+    for (let i = 0; i <= numDays - 1; i += step) {
+      const d = subDays(endDate, numDays - 1 - i)
       const dStr = format(d, 'yyyy-MM-dd')
-      const dayAtt = allAttendance.filter((a) => getDateStr(a.date) === dStr)
+      const dayAtt = attendanceInRange.filter((a) => getDateStr(a.date) === dStr)
       const presentCount = dayAtt.filter((a) =>
         ['present', 'late', 'half-day'].includes(a.status),
       ).length
-
       days.push({
         day: format(d, 'EEE'),
         fullDate: dStr,
@@ -181,8 +250,18 @@ export function AdminDashboardViewEnhanced({
         pct: staffUsers.length > 0 ? Math.round((presentCount / staffUsers.length) * 100) : 0,
       })
     }
+    if (days.length === 0) {
+      const d = parseISO(rangeStart)
+      days.push({
+        day: format(d, 'EEE'),
+        fullDate: rangeStart,
+        present: 0,
+        total: staffUsers.length,
+        pct: 0,
+      })
+    }
     return days
-  }, [allAttendance, staffUsers.length])
+  }, [attendanceInRange, staffUsers.length, rangeStart, rangeEnd])
 
   const departmentData = useMemo(() => {
     const depts: Record<string, number> = {}
@@ -193,26 +272,34 @@ export function AdminDashboardViewEnhanced({
     return Object.entries(depts).map(([name, count]) => ({ name, count }))
   }, [staffUsers])
 
-  const filteredStaff = useMemo(() => {
-    let list = staffUsers.filter(
-      (u) =>
-        !searchQuery ||
-        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email?.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
+  const tableRows = useMemo(() => {
+    const rows = attendanceInRange
+      .map((att) => {
+        const userId = typeof att.user === 'object' ? (att.user as User)?.id : att.user
+        const user = allUsers.find((u) => u.id === userId)
+        return { att, user: user ?? null }
+      })
+      .filter((r) => r.user != null) as { att: Attendance; user: User }[]
 
+    let list = rows.filter(
+      (r) =>
+        !searchQuery ||
+        r.user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
+    )
     if (statusFilter !== 'all') {
-      list = list.filter((u) => {
-        const att = todayAttendance.find(
-          (a) => (typeof a.user === 'object' ? a.user.id : a.user) === u.id,
-        )
-        if (statusFilter === 'pending') return !att
-        if (att) return att.status === statusFilter
-        return false
+      list = list.filter((r) => {
+        if (statusFilter === 'pending') return r.att.status === 'pending' || !r.att.status
+        return r.att.status === statusFilter
       })
     }
-    return list
-  }, [staffUsers, searchQuery, statusFilter, todayAttendance])
+    return list.sort((a, b) => {
+      const dA = getDateStr(a.att.date)
+      const dB = getDateStr(b.att.date)
+      if (dA !== dB) return dB.localeCompare(dA)
+      return (a.user.name || '').localeCompare(b.user.name || '')
+    })
+  }, [attendanceInRange, allUsers, searchQuery, statusFilter])
 
   const container = {
     hidden: { opacity: 0 },
@@ -227,8 +314,116 @@ export function AdminDashboardViewEnhanced({
     show: { opacity: 1, y: 0 },
   }
 
+  const handleDownloadCSV = () => {
+    const headers = [
+      'Date',
+      'Employee',
+      'Email',
+      'Department',
+      'Check In',
+      'Check Out',
+      'Working Hours',
+      'Breaks',
+      'Status',
+    ]
+    const escape = (v: string) => {
+      const s = String(v ?? '')
+      if (/[,"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+      return s
+    }
+    const rows = tableRows.map(({ att, user }) => {
+      const breaksList =
+        (att as { breaks?: { startTime: string; endTime: string; durationMinutes: number }[] })
+          ?.breaks ?? []
+      const breaksStr = breaksList
+        .map(
+          (b) =>
+            `${format(new Date(b.startTime), 'h:mm a')}–${format(new Date(b.endTime), 'h:mm a')} (${b.durationMinutes}m)`,
+        )
+        .join('; ')
+      return [
+        getDateStr(att.date),
+        user.name || '',
+        user.email || '',
+        user.department || '',
+        formatTimeForDisplay(att.timeIn as string),
+        formatTimeForDisplay(att.timeOut as string),
+        formatWorkingHours(att.timeIn as string, att.timeOut as string),
+        breaksStr || '–',
+        att.status || 'pending',
+      ].map(escape)
+    })
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `attendance-${rangeStart}-to-${rangeEnd}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
+      {/* Date range filter */}
+      <Card className="border-border shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <CalendarRange className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-sm font-semibold text-slate-700 dark:text-foreground">
+                Date range
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ['today', 'Today'],
+                  ['this_week', 'This week'],
+                  ['this_month', 'This month'],
+                  ['year_to_date', 'Year to date'],
+                  ['custom', 'Custom'],
+                ] as const
+              ).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setDateRangePreset(val)}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+                    dateRangePreset === val
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {dateRangePreset === 'custom' && (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="rounded-xl border border-border px-3 py-2 text-sm bg-background"
+                />
+                <span className="text-slate-500">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="rounded-xl border border-border px-3 py-2 text-sm bg-background"
+                />
+              </div>
+            )}
+            <span className="text-sm text-slate-500 dark:text-muted-foreground">
+              {rangeStart === rangeEnd
+                ? format(parseISO(rangeStart), 'EEEE, dd MMM yyyy')
+                : `${format(parseISO(rangeStart), 'dd MMM yyyy')} – ${format(parseISO(rangeEnd), 'dd MMM yyyy')}`}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* KPI Cards + Live Clock */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <motion.div variants={item}>
@@ -342,9 +537,11 @@ export function AdminDashboardViewEnhanced({
         <Card className="border-border shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold text-slate-900 dark:text-foreground">
-              Weekly Attendance Trend
+              Attendance Trend
             </CardTitle>
-            <p className="text-sm text-slate-500">Last 7 days • Real data</p>
+            <p className="text-sm text-slate-500">
+              {rangeStart === rangeEnd ? 'Single day' : `${rangeStart} – ${rangeEnd}`}
+            </p>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
@@ -593,10 +790,13 @@ export function AdminDashboardViewEnhanced({
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <CardTitle className="text-lg font-semibold text-slate-900 dark:text-foreground">
-              Today&apos;s Employee Attendance
+              Employee Attendance
             </CardTitle>
             <p className="text-sm text-slate-500 mt-0.5">
-              {format(new Date(), 'EEEE, dd MMM yyyy')}
+              {rangeStart === rangeEnd
+                ? format(parseISO(rangeStart), 'EEEE, dd MMM yyyy')
+                : `${format(parseISO(rangeStart), 'dd MMM yyyy')} – ${format(parseISO(rangeEnd), 'dd MMM yyyy')}`}{' '}
+              • {tableRows.length} record{tableRows.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -632,6 +832,14 @@ export function AdminDashboardViewEnhanced({
                 </button>
               ))}
             </div>
+            <Button
+              variant="outline"
+              className="rounded-xl font-semibold"
+              onClick={handleDownloadCSV}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download CSV
+            </Button>
             <Link href="/admin/collections/attendance" target="_blank" rel="noopener noreferrer">
               <Button className="rounded-xl font-semibold">
                 View All Attendance
@@ -645,6 +853,9 @@ export function AdminDashboardViewEnhanced({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-slate-50/80 dark:bg-slate-900/50">
+                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
+                    Date
+                  </th>
                   <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
                     Employee
                   </th>
@@ -672,20 +883,20 @@ export function AdminDashboardViewEnhanced({
                 </tr>
               </thead>
               <tbody>
-                {filteredStaff.map((user) => {
-                  const att = todayAttendance.find(
-                    (a) => (typeof a.user === 'object' ? a.user.id : a.user) === user.id,
-                  )
-                  const status = att?.status || 'pending'
-                  const timeIn = formatTimeForDisplay(att?.timeIn as string | undefined)
-                  const timeOut = formatTimeForDisplay(att?.timeOut as string | undefined)
+                {tableRows.map(({ att, user }) => {
+                  const status = att.status || 'pending'
+                  const timeIn = formatTimeForDisplay(att.timeIn as string | undefined)
+                  const timeOut = formatTimeForDisplay(att.timeOut as string | undefined)
                   const profileUrl = getProfileImageUrl(user.profileImage)
 
                   return (
                     <tr
-                      key={user.id}
+                      key={String(att.id)}
                       className="border-b border-border/60 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
                     >
+                      <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
+                        {format(parseISO(getDateStr(att.date)), 'dd MMM yyyy')}
+                      </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-indigo-100 dark:bg-indigo-500/20">
@@ -723,19 +934,29 @@ export function AdminDashboardViewEnhanced({
                       </td>
                       <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
                         {formatWorkingHours(
-                          att?.timeIn as string | undefined,
-                          att?.timeOut as string | undefined,
+                          att.timeIn as string | undefined,
+                          att.timeOut as string | undefined,
                         )}
                       </td>
                       <td className="py-4 px-4 text-sm text-slate-600 dark:text-muted-foreground max-w-[200px]">
                         {(() => {
-                          const breaksList = (att as { breaks?: { startTime: string; endTime: string; durationMinutes: number }[] } | undefined)?.breaks ?? []
+                          const breaksList =
+                            (
+                              att as {
+                                breaks?: {
+                                  startTime: string
+                                  endTime: string
+                                  durationMinutes: number
+                                }[]
+                              }
+                            )?.breaks ?? []
                           if (breaksList.length === 0) return '–'
                           return (
                             <ul className="space-y-0.5 text-xs">
                               {breaksList.map((b, i) => (
                                 <li key={i} className="tabular-nums">
-                                  {format(new Date(b.startTime), 'h:mm a')} – {format(new Date(b.endTime), 'h:mm a')} ({b.durationMinutes} min)
+                                  {format(new Date(b.startTime), 'h:mm a')} –{' '}
+                                  {format(new Date(b.endTime), 'h:mm a')} ({b.durationMinutes} min)
                                 </li>
                               ))}
                             </ul>
@@ -801,9 +1022,9 @@ export function AdminDashboardViewEnhanced({
               </tbody>
             </table>
           </div>
-          {filteredStaff.length === 0 && (
+          {tableRows.length === 0 && (
             <div className="py-16 text-center text-slate-500 dark:text-muted-foreground">
-              No employees match your filters
+              No attendance records in this date range match your filters
             </div>
           )}
         </CardContent>

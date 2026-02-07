@@ -1,6 +1,6 @@
-import React from 'react'
-import { getPayload } from 'payload'
-import configPromise from '@payload-config'
+'use client'
+
+import React, { useEffect, useState } from 'react'
 import LiveIndianClock from './LiveIndianClock'
 import FrontendDashboardButton from './FrontendDashboardButton'
 
@@ -24,21 +24,42 @@ const cardAccent = (color: string): React.CSSProperties => ({
   borderRadius: '12px 0 0 12px',
 })
 
-export default async function AdminDashboardStats() {
-  const payload = await getPayload({ config: await configPromise })
-  const todayStr = new Date().toISOString().split('T')[0]
+export default function AdminDashboardStats() {
+  const [totalEmployees, setTotalEmployees] = useState<number | null>(null)
+  const [todayAttendance, setTodayAttendance] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const [usersResult, attendanceResult] = await Promise.all([
-    payload.find({ collection: 'users', limit: 0 }),
-    payload.find({
-      collection: 'attendance',
-      where: { date: { equals: todayStr } },
-      limit: 0,
-    }),
-  ])
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const base = typeof window !== 'undefined' ? window.location.origin : ''
+        const res = await fetch(`${base}/api/admin/dashboard-stats`, { credentials: 'include' })
+        if (!res.ok) throw new Error(res.statusText)
+        const data = await res.json()
+        if (!cancelled) {
+          setTotalEmployees(data.totalEmployees ?? 0)
+          setTodayAttendance(data.todayAttendance ?? 0)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Failed to load stats')
+        }
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
-  const totalEmployees = usersResult.totalDocs
-  const todayAttendance = attendanceResult.totalDocs
+  if (error) {
+    return (
+      <div style={{ marginBottom: '32px' }}>
+        <p style={{ color: 'var(--theme-error-500)', fontSize: '14px' }}>{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -122,7 +143,7 @@ export default async function AdminDashboardStats() {
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {totalEmployees}
+            {totalEmployees ?? '–'}
           </div>
         </div>
 
@@ -170,7 +191,7 @@ export default async function AdminDashboardStats() {
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {todayAttendance}
+            {todayAttendance ?? '–'}
           </div>
         </div>
 
