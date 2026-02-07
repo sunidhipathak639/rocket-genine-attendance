@@ -438,6 +438,27 @@ export function DashboardClient({
     syncTimers: 200,
   })
 
+  // Refs so polling/visibility don't depend on changing function refs (fixes production popup not showing)
+  const getLastActiveTimeRef = useRef(getLastActiveTime)
+  const intervalMsRef = useRef(intervalMs)
+  getLastActiveTimeRef.current = getLastActiveTime
+  intervalMsRef.current = intervalMs
+
+  const showPopupIfIdleLongEnough = useCallback(() => {
+    const lastActive = getLastActiveTimeRef.current()
+    if (!lastActive) return
+    const idleMs = Date.now() - lastActive.getTime()
+    if (idleMs >= intervalMsRef.current) {
+      setShowActivityPopup(true)
+      setTimeToResponse(60)
+      setActivityPopupSummary('')
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+        audio.play().catch(() => {})
+      } catch {}
+    }
+  }, [])
+
   // Sync countdown UI with remaining prompt time
   useEffect(() => {
     if (!showActivityPopup) return
@@ -451,64 +472,27 @@ export function DashboardClient({
   }, [showActivityPopup, getRemainingTime])
 
   // When tab becomes visible again, show prompt if user was idle longer than the interval
-  // (timers are throttled in background tabs, so onPrompt may never fire until they return)
   useEffect(() => {
     if (!isCheckedInToday) return
 
     const handleVisibility = () => {
       if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
       if (showActivityPopup) return
-
-      const lastActive = getLastActiveTime()
-      if (!lastActive) return
-
-      const idleMs = Date.now() - lastActive.getTime()
-      if (idleMs >= intervalMs) {
-        setShowActivityPopup(true)
-        setTimeToResponse(60)
-        setActivityPopupSummary('')
-        try {
-          const audio = new Audio(
-            'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
-          )
-          audio.play().catch(() => {})
-        } catch {}
-      }
+      showPopupIfIdleLongEnough()
     }
 
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [isCheckedInToday, showActivityPopup, intervalMs, getLastActiveTime])
+  }, [isCheckedInToday, showActivityPopup, showPopupIfIdleLongEnough])
 
-  // Reliable polling fallback: show popup when idle time exceeds configured duration
-  // (react-idle-timer's onPrompt can miss when tab is backgrounded or due to browser throttling)
+  // Primary trigger for popup: poll every 3s so we never miss (onPrompt can be unreliable in production)
   useEffect(() => {
     if (!isCheckedInToday || showActivityPopup) return
 
-    const pollIntervalMs =
-      intervalMs <= 60 * 1000 ? 2000 : intervalMs <= 2 * 60 * 1000 ? 5000 : 10000
-
-    const poll = () => {
-      const lastActive = getLastActiveTime()
-      if (!lastActive) return
-
-      const idleMs = Date.now() - lastActive.getTime()
-      if (idleMs >= intervalMs) {
-        setShowActivityPopup(true)
-        setTimeToResponse(60)
-        setActivityPopupSummary('')
-        try {
-          const audio = new Audio(
-            'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
-          )
-          audio.play().catch(() => {})
-        } catch {}
-      }
-    }
-
-    const id = setInterval(poll, pollIntervalMs)
+    showPopupIfIdleLongEnough()
+    const id = setInterval(showPopupIfIdleLongEnough, 3000)
     return () => clearInterval(id)
-  }, [isCheckedInToday, showActivityPopup, intervalMs, getLastActiveTime])
+  }, [isCheckedInToday, showActivityPopup, showPopupIfIdleLongEnough])
 
   const handleConfirmPresence = () => {
     console.log('[Activity] User confirmed presence')
