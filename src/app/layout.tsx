@@ -37,7 +37,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className={jakarta.variable} suppressHydrationWarning>
-      <body className="min-h-screen antialiased font-sans bg-background text-foreground">
+      <body
+        className="min-h-screen antialiased font-sans bg-background text-foreground"
+        suppressHydrationWarning
+      >
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

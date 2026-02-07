@@ -334,6 +334,7 @@ export function DashboardClient({
   const [timeToResponse, setTimeToResponse] = useState(60)
   const [activityPopupSummary, setActivityPopupSummary] = useState('')
   const [activityPopupOpenedAt, setActivityPopupOpenedAt] = useState<number | null>(null)
+  const breakEndsAtRef = useRef<number | null>(null)
 
   const timeAgoFormatter = useMemo(() => makeIntlFormatter({ numeric: 'auto' }), [])
 
@@ -367,6 +368,7 @@ export function DashboardClient({
   )
 
   const onPrompt = () => {
+    if (breakEndsAtRef.current != null && Date.now() < breakEndsAtRef.current) return
     console.log('[Activity] Triggering Prompt Popup!')
     setActivityPopupOpenedAt(Date.now())
     setShowActivityPopup(true)
@@ -402,6 +404,7 @@ export function DashboardClient({
   const [breakEndsAt, setBreakEndsAt] = useState<number | null>(null)
   const [breakDurationMins, setBreakDurationMins] = useState<number>(15)
   const [breaksTakenToday, setBreaksTakenToday] = useState<number>(0)
+  const [, setBreakTimerTick] = useState(0)
   const breakStartedAtRef = useRef<number | null>(null)
   const todayLocalStr = format(new Date(), 'yyyy-MM-dd')
   const maxBreaksPerDay = Math.max(1, workSettings?.maxBreaksPerDay ?? 3)
@@ -415,7 +418,12 @@ export function DashboardClient({
     [userAttendance, todayLocalStr],
   )
   const todayAttendanceId = todayAttendanceRecord?.id
-  const todayBreaksList = (todayAttendanceRecord as { breaks?: { startTime: string; endTime: string; durationMinutes: number }[] })?.breaks ?? []
+  const todayBreaksList =
+    (
+      todayAttendanceRecord as {
+        breaks?: { startTime: string; endTime: string; durationMinutes: number }[]
+      }
+    )?.breaks ?? []
 
   // Sync breaks taken today from localStorage (keyed by user + date)
   useEffect(() => {
@@ -487,21 +495,22 @@ export function DashboardClient({
     [todayAttendanceId, router],
   )
 
-  // Clear break when time elapsed; record break to attendance and tick so "X min left" updates
+  // Break countdown: tick every second so "X min Y sec left" updates; auto-end when time elapsed
   useEffect(() => {
     if (!breakEndsAt) return
     const id = setInterval(() => {
-      if (Date.now() >= breakEndsAt) {
+      const now = Date.now()
+      if (now >= breakEndsAt) {
         const startTime = breakStartedAtRef.current
         if (todayAttendanceId && startTime != null) {
-          recordBreakToServer(startTime, Date.now())
+          recordBreakToServer(startTime, now)
         }
         breakStartedAtRef.current = null
         setBreakEndsAt(null)
       } else {
-        setShiftTick((t) => t + 1)
+        setBreakTimerTick((t) => t + 1)
       }
-    }, 10000)
+    }, 1000)
     return () => clearInterval(id)
   }, [breakEndsAt, todayAttendanceId, recordBreakToServer])
 
@@ -513,6 +522,41 @@ export function DashboardClient({
   // Timeout is the TOTAL time (Idle + Prompt). Prompt shows after interval of idleness.
   const timeoutMs = intervalMs + promptBeforeIdleMs
 
+  const activityStorageKey = `activity_last_active_${user?.id ?? 'anon'}`
+
+  const setLastActivityNow = useCallback(() => {
+    try {
+      if (typeof window !== 'undefined')
+        window.localStorage.setItem(activityStorageKey, String(Date.now()))
+    } catch {}
+  }, [activityStorageKey])
+
+  // Init last-activity to now when checked in and key missing (avoid stale value from previous session)
+  useEffect(() => {
+    if (!isCheckedInToday || typeof window === 'undefined') return
+    try {
+      if (!window.localStorage.getItem(activityStorageKey)) setLastActivityNow()
+    } catch {}
+  }, [isCheckedInToday, activityStorageKey, setLastActivityNow])
+
+  // Persist last-activity to localStorage (throttled) so popup works after tab background/refresh
+  useEffect(() => {
+    if (!isCheckedInToday || typeof window === 'undefined') return
+    let lastWritten = 0
+    const throttleMs = 1000
+    const handleActivity = () => {
+      const now = Date.now()
+      if (now - lastWritten >= throttleMs) {
+        lastWritten = now
+        window.localStorage.setItem(activityStorageKey, String(now))
+      }
+    }
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click']
+    events.forEach((e) => window.addEventListener(e, handleActivity))
+    return () => events.forEach((e) => window.removeEventListener(e, handleActivity))
+  }, [isCheckedInToday, activityStorageKey])
+
+  const isOnBreak = breakEndsAt != null && Date.now() < breakEndsAt
   const { getRemainingTime, getLastActiveTime, activate } = useIdleTimer({
     onPrompt,
     onIdle,
@@ -520,7 +564,7 @@ export function DashboardClient({
     timeout: timeoutMs,
     promptBeforeIdle: promptBeforeIdleMs,
     throttle: 250,
-    disabled: !isCheckedInToday,
+    disabled: !isCheckedInToday || isOnBreak,
     crossTab: false,
     leaderElection: false,
     syncTimers: 200,
@@ -529,16 +573,28 @@ export function DashboardClient({
   // Refs so polling/visibility don't depend on changing function refs (fixes production popup not showing)
   const getLastActiveTimeRef = useRef(getLastActiveTime)
   const intervalMsRef = useRef(intervalMs)
-  const breakEndsAtRef = useRef(breakEndsAt)
   getLastActiveTimeRef.current = getLastActiveTime
   intervalMsRef.current = intervalMs
   breakEndsAtRef.current = breakEndsAt
 
   const showPopupIfIdleLongEnough = useCallback(() => {
     if (breakEndsAtRef.current && Date.now() < breakEndsAtRef.current) return
-    const lastActive = getLastActiveTimeRef.current()
-    if (!lastActive) return
-    const idleMs = Date.now() - lastActive.getTime()
+    const now = Date.now()
+    const fromTimer = getLastActiveTimeRef.current()?.getTime()
+    let fromStorage: number | null = null
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = window.localStorage.getItem(activityStorageKey)
+        if (raw) fromStorage = parseInt(raw, 10)
+      }
+    } catch {}
+    const lastActive = [fromTimer, fromStorage].filter(
+      (t): t is number => typeof t === 'number' && !Number.isNaN(t),
+    ).length
+      ? Math.max(fromTimer ?? 0, fromStorage ?? 0)
+      : null
+    if (lastActive == null) return
+    const idleMs = now - lastActive
     if (idleMs >= intervalMsRef.current) {
       setActivityPopupOpenedAt(Date.now())
       setShowActivityPopup(true)
@@ -549,7 +605,7 @@ export function DashboardClient({
         audio.play().catch(() => {})
       } catch {}
     }
-  }, [])
+  }, [activityStorageKey])
 
   // Sync countdown UI with remaining prompt time
   useEffect(() => {
@@ -592,6 +648,7 @@ export function DashboardClient({
     handleActivityResponse('active', undefined, activityPopupSummary)
     setActivityPopupSummary('')
     activate() // Reset idle timer
+    setLastActivityNow() // Sync localStorage so next idle check is accurate
   }
 
   // Show admin dashboard if user is admin
@@ -1156,8 +1213,17 @@ export function DashboardClient({
                             <span className="font-semibold text-slate-900 dark:text-foreground">
                               {breakEndsAt && Date.now() < breakEndsAt ? (
                                 <>
-                                  On break — {Math.ceil((breakEndsAt - Date.now()) / 60000)} min
-                                  left
+                                  On break —{' '}
+                                  {(() => {
+                                    const remainingMs = Math.max(0, breakEndsAt - Date.now())
+                                    const min = Math.floor(remainingMs / 60000)
+                                    const sec = Math.floor((remainingMs % 60000) / 1000)
+                                    return (
+                                      <span className="tabular-nums text-amber-600 dark:text-amber-400">
+                                        {min} min {sec} sec left
+                                      </span>
+                                    )
+                                  })()}
                                 </>
                               ) : (
                                 'Take a break'

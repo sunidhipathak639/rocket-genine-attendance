@@ -116,6 +116,10 @@ export function AttendanceCard({
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationError, setLocationError] = useState<
+    'not_secure' | 'permission_denied' | 'unavailable' | 'timeout' | null
+  >(null)
+  const [locationLoading, setLocationLoading] = useState(true)
   const [attendanceRecord, setAttendanceRecord] = useState<Attendance | null>(null)
   const [checkInTime, setCheckInTime] = useState<string | null>(null)
 
@@ -187,22 +191,62 @@ export function AttendanceCard({
     return () => clearInterval(interval)
   }, [user?.id, attendanceRecord?.timeIn, attendanceRecord?.timeOut, fetchTodayAttendance])
 
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-        },
-        (error) => {
-          console.error('Error getting location', error)
-          toast.error('Could not fetch location. Please enable GPS.')
-        },
-      )
+  const requestLocation = useCallback(() => {
+    setLocationError(null)
+    setLocationLoading(true)
+    if (typeof window === 'undefined') return
+    if (!window.isSecureContext) {
+      setLocationError('not_secure')
+      setLocationLoading(false)
+      toast.error('Location works only on HTTPS or localhost.')
+      return
     }
+    if (!('geolocation' in navigator)) {
+      setLocationError('unavailable')
+      setLocationLoading(false)
+      toast.error('Geolocation is not supported by this browser.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        })
+        setLocationError(null)
+        setLocationLoading(false)
+      },
+      (error: GeolocationPositionError) => {
+        setLocationLoading(false)
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError('permission_denied')
+            toast.error('Location denied. Allow location in browser to check in.')
+            break
+          case error.POSITION_UNAVAILABLE:
+            setLocationError('unavailable')
+            toast.error('Location unavailable. Check device location/GPS.')
+            break
+          case error.TIMEOUT:
+            setLocationError('timeout')
+            toast.error('Location timed out. Retry or enable GPS.')
+            break
+          default:
+            setLocationError('unavailable')
+            toast.error('Could not fetch location. Please enable GPS.')
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 60000,
+      },
+    )
   }, [])
+
+  useEffect(() => {
+    requestLocation()
+  }, [requestLocation])
 
   useEffect(() => {
     if (!location) return
@@ -777,8 +821,30 @@ export function AttendanceCard({
                     {displayAddress ||
                       (location
                         ? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`
-                        : 'Detecting...')}
+                        : locationError === 'not_secure'
+                          ? 'Use HTTPS or localhost for location'
+                          : locationError === 'permission_denied'
+                            ? 'Location blocked — allow in browser'
+                            : locationError === 'timeout'
+                              ? 'Location timed out'
+                              : locationError === 'unavailable'
+                                ? 'Location unavailable'
+                                : locationLoading
+                                  ? 'Detecting...'
+                                  : 'Detecting...')}
                   </p>
+                  {locationError && !location && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={requestLocation}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Retry location
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1072,7 +1138,7 @@ export function AttendanceCard({
       </Dialog>
 
       <Dialog open={showSummaryModal} onOpenChange={setShowSummaryModal}>
-        <DialogContent className="sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl overflow-hidden max-h-[90vh] flex flex-col bg-background dark:bg-card">
           <div className="bg-slate-900 p-8 text-white shrink-0">
             <DialogTitle className="text-2xl md:text-3xl font-black text-white">
               Daily Shift Report
@@ -1080,14 +1146,14 @@ export function AttendanceCard({
             <p className="opacity-60 text-sm">Review your achievements and plan for tomorrow.</p>
           </div>
 
-          <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+          <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar bg-background dark:bg-card">
             {/* Sentiment Selector */}
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                 <Smile className="w-4 h-4" /> End of Day Mood
               </label>
               <Select value={mood} onValueChange={setMood}>
-                <SelectTrigger className="w-full h-14 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white text-base font-bold">
+                <SelectTrigger className="w-full h-14 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white dark:bg-slate-800 dark:focus:bg-slate-700 text-foreground text-base font-bold">
                   <SelectValue placeholder="How was your day?" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-border">
@@ -1102,11 +1168,11 @@ export function AttendanceCard({
 
             {/* General Overview */}
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                 <FileText className="w-4 h-4" /> Shift Overview
               </label>
               <textarea
-                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white dark:bg-slate-800 dark:focus:bg-slate-700 text-foreground placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-none text-base transition-all"
                 placeholder="A brief summary of your shift..."
                 value={workSummary}
                 onChange={(e) => setWorkSummary(e.target.value)}
@@ -1115,11 +1181,11 @@ export function AttendanceCard({
 
             {/* Accomplishments */}
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                 <Target className="w-4 h-4" /> Key Accomplishments (Required)
               </label>
               <textarea
-                className="w-full min-h-[120px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[120px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white dark:bg-slate-800 dark:focus:bg-slate-700 text-foreground placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-none text-base transition-all"
                 placeholder="What did you achieve today?"
                 value={accomplishments}
                 onChange={(e) => setAccomplishments(e.target.value)}
@@ -1128,11 +1194,11 @@ export function AttendanceCard({
 
             {/* Challenges */}
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" /> Blockers & Challenges
               </label>
               <textarea
-                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white dark:bg-slate-800 dark:focus:bg-slate-700 text-foreground placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-none text-base transition-all"
                 placeholder="Any issues that slowed you down?"
                 value={challenges}
                 onChange={(e) => setChallenges(e.target.value)}
@@ -1141,11 +1207,11 @@ export function AttendanceCard({
 
             {/* Next Day Plan */}
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                 <FileText className="w-4 h-4" /> Agenda for Tomorrow
               </label>
               <textarea
-                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white outline-none text-base transition-all"
+                className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-border bg-slate-50 focus:bg-white dark:bg-slate-800 dark:focus:bg-slate-700 text-foreground placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-none text-base transition-all"
                 placeholder="Top priorities for your next shift?"
                 value={nextDayPlan}
                 onChange={(e) => setNextDayPlan(e.target.value)}
@@ -1154,20 +1220,20 @@ export function AttendanceCard({
 
             {/* File Upload */}
             <div className="space-y-4">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                 <Paperclip className="w-4 h-4" /> Documentation & Attachments
               </label>
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="group cursor-pointer p-8 rounded-3xl border-2 border-dashed border-border hover:border-indigo-400 hover:bg-indigo-50/50 transition-all flex flex-col items-center justify-center text-center gap-3"
+                className="group cursor-pointer p-8 rounded-3xl border-2 border-dashed border-border hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all flex flex-col items-center justify-center text-center gap-3"
               >
-                <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
-                  <Paperclip className="w-6 h-6 text-slate-400 group-hover:text-indigo-600" />
+                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/30 flex items-center justify-center transition-colors">
+                  <Paperclip className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300" />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-slate-900">Click to upload files</p>
-                  <p className="text-xs font-bold text-slate-400 mt-1">PDFs, Images, or Reports</p>
+                  <p className="text-sm font-black text-slate-900 dark:text-foreground">Click to upload files</p>
+                  <p className="text-xs font-bold text-slate-400 dark:text-muted-foreground mt-1">PDFs, Images, or Reports</p>
                 </div>
                 <input
                   type="file"
@@ -1185,7 +1251,7 @@ export function AttendanceCard({
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       key={idx}
-                      className="p-4 rounded-xl bg-slate-100 border border-border flex items-center justify-between group"
+                      className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border flex items-center justify-between group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <FileText className="w-5 h-5 text-indigo-500 shrink-0" />
