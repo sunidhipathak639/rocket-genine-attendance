@@ -17,7 +17,7 @@ import {
   AlertCircle,
   PartyPopper,
 } from 'lucide-react'
-import { format, subDays, differenceInDays } from 'date-fns'
+import { format, subDays, differenceInDays, differenceInMinutes } from 'date-fns'
 import type { User, Attendance, Leaf, Holiday } from '@/payload-types'
 import {
   BarChart,
@@ -43,6 +43,35 @@ interface AdminDashboardViewEnhancedProps {
 
 function getDateStr(d: string): string {
   return typeof d === 'string' ? d.split('T')[0] : ''
+}
+
+/** Format ISO timestamp for display (e.g. "7:55 AM" in local time) */
+function formatTimeForDisplay(isoString: string | undefined): string {
+  if (!isoString) return '–'
+  try {
+    const d = new Date(isoString)
+    if (Number.isNaN(d.getTime())) return '–'
+    return format(d, 'h:mm a')
+  } catch {
+    return '–'
+  }
+}
+
+function formatWorkingHours(timeIn: string | undefined, timeOut: string | undefined): string {
+  if (!timeIn || !timeOut) return '–'
+  try {
+    const start = new Date(timeIn)
+    const end = new Date(timeOut)
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '–'
+    const mins = Math.max(0, differenceInMinutes(end, start))
+    const h = Math.floor(mins / 60)
+    const m = mins % 60
+    if (h === 0) return `${m}m`
+    if (m === 0) return `${h}h`
+    return `${h}h ${m}m`
+  } catch {
+    return '–'
+  }
 }
 
 function LiveIndianClock() {
@@ -629,6 +658,12 @@ export function AdminDashboardViewEnhanced({
                     Check Out
                   </th>
                   <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
+                    Working Hours
+                  </th>
+                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
+                    Breaks
+                  </th>
+                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
                   <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
@@ -642,8 +677,8 @@ export function AdminDashboardViewEnhanced({
                     (a) => (typeof a.user === 'object' ? a.user.id : a.user) === user.id,
                   )
                   const status = att?.status || 'pending'
-                  const timeIn = att?.timeIn || '–'
-                  const timeOut = att?.timeOut || '–'
+                  const timeIn = formatTimeForDisplay(att?.timeIn as string | undefined)
+                  const timeOut = formatTimeForDisplay(att?.timeOut as string | undefined)
                   const profileUrl = getProfileImageUrl(user.profileImage)
 
                   return (
@@ -685,6 +720,27 @@ export function AdminDashboardViewEnhanced({
                       </td>
                       <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
                         {timeOut}
+                      </td>
+                      <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
+                        {formatWorkingHours(
+                          att?.timeIn as string | undefined,
+                          att?.timeOut as string | undefined,
+                        )}
+                      </td>
+                      <td className="py-4 px-4 text-sm text-slate-600 dark:text-muted-foreground max-w-[200px]">
+                        {(() => {
+                          const breaksList = (att as { breaks?: { startTime: string; endTime: string; durationMinutes: number }[] } | undefined)?.breaks ?? []
+                          if (breaksList.length === 0) return '–'
+                          return (
+                            <ul className="space-y-0.5 text-xs">
+                              {breaksList.map((b, i) => (
+                                <li key={i} className="tabular-nums">
+                                  {format(new Date(b.startTime), 'h:mm a')} – {format(new Date(b.endTime), 'h:mm a')} ({b.durationMinutes} min)
+                                </li>
+                              ))}
+                            </ul>
+                          )
+                        })()}
                       </td>
                       <td className="py-4 px-4">
                         <span

@@ -44,6 +44,8 @@ const LottiePlayer = dynamic(
 
 type FaceApiModule = typeof import('@vladmandic/face-api')
 
+const COMPANY_TZ = 'Asia/Kolkata'
+
 interface AttendanceCardProps {
   user: {
     id: string | number
@@ -52,15 +54,59 @@ interface AttendanceCardProps {
     role?: string | null
   }
   timeFormat: '12h' | '24h'
+  /** Work end time (ISO string from Work Settings). Check-out is allowed only after this time. */
+  workEndTime?: string | null
   /** Called after successful check-in so the dashboard can enable the activity popup timer */
   onCheckInSuccess?: () => void
   /** Called after successful check-out so the dashboard can disable the activity popup timer */
   onCheckOutSuccess?: () => void
 }
 
+/** Returns true if current time in company TZ is >= work end time on the same day as recordDate (YYYY-MM-DD). */
+function canCheckOutNow(
+  workEndTime: string | null | undefined,
+  recordDate: string | undefined,
+): boolean {
+  if (!workEndTime || !recordDate) return true
+  const now = new Date()
+  const todayIndia = now.toLocaleDateString('en-CA', { timeZone: COMPANY_TZ })
+  const recordDateOnly = typeof recordDate === 'string' ? recordDate.split('T')[0] : ''
+  if (todayIndia !== recordDateOnly) return true
+  const nowStr = now.toLocaleTimeString('en-IN', {
+    timeZone: COMPANY_TZ,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const workEnd = new Date(workEndTime)
+  const endStr = workEnd.toLocaleTimeString('en-IN', {
+    timeZone: COMPANY_TZ,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const [nowH, nowM] = nowStr.split(':').map(Number)
+  const [endH, endM] = endStr.split(':').map(Number)
+  return nowH * 60 + nowM >= endH * 60 + endM
+}
+
+/** Format work end time for display (e.g. "6:00 PM") in company TZ */
+function formatWorkEndTime(workEndTime: string | null | undefined): string {
+  if (!workEndTime) return ''
+  const d = new Date(workEndTime)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('en-IN', {
+    timeZone: COMPANY_TZ,
+    hour12: true,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function AttendanceCard({
   user,
   timeFormat,
+  workEndTime,
   onCheckInSuccess,
   onCheckOutSuccess,
 }: AttendanceCardProps) {
@@ -403,6 +449,8 @@ export function AttendanceCard({
 
   const isCheckedIn = !!attendanceRecord && !!attendanceRecord.timeIn && !attendanceRecord.timeOut
   const isCheckedOut = !!attendanceRecord && !!attendanceRecord.timeIn && !!attendanceRecord.timeOut
+  const canCheckOut = canCheckOutNow(workEndTime ?? null, attendanceRecord?.date)
+  const workEndDisplay = formatWorkEndTime(workEndTime ?? null)
 
   useEffect(() => {
     if (!isCheckedIn || !location) return
@@ -493,6 +541,14 @@ export function AttendanceCard({
   const handleCheckOut = async () => {
     if (!attendanceRecord || !location) {
       toast.error('Waiting for location...')
+      return
+    }
+    if (!canCheckOut) {
+      toast.error(
+        workEndDisplay
+          ? `Check out is available after ${workEndDisplay}.`
+          : 'Check out is available after your shift ends.',
+      )
       return
     }
     if (!workSummary && !showSummaryModal) {
@@ -788,13 +844,19 @@ export function AttendanceCard({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="w-full"
+                    className="w-full space-y-2"
                   >
+                    {!canCheckOut && workEndDisplay ? (
+                      <p className="text-center text-xs font-semibold text-amber-600 dark:text-amber-400">
+                        Check out available after {workEndDisplay}
+                      </p>
+                    ) : null}
                     <motion.button
                       type="button"
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={canCheckOut ? { scale: 0.98 } : undefined}
                       onClick={() => handleCheckOut()}
-                      className="w-full h-16 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center gap-2 text-white font-black text-xl shadow-xl border border-slate-700/50 transition-colors"
+                      disabled={!canCheckOut}
+                      className="w-full h-16 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center gap-2 text-white font-black text-xl shadow-xl border border-slate-700/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <LogOut className="w-6 h-6" /> Check Out
                     </motion.button>

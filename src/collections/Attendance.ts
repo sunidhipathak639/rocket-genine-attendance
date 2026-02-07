@@ -321,6 +321,41 @@ export const Attendance: CollectionConfig = {
       defaultValue: 0,
     },
     {
+      name: 'breaks',
+      type: 'array',
+      admin: {
+        description: 'Breaks taken during the shift (start/end time and duration)',
+      },
+      fields: [
+        {
+          name: 'startTime',
+          type: 'date',
+          required: true,
+          admin: {
+            date: { pickerAppearance: 'dayAndTime' },
+            description: 'When the break started',
+          },
+        },
+        {
+          name: 'endTime',
+          type: 'date',
+          required: true,
+          admin: {
+            date: { pickerAppearance: 'dayAndTime' },
+            description: 'When the break ended',
+          },
+        },
+        {
+          name: 'durationMinutes',
+          type: 'number',
+          required: true,
+          admin: {
+            description: 'Break duration in minutes (e.g. 10, 15, 20, 25)',
+          },
+        },
+      ],
+    },
+    {
       name: 'locationHistory',
       type: 'array',
       admin: {

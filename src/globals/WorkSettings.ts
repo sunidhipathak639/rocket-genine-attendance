@@ -86,5 +86,18 @@ export const WorkSettings: GlobalConfig = {
         description: 'Interval in minutes between "Are you still working?" popups.',
       },
     },
+    {
+      name: 'maxBreaksPerDay',
+      type: 'number',
+      label: 'Maximum Breaks Per Day',
+      defaultValue: 3,
+      required: true,
+      min: 1,
+      max: 10,
+      admin: {
+        description:
+          'Maximum number of breaks (10–25 min each) a staff member can take per day. Applies to all users including admin when they use the dashboard.',
+      },
+    },
   ],
 }

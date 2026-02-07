@@ -8,18 +8,25 @@ import {
   LogOut,
   History,
   Calendar as CalendarIcon,
-  Briefcase,
   Clock,
   Loader2,
   Menu,
   Bell,
+  Coffee,
 } from 'lucide-react'
 import { HolidaysCalendar } from './holidays-calendar'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { usePathname } from 'next/navigation'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { usePathname, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 
 import type { Attendance, User, Leaf, Holiday } from '@/payload-types'
@@ -35,6 +42,8 @@ import Typewriter from 'typewriter-effect'
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar'
 import { SyncUserTheme, useTheme } from '@/components/theme-provider'
 import 'react-circular-progressbar/dist/styles.css'
+import TimeAgo from 'react-timeago'
+import { makeIntlFormatter } from 'react-timeago/defaultFormatter'
 
 interface DashboardClientProps {
   user: Pick<
@@ -51,6 +60,7 @@ interface DashboardClientProps {
     workStartTime?: string | null
     workEndTime?: string | null
     activityCheckInterval?: number | null
+    maxBreaksPerDay?: number | null
   }
   userAttendance?: Attendance[]
 }
@@ -140,6 +150,7 @@ export function DashboardClient({
 
   const workSettings = workSettingsProp ?? workSettingsLocal
   const profileImageUrl = getProfileImageUrl(user.profileImage)
+  const router = useRouter()
 
   // Fetch approved leaves for current month (staff) and work settings when not provided
   useEffect(() => {
@@ -322,11 +333,15 @@ export function DashboardClient({
   const [showActivityPopup, setShowActivityPopup] = useState(false)
   const [timeToResponse, setTimeToResponse] = useState(60)
   const [activityPopupSummary, setActivityPopupSummary] = useState('')
+  const [activityPopupOpenedAt, setActivityPopupOpenedAt] = useState<number | null>(null)
+
+  const timeAgoFormatter = useMemo(() => makeIntlFormatter({ numeric: 'auto' }), [])
 
   const handleActivityResponse = useCallback(
     async (status: 'active' | 'inactive', customDuration?: number, intervalSummary?: string) => {
       console.log(`[Activity] API Call: Logging as ${status}`)
       setShowActivityPopup(false)
+      setActivityPopupOpenedAt(null)
       const duration = customDuration ?? workSettings?.activityCheckInterval ?? 10
 
       try {
@@ -353,6 +368,7 @@ export function DashboardClient({
 
   const onPrompt = () => {
     console.log('[Activity] Triggering Prompt Popup!')
+    setActivityPopupOpenedAt(Date.now())
     setShowActivityPopup(true)
     setTimeToResponse(60)
     setActivityPopupSummary('')
@@ -382,7 +398,37 @@ export function DashboardClient({
   // Check if user is checked in TODAY (server data, client fetch fallback, or local callback)
   const [localCheckedInToday, setLocalCheckedInToday] = useState<boolean | null>(null)
   const [clientFetchedCheckedIn, setClientFetchedCheckedIn] = useState<boolean | null>(null)
+  // Break: staff can take 10/15/20/25 min break; activity popup is suppressed during break
+  const [breakEndsAt, setBreakEndsAt] = useState<number | null>(null)
+  const [breakDurationMins, setBreakDurationMins] = useState<number>(15)
+  const [breaksTakenToday, setBreaksTakenToday] = useState<number>(0)
+  const breakStartedAtRef = useRef<number | null>(null)
   const todayLocalStr = format(new Date(), 'yyyy-MM-dd')
+  const maxBreaksPerDay = Math.max(1, workSettings?.maxBreaksPerDay ?? 3)
+
+  const todayAttendanceRecord = useMemo(
+    () =>
+      userAttendance?.find((a) => {
+        const d = typeof a.date === 'string' ? a.date.split('T')[0] : ''
+        return d === todayLocalStr && a.timeIn && !a.timeOut
+      }),
+    [userAttendance, todayLocalStr],
+  )
+  const todayAttendanceId = todayAttendanceRecord?.id
+  const todayBreaksList = (todayAttendanceRecord as { breaks?: { startTime: string; endTime: string; durationMinutes: number }[] })?.breaks ?? []
+
+  // Sync breaks taken today from localStorage (keyed by user + date)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user?.id) return
+    const key = `attendance_breaks_${user.id}_${todayLocalStr}`
+    try {
+      const raw = window.localStorage.getItem(key)
+      const n = raw ? parseInt(raw, 10) : 0
+      setBreaksTakenToday(Number.isNaN(n) ? 0 : n)
+    } catch {
+      setBreaksTakenToday(0)
+    }
+  }, [user?.id, todayLocalStr])
   const serverCheckedInToday = userAttendance?.some((a) => {
     const aDate = typeof a.date === 'string' ? a.date.split('T')[0] : ''
     return aDate === todayLocalStr && a.timeIn && !a.timeOut
@@ -417,6 +463,48 @@ export function DashboardClient({
     }
   }, [user.role, user.id, todayLocalStr, serverCheckedInToday, localCheckedInToday])
 
+  const recordBreakToServer = useCallback(
+    async (startMs: number, endMs: number) => {
+      if (!todayAttendanceId) return
+      const durationMinutes = Math.round((endMs - startMs) / 60000)
+      try {
+        const res = await fetch('/api/attendance/record-break', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            attendanceId: todayAttendanceId,
+            startTime: new Date(startMs).toISOString(),
+            endTime: new Date(endMs).toISOString(),
+            durationMinutes,
+          }),
+        })
+        if (res.ok) router.refresh()
+      } catch (e) {
+        console.error('Failed to record break', e)
+      }
+    },
+    [todayAttendanceId, router],
+  )
+
+  // Clear break when time elapsed; record break to attendance and tick so "X min left" updates
+  useEffect(() => {
+    if (!breakEndsAt) return
+    const id = setInterval(() => {
+      if (Date.now() >= breakEndsAt) {
+        const startTime = breakStartedAtRef.current
+        if (todayAttendanceId && startTime != null) {
+          recordBreakToServer(startTime, Date.now())
+        }
+        breakStartedAtRef.current = null
+        setBreakEndsAt(null)
+      } else {
+        setShiftTick((t) => t + 1)
+      }
+    }, 10000)
+    return () => clearInterval(id)
+  }, [breakEndsAt, todayAttendanceId, recordBreakToServer])
+
   const intervalMinutesFromSettings = workSettings?.activityCheckInterval ?? 10
   const intervalMs = intervalMinutesFromSettings * 60 * 1000
   const intervalDisplayText = `${intervalMinutesFromSettings} min`
@@ -441,14 +529,18 @@ export function DashboardClient({
   // Refs so polling/visibility don't depend on changing function refs (fixes production popup not showing)
   const getLastActiveTimeRef = useRef(getLastActiveTime)
   const intervalMsRef = useRef(intervalMs)
+  const breakEndsAtRef = useRef(breakEndsAt)
   getLastActiveTimeRef.current = getLastActiveTime
   intervalMsRef.current = intervalMs
+  breakEndsAtRef.current = breakEndsAt
 
   const showPopupIfIdleLongEnough = useCallback(() => {
+    if (breakEndsAtRef.current && Date.now() < breakEndsAtRef.current) return
     const lastActive = getLastActiveTimeRef.current()
     if (!lastActive) return
     const idleMs = Date.now() - lastActive.getTime()
     if (idleMs >= intervalMsRef.current) {
+      setActivityPopupOpenedAt(Date.now())
       setShowActivityPopup(true)
       setTimeToResponse(60)
       setActivityPopupSummary('')
@@ -689,6 +781,18 @@ export function DashboardClient({
             <p className="opacity-80 font-medium">
               We monitor activity to ensure accurate time logs.
             </p>
+            {activityPopupOpenedAt != null && (
+              <p className="text-indigo-200 text-sm mt-2 font-medium">
+                Popup opened{' '}
+                <span className="font-semibold">
+                  <TimeAgo
+                    date={activityPopupOpenedAt}
+                    formatter={timeAgoFormatter}
+                    minPeriod={1}
+                  />
+                </span>
+              </p>
+            )}
           </div>
           <div className="p-8 space-y-4 bg-white/70 dark:bg-card/80 backdrop-blur-xl">
             <div className="flex flex-col items-center justify-center mb-6 py-12 bg-white/60 dark:bg-muted/40 backdrop-blur-lg rounded-[48px] border border-border shadow-[0_20px_50px_rgba(79,70,229,0.05)] relative overflow-hidden group/clock">
@@ -1034,9 +1138,119 @@ export function DashboardClient({
                     <AttendanceCard
                       user={user}
                       timeFormat={timeFormat}
+                      workEndTime={workSettings?.workEndTime ?? undefined}
                       onCheckInSuccess={() => setLocalCheckedInToday(true)}
                       onCheckOutSuccess={() => setLocalCheckedInToday(false)}
                     />
+
+                    {/* Take a break: 10/15/20/25 min — activity popup suppressed during break (staff when checked in, or admin) */}
+                    {((user.role === 'staff' && isCheckedInToday) || user.role === 'admin') && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-6 p-4 md:p-5 rounded-2xl border border-border bg-slate-50/80 dark:bg-slate-900/50"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Coffee className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                            <span className="font-semibold text-slate-900 dark:text-foreground">
+                              {breakEndsAt && Date.now() < breakEndsAt ? (
+                                <>
+                                  On break — {Math.ceil((breakEndsAt - Date.now()) / 60000)} min
+                                  left
+                                </>
+                              ) : (
+                                'Take a break'
+                              )}
+                            </span>
+                          </div>
+                          {breakEndsAt && Date.now() < breakEndsAt ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                const startTime = breakStartedAtRef.current
+                                if (todayAttendanceId && startTime != null) {
+                                  await recordBreakToServer(startTime, Date.now())
+                                }
+                                breakStartedAtRef.current = null
+                                setBreakEndsAt(null)
+                              }}
+                              className="rounded-xl"
+                            >
+                              End break early
+                            </Button>
+                          ) : (
+                            <>
+                              <span className="text-sm text-slate-600 dark:text-muted-foreground">
+                                Breaks today: {breaksTakenToday} / {maxBreaksPerDay}
+                              </span>
+                              <Select
+                                value={String(breakDurationMins)}
+                                onValueChange={(v) => setBreakDurationMins(Number(v))}
+                              >
+                                <SelectTrigger className="w-24 rounded-xl">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {[10, 15, 20, 25].map((m) => (
+                                    <SelectItem key={m} value={String(m)}>
+                                      {m} min
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                size="sm"
+                                disabled={breaksTakenToday >= maxBreaksPerDay}
+                                onClick={() => {
+                                  if (breaksTakenToday >= maxBreaksPerDay) return
+                                  const key = `attendance_breaks_${user.id}_${todayLocalStr}`
+                                  const next = breaksTakenToday + 1
+                                  try {
+                                    window.localStorage.setItem(key, String(next))
+                                  } catch {}
+                                  setBreaksTakenToday(next)
+                                  breakStartedAtRef.current = Date.now()
+                                  setBreakEndsAt(Date.now() + breakDurationMins * 60 * 1000)
+                                }}
+                                className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-60 disabled:pointer-events-none"
+                              >
+                                Start break
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">
+                          Max 30 min per break. Activity popup will not show during your break.
+                          {breaksTakenToday >= maxBreaksPerDay && (
+                            <span className="block mt-1 font-semibold text-amber-600 dark:text-amber-400">
+                              Daily limit reached ({maxBreaksPerDay} breaks).
+                            </span>
+                          )}
+                        </p>
+                        {todayBreaksList.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-border">
+                            <p className="text-xs font-semibold text-slate-600 dark:text-muted-foreground uppercase tracking-wider mb-2">
+                              Today&apos;s breaks
+                            </p>
+                            <ul className="space-y-1.5 text-sm text-slate-700 dark:text-foreground">
+                              {todayBreaksList.map((b, i) => (
+                                <li key={i} className="flex items-center gap-2">
+                                  <span className="tabular-nums">
+                                    {format(new Date(b.startTime), 'h:mm a')} –{' '}
+                                    {format(new Date(b.endTime), 'h:mm a')}
+                                  </span>
+                                  <span className="text-slate-500 dark:text-muted-foreground">
+                                    ({b.durationMinutes} min)
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
                   </motion.div>
 
                   {/* Quick Stats Sidebar */}

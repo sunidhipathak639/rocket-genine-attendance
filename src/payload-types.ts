@@ -265,6 +265,26 @@ export interface Attendance {
    */
   inactiveDuration?: number | null;
   /**
+   * Breaks taken during the shift (start/end time and duration)
+   */
+  breaks?:
+    | {
+        /**
+         * When the break started
+         */
+        startTime: string;
+        /**
+         * When the break ended
+         */
+        endTime: string;
+        /**
+         * Break duration in minutes (e.g. 10, 15, 20, 25)
+         */
+        durationMinutes: number;
+        id?: string | null;
+      }[]
+    | null;
+  /**
    * Periodic location tracking during work hours
    */
   locationHistory?:
@@ -635,6 +655,14 @@ export interface AttendanceSelect<T extends boolean = true> {
       };
   activeDuration?: T;
   inactiveDuration?: T;
+  breaks?:
+    | T
+    | {
+        startTime?: T;
+        endTime?: T;
+        durationMinutes?: T;
+        id?: T;
+      };
   locationHistory?:
     | T
     | {
@@ -814,6 +842,10 @@ export interface WorkSetting {
    * Interval in minutes between "Are you still working?" popups.
    */
   activityCheckInterval: number;
+  /**
+   * Maximum number of breaks (10–25 min each) a staff member can take per day. Applies to all users including admin when they use the dashboard.
+   */
+  maxBreaksPerDay: number;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -832,6 +864,7 @@ export interface WorkSettingsSelect<T extends boolean = true> {
         id?: T;
       };
   activityCheckInterval?: T;
+  maxBreaksPerDay?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
