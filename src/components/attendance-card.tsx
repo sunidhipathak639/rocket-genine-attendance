@@ -75,34 +75,6 @@ interface AttendanceCardProps {
   onCheckOutSuccess?: () => void
 }
 
-/** Returns true if current time in company TZ is >= work end time on the same day as recordDate (YYYY-MM-DD). */
-function canCheckOutNow(
-  workEndTime: string | null | undefined,
-  recordDate: string | undefined,
-): boolean {
-  if (!workEndTime || !recordDate) return true
-  const now = new Date()
-  const todayIndia = now.toLocaleDateString('en-CA', { timeZone: COMPANY_TZ })
-  const recordDateOnly = typeof recordDate === 'string' ? recordDate.split('T')[0] : ''
-  if (todayIndia !== recordDateOnly) return true
-  const nowStr = now.toLocaleTimeString('en-IN', {
-    timeZone: COMPANY_TZ,
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  const workEnd = new Date(workEndTime)
-  const endStr = workEnd.toLocaleTimeString('en-IN', {
-    timeZone: COMPANY_TZ,
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  const [nowH, nowM] = nowStr.split(':').map(Number)
-  const [endH, endM] = endStr.split(':').map(Number)
-  return nowH * 60 + nowM >= endH * 60 + endM
-}
-
 /** Format work end time for display using user's time format preference */
 function formatWorkEndTime(
   workEndTime: string | null | undefined,
@@ -543,8 +515,6 @@ export function AttendanceCard({
   })()
 
   const hasCompletedHours = remainingHours !== null && remainingHours <= 0
-  const canCheckOut = true // Allow checkout anytime
-  const workEndDisplay = formatWorkEndTime(workEndTime ?? null, timeFormat)
 
   useEffect(() => {
     if (!isCheckedIn || !location) return
@@ -1054,7 +1024,7 @@ export function AttendanceCard({
                       >
                         <div className="text-center space-y-2">
                           <p className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                            Today's Work Summary
+                            Today&apos;s Work Summary
                           </p>
                           <p
                             className="text-2xl md:text-3xl font-black"
@@ -1561,7 +1531,7 @@ export function AttendanceCard({
               </DialogTitle>
             </div>
             <p className="text-white/90 text-base font-semibold mb-2">
-              You haven't completed your {expectedWorkingHours.toFixed(1)} working hours yet.
+              You haven&apos;t completed your {expectedWorkingHours.toFixed(1)} working hours yet.
             </p>
             {remainingHours !== null && (
               <p className="text-white/80 text-sm">
