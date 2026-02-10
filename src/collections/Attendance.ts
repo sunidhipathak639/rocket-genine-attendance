@@ -439,5 +439,23 @@ export const Attendance: CollectionConfig = {
         },
       },
     },
+    {
+      name: 'earlyCheckoutReason',
+      type: 'textarea',
+      label: 'Early Checkout Reason',
+      admin: {
+        description: 'Reason provided when checking out before completing full working hours',
+        condition: (data) => {
+          // Show this field only if timeOut exists and working hours are less than required
+          if (!data.timeIn || !data.timeOut) return false
+          const FULL_WORKING_HOURS = 9
+          const fullWorkingMs = FULL_WORKING_HOURS * 60 * 60 * 1000
+          const timeInDate = new Date(data.timeIn)
+          const timeOutDate = new Date(data.timeOut)
+          const workedMs = Math.max(0, timeOutDate.getTime() - timeInDate.getTime())
+          return workedMs < fullWorkingMs
+        },
+      },
+    },
   ],
 }

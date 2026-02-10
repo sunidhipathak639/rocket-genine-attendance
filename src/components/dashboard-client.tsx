@@ -1183,6 +1183,7 @@ export function DashboardClient({
                     <AttendanceCard
                       user={user}
                       timeFormat={timeFormat}
+                      workStartTime={workSettings?.workStartTime ?? undefined}
                       workEndTime={workSettings?.workEndTime ?? undefined}
                       onCheckInSuccess={() => {
                         setLocalCheckedInToday(true)

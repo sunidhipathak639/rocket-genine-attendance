@@ -31,6 +31,7 @@ export async function PATCH(request: NextRequest) {
       nextDayPlan,
       mood,
       attachments,
+      earlyCheckoutReason,
     } = body
 
     if (!id) {
@@ -51,52 +52,6 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Only allow check-out once the working shift has ended (Work Settings → Work End Time)
-    const settings = await payload.findGlobal({
-      slug: 'work-settings',
-      overrideAccess: true,
-    })
-    const workEndTime = (settings as any)?.workEndTime
-    if (workEndTime) {
-      const companyTZ = 'Asia/Kolkata'
-      const now = new Date()
-      const todayIndia = now.toLocaleDateString('en-CA', { timeZone: companyTZ })
-      const recordDate = typeof existing.date === 'string' ? existing.date.split('T')[0] : ''
-      if (todayIndia === recordDate) {
-        const nowStr = now.toLocaleTimeString('en-IN', {
-          timeZone: companyTZ,
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-        const workEnd = new Date(workEndTime)
-        const endStr = workEnd.toLocaleTimeString('en-IN', {
-          timeZone: companyTZ,
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-        const [nowH, nowM] = nowStr.split(':').map(Number)
-        const [endH, endM] = endStr.split(':').map(Number)
-        const nowMinutes = nowH * 60 + nowM
-        const endMinutes = endH * 60 + endM
-        if (nowMinutes < endMinutes) {
-          const endDisplay = workEnd.toLocaleTimeString('en-IN', {
-            timeZone: companyTZ,
-            hour12: true,
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-          return NextResponse.json(
-            {
-              message: `You can only check out after your shift ends (${endDisplay}).`,
-            },
-            { status: 403 },
-          )
-        }
-      }
-    }
-
     // Prepare update data
     const updateData: any = {
       timeOut: timeOut || new Date().toISOString(),
@@ -107,6 +62,7 @@ export async function PATCH(request: NextRequest) {
       nextDayPlan: nextDayPlan || undefined,
       mood: mood || undefined,
       attachments: attachments || undefined,
+      earlyCheckoutReason: earlyCheckoutReason || undefined,
     }
 
     const doc: any = await payload.update({
@@ -194,6 +150,7 @@ export async function PATCH(request: NextRequest) {
             attachments: emailAttachments,
             activeDuration: doc.activeDuration ?? undefined,
             inactiveDuration: doc.inactiveDuration ?? undefined,
+            earlyCheckoutReason: doc.earlyCheckoutReason ?? undefined,
           }),
         })
         console.log('[Check-out Email] Send result:', result)

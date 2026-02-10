@@ -18,6 +18,9 @@ import {
   PartyPopper,
   Download,
   CalendarRange,
+  XCircle,
+  CheckCircle2,
+  User,
 } from 'lucide-react'
 import {
   format,
@@ -47,6 +50,14 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { getProfileImageUrl } from '@/lib/utils'
 import Image from 'next/image'
+import { Dialog, DialogContent, DialogTitle, DialogHeader } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface AdminDashboardViewEnhancedProps {
   allUsers: User[]
@@ -185,7 +196,168 @@ export function AdminDashboardViewEnhanced({
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('today')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null)
+  const [staffLeaves, setStaffLeaves] = useState<Leaf[]>([])
+  const [loadingLeaves, setLoadingLeaves] = useState(false)
+  const [downloadDateRange, setDownloadDateRange] = useState<'weekly' | 'monthly' | 'custom'>(
+    'weekly',
+  )
+  const [customDownloadStart, setCustomDownloadStart] = useState('')
+  const [customDownloadEnd, setCustomDownloadEnd] = useState('')
   const todayStr = format(new Date(), 'yyyy-MM-dd')
+
+  // Fetch leaves when staff is selected
+  useEffect(() => {
+    if (!selectedStaffId) {
+      setStaffLeaves([])
+      return
+    }
+    setLoadingLeaves(true)
+    fetch(`/api/leaves?where[user][equals]=${selectedStaffId}&limit=1000&sort=-createdAt`, {
+      credentials: 'include',
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.docs) {
+          setStaffLeaves(data.docs)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch leaves:', err)
+        setStaffLeaves([])
+      })
+      .finally(() => setLoadingLeaves(false))
+  }, [selectedStaffId])
+
+  // Calculate stats for selected staff
+  const selectedStaffStats = useMemo(() => {
+    if (!selectedStaffId) return null
+
+    const staffUser = allUsers.find((u) => u.id === selectedStaffId)
+    if (!staffUser) return null
+
+    const staffAttendance = allAttendance.filter((a) => {
+      const userId = typeof a.user === 'object' ? a.user?.id : a.user
+      return userId === selectedStaffId
+    })
+
+    const presentDays = staffAttendance.filter((a) => a.status === 'present').length
+    const lateDays = staffAttendance.filter((a) => a.status === 'late').length
+    const absentDays = staffAttendance.filter((a) => a.status === 'absent').length
+    const halfDayDays = staffAttendance.filter((a) => a.status === 'half-day').length
+    const totalAttendance = staffAttendance.length
+
+    const approvedLeaves = staffLeaves.filter((l) => l.bookingStatus === 'approved').length
+    const pendingLeaves = staffLeaves.filter((l) => l.bookingStatus === 'pending').length
+    const rejectedLeaves = staffLeaves.filter((l) => l.bookingStatus === 'rejected').length
+    const totalLeaves = staffLeaves.length
+
+    return {
+      user: staffUser,
+      attendance: {
+        presentDays,
+        lateDays,
+        absentDays,
+        halfDayDays,
+        totalAttendance,
+      },
+      leaves: {
+        approved: approvedLeaves,
+        pending: pendingLeaves,
+        rejected: rejectedLeaves,
+        total: totalLeaves,
+      },
+    }
+  }, [selectedStaffId, allUsers, allAttendance, staffLeaves])
+
+  // Get date range for download
+  const getDownloadDateRange = (): { start: string; end: string } => {
+    const now = new Date()
+    if (downloadDateRange === 'weekly') {
+      const start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      const end = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      return { start, end }
+    }
+    if (downloadDateRange === 'monthly') {
+      return {
+        start: format(startOfMonth(now), 'yyyy-MM-dd'),
+        end: format(endOfMonth(now), 'yyyy-MM-dd'),
+      }
+    }
+    if (downloadDateRange === 'custom' && customDownloadStart && customDownloadEnd) {
+      return { start: customDownloadStart, end: customDownloadEnd }
+    }
+    // Default to weekly
+    const start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    const end = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    return { start, end }
+  }
+
+  // Download staff attendance CSV
+  const handleDownloadStaffAttendance = () => {
+    if (!selectedStaffId || !selectedStaffStats) return
+
+    const { start, end } = getDownloadDateRange()
+    const staffAttendance = allAttendance
+      .filter((a) => {
+        const userId = typeof a.user === 'object' ? a.user?.id : a.user
+        return userId === selectedStaffId
+      })
+      .filter((a) => {
+        const d = getDateStr(a.date)
+        return d >= start && d <= end
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+    const headers = [
+      'Date',
+      'Status',
+      'Check In',
+      'Check Out',
+      'Working Hours',
+      'Location',
+      'Early Checkout Reason',
+    ]
+
+    const rows = staffAttendance.map((att) => {
+      const timeIn = att.timeIn ? formatTimeForDisplay(att.timeIn) : '–'
+      const timeOut = att.timeOut ? formatTimeForDisplay(att.timeOut) : '–'
+      const workingHours = formatWorkingHours(att.timeIn || undefined, att.timeOut || undefined)
+      const location =
+        att.location && typeof att.location === 'object'
+          ? att.location.address || `${att.location.latitude}, ${att.location.longitude}`
+          : '–'
+      const status = att.status || 'pending'
+      const earlyCheckoutReason = (att as any).earlyCheckoutReason || '–'
+
+      return [
+        format(parseISO(getDateStr(att.date)), 'dd MMM yyyy'),
+        status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' '),
+        timeIn,
+        timeOut,
+        workingHours,
+        location,
+        earlyCheckoutReason,
+      ]
+    })
+
+    const csv = [
+      headers.join(','),
+      ...rows.map((r) => r.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute(
+      'download',
+      `${selectedStaffStats.user.name || 'staff'}-attendance-${start}-to-${end}.csv`,
+    )
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const staffUsers = useMemo(() => allUsers.filter((u) => u.role === 'staff'), [allUsers])
 
@@ -894,10 +1066,12 @@ export function AdminDashboardViewEnhanced({
                   const timeOut = formatTimeForDisplay(att.timeOut as string | undefined)
                   const profileUrl = getProfileImageUrl(user.profileImage)
 
+                  const userId = typeof user === 'object' ? user?.id : user
                   return (
                     <tr
                       key={String(att.id)}
-                      className="border-b border-border/60 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                      onClick={() => setSelectedStaffId(userId as number)}
+                      className="border-b border-border/60 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30 cursor-pointer"
                     >
                       <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
                         {format(parseISO(getDateStr(att.date)), 'dd MMM yyyy')}
@@ -1034,6 +1208,303 @@ export function AdminDashboardViewEnhanced({
           )}
         </CardContent>
       </Card>
+
+      {/* Staff Details Modal */}
+      <Dialog
+        open={selectedStaffId !== null}
+        onOpenChange={(open) => !open && setSelectedStaffId(null)}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <User className="w-6 h-6" />
+              Staff Details
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedStaffStats && (
+            <div className="space-y-6 mt-4">
+              {/* Staff Info */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-border">
+                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-full bg-indigo-100 dark:bg-indigo-500/20">
+                  {selectedStaffStats.user.profileImage ? (
+                    <Image
+                      src={getProfileImageUrl(selectedStaffStats.user.profileImage) || ''}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                      unoptimized
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-lg font-bold text-indigo-600 dark:text-indigo-400">
+                      {selectedStaffStats.user.name?.[0] ||
+                        selectedStaffStats.user.email?.[0]?.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-black text-slate-900 dark:text-foreground">
+                    {selectedStaffStats.user.name || 'N/A'}
+                  </h3>
+                  <p className="text-sm text-slate-600 dark:text-muted-foreground mt-1">
+                    {selectedStaffStats.user.email}
+                  </p>
+                  {selectedStaffStats.user.department && (
+                    <span className="inline-block mt-2 text-xs px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full font-semibold">
+                      {selectedStaffStats.user.department}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Attendance Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
+                      Present Days
+                    </span>
+                  </div>
+                  <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300">
+                    {selectedStaffStats.attendance.presentDays}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                      Late Days
+                    </span>
+                  </div>
+                  <p className="text-3xl font-black text-amber-700 dark:text-amber-300">
+                    {selectedStaffStats.attendance.lateDays}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                    <span className="text-xs font-bold text-red-700 dark:text-red-300 uppercase tracking-wider">
+                      Absent Days
+                    </span>
+                  </div>
+                  <p className="text-3xl font-black text-red-700 dark:text-red-300">
+                    {selectedStaffStats.attendance.absentDays}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                      Half Days
+                    </span>
+                  </div>
+                  <p className="text-3xl font-black text-blue-700 dark:text-blue-300">
+                    {selectedStaffStats.attendance.halfDayDays}
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Attendance */}
+              <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">
+                      Total Attendance Records
+                    </span>
+                  </div>
+                  <p className="text-2xl font-black text-indigo-700 dark:text-indigo-300">
+                    {selectedStaffStats.attendance.totalAttendance}
+                  </p>
+                </div>
+              </div>
+
+              {/* Leave Stats */}
+              <div className="space-y-3">
+                <h4 className="text-lg font-black text-slate-900 dark:text-foreground flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Leave Information
+                </h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      <span className="text-xs font-bold text-green-700 dark:text-green-300 uppercase tracking-wider">
+                        Approved
+                      </span>
+                    </div>
+                    <p className="text-2xl font-black text-green-700 dark:text-green-300">
+                      {selectedStaffStats.leaves.approved}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                        Pending
+                      </span>
+                    </div>
+                    <p className="text-2xl font-black text-amber-700 dark:text-amber-300">
+                      {selectedStaffStats.leaves.pending}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      <span className="text-xs font-bold text-red-700 dark:text-red-300 uppercase tracking-wider">
+                        Rejected
+                      </span>
+                    </div>
+                    <p className="text-2xl font-black text-red-700 dark:text-red-300">
+                      {selectedStaffStats.leaves.rejected}
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Total Leave Requests
+                    </span>
+                    <p className="text-xl font-black text-slate-900 dark:text-foreground">
+                      {selectedStaffStats.leaves.total}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Download Section */}
+              <div className="space-y-4 pt-4 border-t border-border">
+                <h4 className="text-lg font-black text-slate-900 dark:text-foreground flex items-center gap-2">
+                  <Download className="w-5 h-5" />
+                  Download Attendance Report
+                </h4>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Select
+                      value={downloadDateRange}
+                      onValueChange={(v: 'weekly' | 'monthly' | 'custom') =>
+                        setDownloadDateRange(v)
+                      }
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly (This Week)</SelectItem>
+                        <SelectItem value="monthly">Monthly (This Month)</SelectItem>
+                        <SelectItem value="custom">Custom Date Range</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleDownloadStaffAttendance}
+                      className="flex-shrink-0"
+                      disabled={
+                        downloadDateRange === 'custom' &&
+                        (!customDownloadStart || !customDownloadEnd)
+                      }
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download CSV
+                    </Button>
+                  </div>
+
+                  {downloadDateRange === 'custom' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1 block">
+                          Start Date
+                        </label>
+                        <Input
+                          type="date"
+                          value={customDownloadStart}
+                          onChange={(e) => setCustomDownloadStart(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1 block">
+                          End Date
+                        </label>
+                        <Input
+                          type="date"
+                          value={customDownloadEnd}
+                          onChange={(e) => setCustomDownloadEnd(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {downloadDateRange !== 'custom' && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {downloadDateRange === 'weekly' && (
+                        <>
+                          Downloading attendance from{' '}
+                          {format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMM dd')} to{' '}
+                          {format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'MMM dd, yyyy')}
+                        </>
+                      )}
+                      {downloadDateRange === 'monthly' && (
+                        <>Downloading attendance for {format(new Date(), 'MMMM yyyy')}</>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-border">
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedStaffId(null)}
+                  className="flex-1"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    window.open(
+                      `/admin/collections/attendance?where[user][equals]=${selectedStaffId}`,
+                      '_blank',
+                    )
+                  }}
+                  className="flex-1"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View All Attendance
+                </Button>
+                <Button
+                  onClick={() => {
+                    window.open(
+                      `/admin/collections/leaves?where[user][equals]=${selectedStaffId}`,
+                      '_blank',
+                    )
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View All Leaves
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {loadingLeaves && (
+            <div className="py-8 text-center text-slate-500 dark:text-muted-foreground">
+              Loading leave information...
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }

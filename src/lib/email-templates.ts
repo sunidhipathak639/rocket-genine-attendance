@@ -381,6 +381,7 @@ export function getWorkSummaryEmail({
   attachments = [],
   activeDuration,
   inactiveDuration,
+  earlyCheckoutReason,
 }: {
   employeeName: string
   employeeEmail: string
@@ -395,6 +396,7 @@ export function getWorkSummaryEmail({
   attachments?: { url: string; filename: string }[]
   activeDuration?: number
   inactiveDuration?: number
+  earlyCheckoutReason?: string
 }): string {
   const totalMinutes = (activeDuration || 0) + (inactiveDuration || 0)
   const activePercentage =
@@ -439,7 +441,35 @@ export function getWorkSummaryEmail({
       `
           : ''
       }
+      ${
+        earlyCheckoutReason
+          ? `
+        <div class="info-row" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-top: 8px; border-radius: 6px;">
+          <span class="info-label" style="color: #92400e; font-weight: 600;">⚠️ Early Checkout Reason:</span>
+          <span class="info-value" style="color: #78350f;">${earlyCheckoutReason}</span>
+        </div>
+      `
+          : ''
+      }
     </div>
+
+    ${
+      earlyCheckoutReason
+        ? `
+      <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 20px; margin: 20px 0;">
+        <h2 style="color: #92400e; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+          ⚠️ Early Checkout Notice
+        </h2>
+        <p style="color: #78350f; margin-bottom: 12px; font-weight: 500;">
+          This employee checked out before completing the full working hours. Please review the reason below:
+        </p>
+        <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+          <p style="margin: 0; color: #1f2937; line-height: 1.6;">${earlyCheckoutReason}</p>
+        </div>
+      </div>
+    `
+        : ''
+    }
 
     ${
       workSummary

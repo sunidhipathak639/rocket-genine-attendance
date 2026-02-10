@@ -47,6 +47,16 @@ type FaceApiModule = typeof import('@vladmandic/face-api')
 
 const COMPANY_TZ = 'Asia/Kolkata'
 
+// Parse work-settings time (ISO string) to today's date at that local time
+function getTodayAtTime(isoTime: string | null | undefined): Date | null {
+  if (!isoTime) return null
+  const d = new Date(isoTime)
+  if (Number.isNaN(d.getTime())) return null
+  const t = new Date()
+  t.setHours(d.getHours(), d.getMinutes(), d.getSeconds(), 0)
+  return t
+}
+
 interface AttendanceCardProps {
   user: {
     id: string | number
@@ -55,7 +65,9 @@ interface AttendanceCardProps {
     role?: string | null
   }
   timeFormat: '12h' | '24h'
-  /** Work end time (ISO string from Work Settings). Check-out is allowed only after this time. */
+  /** Work start time (ISO string from Work Settings). */
+  workStartTime?: string | null
+  /** Work end time (ISO string from Work Settings). */
   workEndTime?: string | null
   /** Called after successful check-in so the dashboard can enable the activity popup timer */
   onCheckInSuccess?: () => void
@@ -91,14 +103,16 @@ function canCheckOutNow(
   return nowH * 60 + nowM >= endH * 60 + endM
 }
 
-/** Format work end time for display (e.g. "6:00 PM") in company TZ */
-function formatWorkEndTime(workEndTime: string | null | undefined): string {
+/** Format work end time for display using user's time format preference */
+function formatWorkEndTime(
+  workEndTime: string | null | undefined,
+  timeFormat: '12h' | '24h' = '12h',
+): string {
   if (!workEndTime) return ''
-  const d = new Date(workEndTime)
-  if (Number.isNaN(d.getTime())) return ''
+  const d = getTodayAtTime(workEndTime)
+  if (!d) return ''
   return d.toLocaleTimeString('en-IN', {
-    timeZone: COMPANY_TZ,
-    hour12: true,
+    hour12: timeFormat === '12h',
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -107,6 +121,7 @@ function formatWorkEndTime(workEndTime: string | null | undefined): string {
 export function AttendanceCard({
   user,
   timeFormat,
+  workStartTime,
   workEndTime,
   onCheckInSuccess,
   onCheckOutSuccess,
@@ -140,6 +155,8 @@ export function AttendanceCard({
   const [address, setAddress] = useState<string | null>(null)
   const [displayAddress, setDisplayAddress] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showEarlyCheckoutWarning, setShowEarlyCheckoutWarning] = useState(false)
+  const [earlyCheckoutReason, setEarlyCheckoutReason] = useState('')
 
   // Face Detection State
   const [modelsLoaded, setModelsLoaded] = useState(false)
@@ -494,8 +511,40 @@ export function AttendanceCard({
 
   const isCheckedIn = !!attendanceRecord && !!attendanceRecord.timeIn && !attendanceRecord.timeOut
   const isCheckedOut = !!attendanceRecord && !!attendanceRecord.timeIn && !!attendanceRecord.timeOut
-  const canCheckOut = canCheckOutNow(workEndTime ?? null, attendanceRecord?.date)
-  const workEndDisplay = formatWorkEndTime(workEndTime ?? null)
+
+  // Calculate expected working hours from work start and end times (must be defined first)
+  const expectedWorkingHours = (() => {
+    if (!workStartTime || !workEndTime) return 9 // Default fallback
+
+    // Get today's dates at work start and end times
+    const startToday = getTodayAtTime(workStartTime)
+    const endToday = getTodayAtTime(workEndTime)
+
+    if (!startToday || !endToday) return 9 // Default fallback
+
+    const expectedMs = endToday.getTime() - startToday.getTime()
+    return expectedMs / (60 * 60 * 1000)
+  })()
+
+  // Calculate remaining working hours based on actual duration worked
+  const remainingHours = (() => {
+    if (!isCheckedIn || !checkInTime || !currentTime) return null
+
+    // Calculate duration already worked (from check-in to now)
+    const checkInDate = new Date(checkInTime)
+    const now = new Date()
+    const workedMs = Math.max(0, now.getTime() - checkInDate.getTime())
+    const workedHours = workedMs / (60 * 60 * 1000)
+
+    // Calculate remaining hours: expected hours - hours already worked
+    const remaining = expectedWorkingHours - workedHours
+
+    return remaining > 0 ? remaining : 0
+  })()
+
+  const hasCompletedHours = remainingHours !== null && remainingHours <= 0
+  const canCheckOut = true // Allow checkout anytime
+  const workEndDisplay = formatWorkEndTime(workEndTime ?? null, timeFormat)
 
   useEffect(() => {
     if (!isCheckedIn || !location) return
@@ -589,21 +638,24 @@ export function AttendanceCard({
     }
   }
 
-  const handleCheckOut = async () => {
+  const proceedToCheckout = async () => {
     if (!attendanceRecord || !location) {
       toast.error('Waiting for location...')
       return
     }
-    if (!canCheckOut) {
-      toast.error(
-        workEndDisplay
-          ? `Check out is available after ${workEndDisplay}.`
-          : 'Check out is available after your shift ends.',
-      )
-      return
-    }
+
     if (!workSummary && !showSummaryModal) {
       setShowSummaryModal(true)
+      return
+    }
+
+    // If summary modal is already open, proceed with checkout
+    await submitCheckout()
+  }
+
+  const submitCheckout = async () => {
+    if (!attendanceRecord || !location) {
+      toast.error('Waiting for location...')
       return
     }
     setLoading(true)
@@ -678,12 +730,16 @@ export function AttendanceCard({
           nextDayPlan,
           mood,
           attachments: attachmentIds,
+          earlyCheckoutReason:
+            !hasCompletedHours && earlyCheckoutReason ? earlyCheckoutReason : undefined,
         }),
       })
       const data = await res.json()
       if (res.ok) {
         setAttendanceRecord(data.doc)
         setShowSummaryModal(false)
+        setShowEarlyCheckoutWarning(false)
+        setEarlyCheckoutReason('')
         onCheckOutSuccess?.()
         toast.success('Shift report submitted! Have a great evening.')
         router.refresh()
@@ -697,6 +753,23 @@ export function AttendanceCard({
       setLoading(false)
       setUploading(false)
     }
+  }
+
+  const handleCheckOut = () => {
+    if (!attendanceRecord || !location) {
+      toast.error('Waiting for location...')
+      return
+    }
+
+    // Check if user hasn't completed working hours
+    if (!hasCompletedHours && remainingHours !== null && remainingHours > 0) {
+      // Show warning first
+      setShowEarlyCheckoutWarning(true)
+      return
+    }
+
+    // Proceed to summary modal or checkout
+    proceedToCheckout()
   }
 
   if (!mounted || !currentTime) {
@@ -723,6 +796,48 @@ export function AttendanceCard({
     const end = currentTime.getTime()
     const mins = Math.floor((end - start) / 60000)
     return { h: Math.floor(mins / 60), m: mins % 60 }
+  })()
+
+  // Calculate total hours worked and attendance status for checked out sessions
+  const sessionSummary = (() => {
+    if (!isCheckedOut || !attendanceRecord?.timeIn || !attendanceRecord?.timeOut) return null
+
+    const timeInDate = new Date(attendanceRecord.timeIn)
+    const timeOutDate = new Date(attendanceRecord.timeOut)
+    const workedMs = Math.max(0, timeOutDate.getTime() - timeInDate.getTime())
+    const workedHours = workedMs / (60 * 60 * 1000)
+    const workedMins = Math.floor((workedMs % (60 * 60 * 1000)) / (60 * 1000))
+
+    // Calculate expected working hours based on work start and end times
+    let expectedHours = 9 // Default fallback
+    if (workStartTime && workEndTime) {
+      const start = new Date(workStartTime)
+      const end = new Date(workEndTime)
+      const expectedMs = end.getTime() - start.getTime()
+      expectedHours = expectedMs / (60 * 60 * 1000)
+    }
+
+    // Use the status from the record (already calculated by backend)
+    // Map 'late' to 'present' for display purposes since late is still considered present
+    const recordStatus = attendanceRecord.status
+    let displayStatus: 'present' | 'half-day' | 'absent' = 'present'
+
+    if (recordStatus === 'absent') {
+      displayStatus = 'absent'
+    } else if (recordStatus === 'half-day') {
+      displayStatus = 'half-day'
+    } else {
+      // 'present' or 'late' both count as present
+      displayStatus = 'present'
+    }
+
+    return {
+      hours: Math.floor(workedHours),
+      minutes: workedMins,
+      status: displayStatus,
+      workedHours,
+      expectedHours,
+    }
   })()
 
   return (
@@ -913,9 +1028,104 @@ export function AttendanceCard({
                     key="comp"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="w-full p-6 md:p-8 rounded-2xl md:rounded-3xl bg-indigo-50 dark:bg-primary/10 text-indigo-700 dark:text-primary font-black text-center border border-indigo-100 dark:border-primary/20"
+                    className="w-full space-y-4"
                   >
-                    Session Completed
+                    <div className="w-full p-6 md:p-8 rounded-2xl md:rounded-3xl bg-indigo-50 dark:bg-primary/10 text-indigo-700 dark:text-primary font-black text-center border border-indigo-100 dark:border-primary/20">
+                      Session Completed
+                    </div>
+
+                    {sessionSummary && (
+                      <div
+                        className="w-full p-6 rounded-2xl border-2 space-y-3"
+                        style={{
+                          backgroundColor:
+                            sessionSummary.status === 'present'
+                              ? 'rgba(34, 197, 94, 0.1)'
+                              : sessionSummary.status === 'half-day'
+                                ? 'rgba(249, 115, 22, 0.1)'
+                                : 'rgba(239, 68, 68, 0.1)',
+                          borderColor:
+                            sessionSummary.status === 'present'
+                              ? 'rgba(34, 197, 94, 0.3)'
+                              : sessionSummary.status === 'half-day'
+                                ? 'rgba(249, 115, 22, 0.3)'
+                                : 'rgba(239, 68, 68, 0.3)',
+                        }}
+                      >
+                        <div className="text-center space-y-2">
+                          <p className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                            Today's Work Summary
+                          </p>
+                          <p
+                            className="text-2xl md:text-3xl font-black"
+                            style={{
+                              color:
+                                sessionSummary.status === 'present'
+                                  ? 'rgb(34, 197, 94)'
+                                  : sessionSummary.status === 'half-day'
+                                    ? 'rgb(249, 115, 22)'
+                                    : 'rgb(239, 68, 68)',
+                            }}
+                          >
+                            {sessionSummary.hours > 0 ? `${sessionSummary.hours}h ` : ''}
+                            {sessionSummary.minutes}m
+                          </p>
+                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Total time worked today
+                          </p>
+                        </div>
+
+                        <div className="pt-3 border-t border-current/20">
+                          <div className="flex items-center justify-center gap-2">
+                            <span
+                              className="px-4 py-2 rounded-full text-sm font-black uppercase tracking-widest border-2"
+                              style={{
+                                backgroundColor:
+                                  sessionSummary.status === 'present'
+                                    ? 'rgba(34, 197, 94, 0.2)'
+                                    : sessionSummary.status === 'half-day'
+                                      ? 'rgba(249, 115, 22, 0.2)'
+                                      : 'rgba(239, 68, 68, 0.2)',
+                                borderColor:
+                                  sessionSummary.status === 'present'
+                                    ? 'rgb(34, 197, 94)'
+                                    : sessionSummary.status === 'half-day'
+                                      ? 'rgb(249, 115, 22)'
+                                      : 'rgb(239, 68, 68)',
+                                color:
+                                  sessionSummary.status === 'present'
+                                    ? 'rgb(34, 197, 94)'
+                                    : sessionSummary.status === 'half-day'
+                                      ? 'rgb(249, 115, 22)'
+                                      : 'rgb(239, 68, 68)',
+                              }}
+                            >
+                              {sessionSummary.status === 'present' && '✓ Present'}
+                              {sessionSummary.status === 'half-day' && '⚠ Half Day'}
+                              {sessionSummary.status === 'absent' && '✗ Absent'}
+                            </span>
+                          </div>
+                          <p
+                            className="text-center text-xs font-semibold mt-2"
+                            style={{
+                              color:
+                                sessionSummary.status === 'present'
+                                  ? 'rgb(34, 197, 94)'
+                                  : sessionSummary.status === 'half-day'
+                                    ? 'rgb(249, 115, 22)'
+                                    : 'rgb(239, 68, 68)',
+                            }}
+                          >
+                            {sessionSummary.status === 'present' &&
+                              'You have completed your full working hours today.'}
+                            {sessionSummary.status === 'half-day' &&
+                              'You are marked as Half Day for today.'}
+                            {sessionSummary.status === 'absent' &&
+                              'You are marked as Absent for today.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 ) : isCheckedIn ? (
                   <motion.div
@@ -925,17 +1135,23 @@ export function AttendanceCard({
                     exit={{ opacity: 0 }}
                     className="w-full space-y-2"
                   >
-                    {!canCheckOut && workEndDisplay ? (
-                      <p className="text-center text-xs font-semibold text-amber-600 dark:text-amber-400">
-                        Check out available after {workEndDisplay}
+                    {remainingHours !== null && remainingHours > 0 && (
+                      <p className="text-center text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">
+                        {remainingHours >= 1
+                          ? `${Math.floor(remainingHours)}h ${Math.round((remainingHours % 1) * 60)}m remaining`
+                          : `${Math.round(remainingHours * 60)}m remaining`}
                       </p>
-                    ) : null}
+                    )}
+                    {hasCompletedHours && (
+                      <p className="text-center text-xs font-semibold text-green-600 dark:text-green-400 mb-2">
+                        ✓ Working hours completed
+                      </p>
+                    )}
                     <motion.button
                       type="button"
-                      whileTap={canCheckOut ? { scale: 0.98 } : undefined}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => handleCheckOut()}
-                      disabled={!canCheckOut}
-                      className="w-full h-16 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center gap-2 text-white font-black text-xl shadow-xl border border-slate-700/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full h-16 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center gap-2 text-white font-black text-xl shadow-xl border border-slate-700/50 transition-colors"
                     >
                       <LogOut className="w-6 h-6" /> Check Out
                     </motion.button>
@@ -1218,6 +1434,26 @@ export function AttendanceCard({
               />
             </div>
 
+            {/* Early Checkout Reason - Show only if checking out early */}
+            {!hasCompletedHours && remainingHours !== null && remainingHours > 0 && (
+              <div className="space-y-3">
+                <label className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> Early Checkout Reason (Required)
+                </label>
+                <textarea
+                  className="w-full min-h-[100px] p-6 rounded-2xl border-2 border-amber-300 dark:border-amber-500/50 bg-amber-50/50 dark:bg-amber-500/10 focus:bg-white dark:focus:bg-slate-700 text-foreground placeholder:text-amber-400 dark:placeholder:text-amber-300 outline-none text-base transition-all"
+                  placeholder="Please provide a reason for checking out early..."
+                  value={earlyCheckoutReason}
+                  onChange={(e) => setEarlyCheckoutReason(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                  ⚠️ You haven't completed your {expectedWorkingHours.toFixed(1)} working hours.
+                  This may affect your attendance status and pay.
+                </p>
+              </div>
+            )}
+
             {/* File Upload */}
             <div className="space-y-4">
               <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -1232,8 +1468,12 @@ export function AttendanceCard({
                   <Paperclip className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300" />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-slate-900 dark:text-foreground">Click to upload files</p>
-                  <p className="text-xs font-bold text-slate-400 dark:text-muted-foreground mt-1">PDFs, Images, or Reports</p>
+                  <p className="text-sm font-black text-slate-900 dark:text-foreground">
+                    Click to upload files
+                  </p>
+                  <p className="text-xs font-bold text-slate-400 dark:text-muted-foreground mt-1">
+                    PDFs, Images, or Reports
+                  </p>
                 </div>
                 <input
                   type="file"
@@ -1282,8 +1522,16 @@ export function AttendanceCard({
                 Cancel
               </Button>
               <Button
-                onClick={handleCheckOut}
-                disabled={loading || !accomplishments.trim() || uploading}
+                onClick={submitCheckout}
+                disabled={
+                  loading ||
+                  !accomplishments.trim() ||
+                  uploading ||
+                  (!hasCompletedHours &&
+                    remainingHours !== null &&
+                    remainingHours > 0 &&
+                    !earlyCheckoutReason.trim())
+                }
                 className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white py-7 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100"
               >
                 {uploading ? (
@@ -1294,6 +1542,82 @@ export function AttendanceCard({
                 ) : (
                   'Complete Shift Report'
                 )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Early Checkout Warning Dialog */}
+      <Dialog open={showEarlyCheckoutWarning} onOpenChange={setShowEarlyCheckoutWarning}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-0 border-none shadow-2xl overflow-hidden">
+          <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 p-8 text-white">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-white" />
+              </div>
+              <DialogTitle className="text-2xl font-black text-white">
+                Early Checkout Warning
+              </DialogTitle>
+            </div>
+            <p className="text-white/90 text-base font-semibold mb-2">
+              You haven't completed your {expectedWorkingHours.toFixed(1)} working hours yet.
+            </p>
+            {remainingHours !== null && (
+              <p className="text-white/80 text-sm">
+                {remainingHours >= 1
+                  ? `You still have ${Math.floor(remainingHours)}h ${Math.round((remainingHours % 1) * 60)}m remaining.`
+                  : `You still have ${Math.round(remainingHours * 60)}m remaining.`}
+              </p>
+            )}
+            <div className="mt-4 p-4 bg-white/10 rounded-xl border border-white/20">
+              <p className="text-white font-bold text-sm">
+                ⚠️ This will affect your attendance status and may result in salary deduction.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-8 space-y-4">
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" /> Reason for Early Checkout (Required)
+              </label>
+              <textarea
+                className="w-full min-h-[120px] p-6 rounded-2xl border-2 border-amber-300 dark:border-amber-500/50 bg-amber-50/50 dark:bg-amber-500/10 focus:bg-white dark:focus:bg-slate-700 text-foreground placeholder:text-amber-400 dark:placeholder:text-amber-300 outline-none text-base transition-all"
+                placeholder="Please provide a reason for checking out early..."
+                value={earlyCheckoutReason}
+                onChange={(e) => setEarlyCheckoutReason(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="p-8 border-t border-border bg-white dark:bg-card">
+            <div className="flex gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowEarlyCheckoutWarning(false)
+                  setEarlyCheckoutReason('')
+                }}
+                className="flex-1 py-6 rounded-2xl font-black text-slate-500"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!earlyCheckoutReason.trim()) {
+                    toast.error('Please provide a reason for early checkout')
+                    return
+                  }
+                  setShowEarlyCheckoutWarning(false)
+                  // Proceed to summary modal
+                  proceedToCheckout()
+                }}
+                disabled={!earlyCheckoutReason.trim()}
+                className="flex-[2] bg-amber-600 hover:bg-amber-700 text-white py-6 rounded-2xl font-black text-lg shadow-xl shadow-amber-100"
+              >
+                Continue Checkout
               </Button>
             </div>
           </div>

@@ -320,6 +320,10 @@ export interface Attendance {
    * Upload PDFs, documents, or screenshots related to today’s work
    */
   attachments?: (number | Media)[] | null;
+  /**
+   * Reason provided when checking out before completing full working hours
+   */
+  earlyCheckoutReason?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -678,6 +682,7 @@ export interface AttendanceSelect<T extends boolean = true> {
   nextDayPlan?: T;
   mood?: T;
   attachments?: T;
+  earlyCheckoutReason?: T;
   updatedAt?: T;
   createdAt?: T;
 }
