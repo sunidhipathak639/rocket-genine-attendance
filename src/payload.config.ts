@@ -15,6 +15,7 @@ import { Holidays } from './collections/Holidays'
 import { Meetings } from './collections/Meetings'
 import { Notifications } from './collections/Notifications'
 import { Tasks } from './collections/Tasks'
+import { MeetingRequests } from './collections/MeetingRequests'
 import { WorkSettings } from './globals/WorkSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -71,6 +72,7 @@ export default buildConfig({
     Meetings,
     Notifications,
     Tasks,
+    MeetingRequests,
   ],
   globals: [WorkSettings],
   editor: lexicalEditor(),

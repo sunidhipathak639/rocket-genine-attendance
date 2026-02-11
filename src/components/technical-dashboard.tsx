@@ -19,13 +19,14 @@ import {
   ListTodo,
   Rocket,
   Loader2,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
-import type { User, Task } from '@/payload-types'
+import type { User, Task, MeetingRequest } from '@/payload-types'
 import { SyncUserTheme } from '@/components/theme-provider'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -38,9 +39,14 @@ import 'react-circular-progressbar/dist/styles.css'
 interface TechnicalDashboardProps {
   user: User
   tasks: Task[]
+  meetingRequests?: MeetingRequest[]
 }
 
-export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashboardProps) {
+export function TechnicalDashboard({
+  user,
+  tasks: initialTasks,
+  meetingRequests: initialMeetingRequests = [],
+}: TechnicalDashboardProps) {
   const router = useRouter()
   const bgRef = useRef<HTMLDivElement>(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -88,26 +94,39 @@ export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashb
   }, [])
 
   const [tasks, setTasks] = useState(initialTasks)
+  const [meetingRequests, setMeetingRequests] = useState(initialMeetingRequests)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [selectedMeetingRequest, setSelectedMeetingRequest] = useState<MeetingRequest | null>(null)
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [filter, setFilter] = useState<'all' | 'open' | 'in_progress' | 'completed' | 'rejected'>(
     'all',
   )
+  const [scheduledDate, setScheduledDate] = useState('')
+  const [meetingLink, setMeetingLink] = useState('')
+  const [meetingNotes, setMeetingNotes] = useState('')
 
-  // Refresh tasks periodically
+  // Refresh tasks and meeting requests periodically
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/tasks?assignedTo=' + user.id + '&limit=100', {
+        const tasksRes = await fetch('/api/tasks?assignedTo=' + user.id + '&limit=100', {
           credentials: 'include',
         })
-        if (res.ok) {
-          const data = await res.json()
-          setTasks(data.docs || data || [])
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json()
+          setTasks(tasksData.docs || tasksData || [])
+        }
+
+        const meetingRes = await fetch('/api/meeting-requests?technicalStaff=' + user.id, {
+          credentials: 'include',
+        })
+        if (meetingRes.ok) {
+          const meetingData = await meetingRes.json()
+          setMeetingRequests(meetingData.docs || meetingData || [])
         }
       } catch (err) {
-        console.error('Failed to refresh tasks:', err)
+        console.error('Failed to refresh data:', err)
       }
     }, 30000) // Refresh every 30 seconds
 
@@ -194,6 +213,52 @@ export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashb
     } catch (error) {
       console.error('Error adding comment:', error)
       toast.error('Failed to add comment')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleScheduleMeeting = async (requestId: number) => {
+    if (!scheduledDate || !meetingLink) {
+      toast.error('Please provide both scheduled date and meeting link')
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/meeting-requests/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          scheduledDate,
+          meetingLink: meetingLink.trim(),
+          notes: meetingNotes.trim() || '',
+          status: 'scheduled',
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to schedule meeting')
+      }
+
+      const updatedRequest = await response.json()
+      setMeetingRequests((prev) =>
+        prev.map((req) => (req.id === requestId ? updatedRequest.meetingRequest : req)),
+      )
+      if (selectedMeetingRequest?.id === requestId) {
+        setSelectedMeetingRequest(updatedRequest.meetingRequest)
+      }
+
+      // Clear form
+      setScheduledDate('')
+      setMeetingLink('')
+      setMeetingNotes('')
+
+      toast.success('Meeting scheduled successfully! Staff member will be notified.')
+    } catch (error) {
+      console.error('Error scheduling meeting:', error)
+      toast.error('Failed to schedule meeting')
     } finally {
       setIsSubmitting(false)
     }
@@ -423,6 +488,51 @@ export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashb
           ))}
         </div>
 
+        {/* Meeting Requests Section */}
+        {meetingRequests.filter((req) => req.status === 'pending').length > 0 && (
+          <div className="mb-8 space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-foreground">
+              <Calendar className="w-6 h-6 text-indigo-600" />
+              Pending Meeting Requests (
+              {meetingRequests.filter((req) => req.status === 'pending').length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {meetingRequests
+                .filter((req) => req.status === 'pending')
+                .map((request) => (
+                  <motion.div
+                    key={request.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-5 rounded-2xl bg-white/60 dark:bg-card/40 border border-white/40 dark:border-border hover:shadow-lg transition-all cursor-pointer"
+                    onClick={() => setSelectedMeetingRequest(request)}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-foreground mb-2">
+                          {request.topic}
+                        </h3>
+                        {request.description && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 line-clamp-2">
+                            {request.description}
+                          </p>
+                        )}
+                        {request.staff && typeof request.staff === 'object' && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Requested by: {request.staff.name || request.staff.email}
+                          </p>
+                        )}
+                      </div>
+                      <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300">
+                        Pending
+                      </Badge>
+                    </div>
+                  </motion.div>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Task List Section */}
           <div className="xl:col-span-2 space-y-6">
@@ -552,6 +662,111 @@ export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashb
 
           {/* Task Details & Productivity Sidebar */}
           <div className="xl:col-span-1 space-y-8">
+            {/* Meeting Request Scheduling */}
+            {selectedMeetingRequest && selectedMeetingRequest.status === 'pending' ? (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="dashboard-card p-6 bg-white/60 dark:bg-card/40 backdrop-blur-md border border-white/20 dark:border-border rounded-3xl shadow-xl"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-foreground flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-indigo-600" />
+                    Schedule Meeting
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setSelectedMeetingRequest(null)
+                      setScheduledDate('')
+                      setMeetingLink('')
+                      setMeetingNotes('')
+                    }}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-foreground mb-2">
+                      {selectedMeetingRequest.topic}
+                    </h4>
+                    {selectedMeetingRequest.description && (
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                        {selectedMeetingRequest.description}
+                      </p>
+                    )}
+                    {selectedMeetingRequest.staff &&
+                      typeof selectedMeetingRequest.staff === 'object' && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Requested by:{' '}
+                          {selectedMeetingRequest.staff.name || selectedMeetingRequest.staff.email}
+                        </p>
+                      )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 dark:text-foreground mb-2">
+                      Scheduled Date & Time <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 dark:text-foreground mb-2">
+                      Meeting Link <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={meetingLink}
+                      onChange={(e) => setMeetingLink(e.target.value)}
+                      placeholder="https://zoom.us/j/..."
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-white dark:bg-slate-800"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 dark:text-foreground mb-2">
+                      Notes (Optional)
+                    </label>
+                    <Textarea
+                      value={meetingNotes}
+                      onChange={(e) => setMeetingNotes(e.target.value)}
+                      placeholder="Additional notes for the staff member..."
+                      rows={3}
+                      className="w-full text-sm bg-white dark:bg-card"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={() => handleScheduleMeeting(selectedMeetingRequest.id)}
+                    disabled={isSubmitting || !scheduledDate || !meetingLink}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Scheduling...
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Schedule Meeting
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            ) : null}
+
             {/* Productivity Card */}
             <div className="dashboard-card bg-indigo-600 text-white p-8 relative overflow-hidden rounded-3xl shadow-xl shadow-indigo-500/20">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />

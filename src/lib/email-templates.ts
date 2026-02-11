@@ -919,3 +919,139 @@ export function getTaskUpdatedEmail({
 
   return getEmailTemplate(content)
 }
+
+/**
+ * Meeting Request Email Template (for Technical Staff)
+ */
+export function getMeetingRequestEmail({
+  topic,
+  description,
+  staffName,
+  staffEmail,
+  requestId,
+}: {
+  topic: string
+  description: string
+  staffName: string
+  staffEmail: string
+  requestId: number | string
+}): string {
+  const content = `
+    <h1>📅 New Meeting Request</h1>
+    <p>Hello Technical Staff,</p>
+    <p>A staff member has requested a meeting with you:</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Topic:</span>
+        <span class="info-value"><strong>${topic}</strong></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Requested By:</span>
+        <span class="info-value">${staffName} (${staffEmail})</span>
+      </div>
+      ${
+        description
+          ? `
+      <div class="info-row">
+        <span class="info-label">Description:</span>
+        <span class="info-value">${description}</span>
+      </div>
+      `
+          : ''
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center;">
+      <a href="${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'}/technical" class="button" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);">
+        Schedule Meeting →
+      </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
+      Please schedule the meeting and provide a meeting link. The staff member will be notified once scheduled.
+    </p>
+  `
+
+  return getEmailTemplate(content)
+}
+
+/**
+ * Meeting Scheduled Email Template (for Staff)
+ */
+export function getMeetingScheduledEmail({
+  topic,
+  scheduledDate,
+  meetingLink,
+  staffName,
+  technicalStaffName,
+  notes,
+}: {
+  topic: string
+  scheduledDate: string
+  meetingLink: string
+  staffName: string
+  technicalStaffName: string
+  notes?: string
+}): string {
+  const formattedDate = new Date(scheduledDate).toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  const content = `
+    <h1>📅 Meeting Scheduled</h1>
+    <p>Hello ${staffName},</p>
+    <p>Your meeting request has been scheduled:</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Topic:</span>
+        <span class="info-value"><strong>${topic}</strong></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Scheduled Date & Time:</span>
+        <span class="info-value">${formattedDate}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">With:</span>
+        <span class="info-value">${technicalStaffName}</span>
+      </div>
+      ${
+        notes
+          ? `
+      <div class="info-row">
+        <span class="info-label">Notes:</span>
+        <span class="info-value">${notes}</span>
+      </div>
+      `
+          : ''
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center;">
+      <a href="${meetingLink}" class="button" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+        Join Meeting Now →
+      </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
+      If you're unable to join via the button above, copy and paste this link into your browser:<br>
+      <a href="${meetingLink}" style="color: #3b82f6; word-break: break-all;">${meetingLink}</a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 10px;">
+      Please be on time and ensure your microphone and camera are working.
+    </p>
+  `
+
+  return getEmailTemplate(content)
+}

@@ -25,5 +25,18 @@ export default async function TechnicalDashboardPage() {
     depth: 2, // Populate relationships including comment authors
   })
 
-  return <TechnicalDashboard user={user} tasks={tasks.docs} />
+  // Fetch meeting requests assigned to this technical staff
+  const meetingRequests = await payload.find({
+    collection: 'meeting-requests',
+    where: {
+      technicalStaff: { equals: user.id },
+    },
+    sort: '-createdAt',
+    limit: 100,
+    depth: 2, // Populate relationships
+  })
+
+  return (
+    <TechnicalDashboard user={user} tasks={tasks.docs} meetingRequests={meetingRequests.docs} />
+  )
 }
