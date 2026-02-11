@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   ListTodo,
   Rocket,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -42,6 +43,7 @@ interface TechnicalDashboardProps {
 export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashboardProps) {
   const router = useRouter()
   const bgRef = useRef<HTMLDivElement>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // Floating animation like Staff Dashboard
   useEffect(() => {
@@ -198,6 +200,7 @@ export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashb
   }
 
   const handleLogout = async () => {
+    setIsLoggingOut(true)
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/technical/login')
   }
@@ -276,7 +279,7 @@ export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashb
             transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
           >
             <Image
-              src="/rocket-genine-logo.webp"
+              src="/rocket-genie-logo.webp"
               alt="Rocket Genie"
               fill
               className="object-contain"
@@ -330,8 +333,13 @@ export function TechnicalDashboard({ user, tasks: initialTasks }: TechnicalDashb
               size="icon"
               className="rounded-xl hover:bg-red-50 hover:text-red-500 transition-colors"
               onClick={handleLogout}
+              disabled={isLoggingOut}
             >
-              <LogOut className="w-5 h-5" />
+              {isLoggingOut ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <LogOut className="w-5 h-5" />
+              )}
             </Button>
           </div>
         </div>

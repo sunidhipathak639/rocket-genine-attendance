@@ -4,6 +4,7 @@ import {
   getTaskAssignedEmail,
   getTaskStatusUpdatedEmail,
   getTaskCreatedConfirmationEmail,
+  getTaskUpdatedEmail,
 } from '@/lib/email-templates'
 
 export const Tasks: CollectionConfig = {
@@ -349,17 +350,28 @@ export const Tasks: CollectionConfig = {
           } else if (operation === 'update' && previousDoc) {
             // Notify on status change
             if (doc.status !== previousDoc.status) {
+              // Only send emails for rejected, in_progress, and completed statuses
+              const shouldSendEmails = ['rejected', 'in_progress', 'completed'].includes(doc.status)
+
               // Get creator (staff member)
               const creator = await req.payload.findByID({
                 collection: 'users',
                 id: typeof doc.createdBy === 'object' ? doc.createdBy.id : doc.createdBy,
               })
 
-              // Get Technical Staff who updated
-              const updater = await req.payload.findByID({
+              // Get assigned Technical Staff member
+              const assignedTechnicalStaff = await req.payload.findByID({
                 collection: 'users',
-                id: req.user?.id || doc.assignedTo,
+                id: typeof doc.assignedTo === 'object' ? doc.assignedTo.id : doc.assignedTo,
               })
+
+              // Get Technical Staff who updated (could be different from assigned)
+              const updater = req.user
+                ? await req.payload.findByID({
+                    collection: 'users',
+                    id: req.user.id,
+                  })
+                : assignedTechnicalStaff
 
               // Get latest comment if any
               const latestComment =
@@ -381,8 +393,8 @@ export const Tasks: CollectionConfig = {
                 req,
               })
 
-              // Send email to creator (staff)
-              if (creator && (creator as any).email) {
+              // Send email to creator (staff) - only for rejected, in_progress, completed
+              if (shouldSendEmails && creator && (creator as any).email) {
                 try {
                   await sendEmail({
                     to: (creator as any).email,
@@ -391,7 +403,10 @@ export const Tasks: CollectionConfig = {
                       taskTitle: doc.title,
                       newStatus: doc.status,
                       staffName: (creator as any).name || 'Staff Member',
-                      technicalStaffName: (updater as any)?.name || 'Technical Staff',
+                      technicalStaffName:
+                        (updater as any)?.name ||
+                        (assignedTechnicalStaff as any)?.name ||
+                        'Technical Staff',
                       comment:
                         latestComment && typeof latestComment === 'object'
                           ? latestComment.comment
@@ -399,11 +414,56 @@ export const Tasks: CollectionConfig = {
                     }),
                   })
                 } catch (emailError) {
-                  console.error('Error sending task status email:', emailError)
+                  console.error('Error sending task status email to staff:', emailError)
                 }
               }
 
-              // Notify admin
+              // Notify assigned Technical Staff about status change
+              if (assignedTechnicalStaff) {
+                await req.payload.create({
+                  collection: 'notifications',
+                  data: {
+                    user: doc.assignedTo,
+                    title: 'Task Status Updated',
+                    message: `Task "${doc.title}" status changed to ${doc.status}`,
+                    type: 'task_status_changed',
+                    relatedTask: doc.id,
+                    read: false,
+                  },
+                  req,
+                })
+              }
+
+              // Send email to assigned Technical Staff member - only for rejected, in_progress, completed
+              if (
+                shouldSendEmails &&
+                assignedTechnicalStaff &&
+                (assignedTechnicalStaff as any).email
+              ) {
+                try {
+                  await sendEmail({
+                    to: (assignedTechnicalStaff as any).email,
+                    subject: `📋 Task Status Updated: ${doc.title}`,
+                    html: getTaskStatusUpdatedEmail({
+                      taskTitle: doc.title,
+                      newStatus: doc.status,
+                      staffName: (assignedTechnicalStaff as any).name || 'Technical Staff',
+                      technicalStaffName:
+                        (updater as any)?.name ||
+                        (assignedTechnicalStaff as any).name ||
+                        'Technical Staff',
+                      comment:
+                        latestComment && typeof latestComment === 'object'
+                          ? latestComment.comment
+                          : undefined,
+                    }),
+                  })
+                } catch (emailError) {
+                  console.error('Error sending task status email to technical staff:', emailError)
+                }
+              }
+
+              // Get all admins and send emails + notifications
               const admins = await req.payload.find({
                 collection: 'users',
                 where: { role: { equals: 'admin' } },
@@ -411,6 +471,7 @@ export const Tasks: CollectionConfig = {
               })
 
               for (const admin of admins.docs) {
+                // Create notification for admin
                 await req.payload.create({
                   collection: 'notifications',
                   data: {
@@ -423,6 +484,34 @@ export const Tasks: CollectionConfig = {
                   },
                   req,
                 })
+
+                // Send email to admin - only for rejected, in_progress, completed
+                if (shouldSendEmails && (admin as any).email) {
+                  try {
+                    await sendEmail({
+                      to: (admin as any).email,
+                      subject: `📋 Task Status Updated: ${doc.title}`,
+                      html: getTaskStatusUpdatedEmail({
+                        taskTitle: doc.title,
+                        newStatus: doc.status,
+                        staffName: (admin as any).name || 'Admin',
+                        technicalStaffName:
+                          (updater as any)?.name ||
+                          (assignedTechnicalStaff as any)?.name ||
+                          'Technical Staff',
+                        comment:
+                          latestComment && typeof latestComment === 'object'
+                            ? latestComment.comment
+                            : undefined,
+                      }),
+                    })
+                  } catch (emailError) {
+                    console.error(
+                      `Error sending task status email to admin ${(admin as any).email}:`,
+                      emailError,
+                    )
+                  }
+                }
               }
             }
 
@@ -455,6 +544,143 @@ export const Tasks: CollectionConfig = {
                 },
                 req,
               })
+            }
+
+            // Notify staff member on any task update (comments, attachments, etc.)
+            // Skip if it's just a status change (already handled above)
+            if (doc.status === previousDoc.status) {
+              // Check if comments were added
+              const previousComments = Array.isArray(previousDoc.comments)
+                ? previousDoc.comments
+                : []
+              const currentComments = Array.isArray(doc.comments) ? doc.comments : []
+              const newComments = currentComments.length > previousComments.length
+
+              // Check if attachments were added
+              const previousAttachments = Array.isArray(previousDoc.attachments)
+                ? previousDoc.attachments
+                : []
+              const currentAttachments = Array.isArray(doc.attachments) ? doc.attachments : []
+              const newAttachments = currentAttachments.length > previousAttachments.length
+
+              // Only notify if there are actual updates (comments or attachments)
+              if (newComments || newAttachments) {
+                // Get creator (staff member)
+                const creator = await req.payload.findByID({
+                  collection: 'users',
+                  id: typeof doc.createdBy === 'object' ? doc.createdBy.id : doc.createdBy,
+                })
+
+                // Get Technical Staff who updated
+                const updater = req.user
+                  ? await req.payload.findByID({
+                      collection: 'users',
+                      id: req.user.id,
+                    })
+                  : await req.payload.findByID({
+                      collection: 'users',
+                      id: typeof doc.assignedTo === 'object' ? doc.assignedTo.id : doc.assignedTo,
+                    })
+
+                // Get latest comment if any
+                const latestComment =
+                  newComments && currentComments.length > 0
+                    ? currentComments[currentComments.length - 1]
+                    : null
+
+                // Determine update type
+                let updateType: 'comment' | 'attachment' | 'general' = 'general'
+                if (newComments && newAttachments) {
+                  updateType = 'comment' // Prioritize comment
+                } else if (newComments) {
+                  updateType = 'comment'
+                } else if (newAttachments) {
+                  updateType = 'attachment'
+                }
+
+                // Get assigned Technical Staff member
+                const assignedTechnicalStaff = await req.payload.findByID({
+                  collection: 'users',
+                  id: typeof doc.assignedTo === 'object' ? doc.assignedTo.id : doc.assignedTo,
+                })
+
+                // Notify creator (staff) about the update
+                await req.payload.create({
+                  collection: 'notifications',
+                  data: {
+                    user: doc.createdBy,
+                    title: 'Task Updated',
+                    message: `Task "${doc.title}" has been updated${newComments ? ' with a new comment' : newAttachments ? ' with new attachments' : ''}`,
+                    type: 'task_status_changed',
+                    relatedTask: doc.id,
+                    read: false,
+                  },
+                  req,
+                })
+
+                // Notify assigned Technical Staff about the update
+                if (assignedTechnicalStaff) {
+                  await req.payload.create({
+                    collection: 'notifications',
+                    data: {
+                      user: doc.assignedTo,
+                      title: 'Task Updated',
+                      message: `Task "${doc.title}" has been updated${newComments ? ' with a new comment' : newAttachments ? ' with new attachments' : ''}`,
+                      type: 'task_status_changed',
+                      relatedTask: doc.id,
+                      read: false,
+                    },
+                    req,
+                  })
+                }
+
+                // Notify all admins about the update
+                const admins = await req.payload.find({
+                  collection: 'users',
+                  where: { role: { equals: 'admin' } },
+                  limit: 1000,
+                })
+
+                for (const admin of admins.docs) {
+                  await req.payload.create({
+                    collection: 'notifications',
+                    data: {
+                      user: admin.id,
+                      title: 'Task Updated',
+                      message: `Task "${doc.title}" has been updated${newComments ? ' with a new comment' : newAttachments ? ' with new attachments' : ''}`,
+                      type: 'task_status_changed',
+                      relatedTask: doc.id,
+                      read: false,
+                    },
+                    req,
+                  })
+                }
+
+                // Send email to creator (staff) about the update
+                if (creator && (creator as any).email) {
+                  try {
+                    await sendEmail({
+                      to: (creator as any).email,
+                      subject: `📝 Task Updated: ${doc.title}`,
+                      html: getTaskUpdatedEmail({
+                        taskTitle: doc.title,
+                        staffName: (creator as any).name || 'Staff Member',
+                        technicalStaffName:
+                          (updater as any)?.name ||
+                          (assignedTechnicalStaff as any)?.name ||
+                          'Technical Staff',
+                        updateType,
+                        comment:
+                          latestComment && typeof latestComment === 'object'
+                            ? latestComment.comment
+                            : undefined,
+                      }),
+                    })
+                  } catch (emailError) {
+                    console.error('Error sending task update email to staff:', emailError)
+                  }
+                }
+              }
             }
           }
         } catch (error) {

@@ -851,3 +851,71 @@ export function getTaskStatusUpdatedEmail({
 
   return getEmailTemplate(content)
 }
+
+/**
+ * Task Updated Email Template (for Staff - general updates like comments)
+ */
+export function getTaskUpdatedEmail({
+  taskTitle,
+  staffName,
+  technicalStaffName,
+  updateType,
+  comment,
+}: {
+  taskTitle: string
+  staffName: string
+  technicalStaffName: string
+  updateType: 'comment' | 'attachment' | 'general'
+  comment?: string
+}): string {
+  const updateLabels: Record<string, string> = {
+    comment: 'New Comment Added',
+    attachment: 'Attachment Added',
+    general: 'Task Updated',
+  }
+
+  const content = `
+    <h1>📝 Task Updated</h1>
+    <p>Hello ${staffName},</p>
+    <p>Your support task has been updated by Technical Staff:</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Task Title:</span>
+        <span class="info-value"><strong>${taskTitle}</strong></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Update Type:</span>
+        <span class="info-value">${updateLabels[updateType] || 'Task Updated'}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Updated By:</span>
+        <span class="info-value">${technicalStaffName}</span>
+      </div>
+      ${
+        comment
+          ? `
+      <div class="info-row">
+        <span class="info-label">Comment:</span>
+        <span class="info-value">${comment}</span>
+      </div>
+      `
+          : ''
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center;">
+      <a href="${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'}" class="button" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);">
+        View Task →
+      </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
+      Check your dashboard to see the latest updates on your task.
+    </p>
+  `
+
+  return getEmailTemplate(content)
+}
