@@ -30,10 +30,7 @@ export const MeetingRequests: CollectionConfig = {
       }
       return false
     },
-    create: ({ req: { user } }) => {
-      // Staff can create meeting requests
-      return user?.role === 'staff' || Boolean(user)
-    },
+    create: () => true,
     update: ({ req: { user } }) => {
       if (!user) return false
       // Technical staff can update requests assigned to them
