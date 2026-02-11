@@ -1728,7 +1728,7 @@ export function DashboardClient({
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                   Details
                 </h4>
-                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">
                   {selectedNotification?.body}
                 </p>
               </div>

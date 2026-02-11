@@ -12,6 +12,7 @@ export function FloatingSupportIcon() {
   const [supportType, setSupportType] = useState<'select' | 'issue' | 'meeting'>('select')
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export function FloatingSupportIcon() {
           const data = await response.json()
           setIsAuthenticated(!!data.user)
           setUserRole(data.user?.role || null)
+          setUserEmail(data.user?.email || null)
         } else {
           setIsAuthenticated(false)
         }
@@ -148,6 +150,7 @@ export function FloatingSupportIcon() {
                         setSupportType('select')
                       }}
                       isAuthenticated={Boolean(isAuthenticated && userRole === 'staff')}
+                      userEmail={userEmail || undefined}
                     />
                   )}
                 </>
@@ -170,6 +173,7 @@ export function FloatingSupportIcon() {
                         setSupportType('select')
                       }}
                       isAuthenticated={Boolean(isAuthenticated && userRole === 'staff')}
+                      userEmail={userEmail || undefined}
                     />
                   )}
                 </>

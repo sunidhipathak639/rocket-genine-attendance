@@ -6,9 +6,14 @@ import { Calendar, Loader2 } from 'lucide-react'
 interface MeetingRequestFormProps {
   onSuccess?: () => void
   isAuthenticated?: boolean
+  userEmail?: string
 }
 
-export function MeetingRequestForm({ onSuccess, isAuthenticated = true }: MeetingRequestFormProps) {
+export function MeetingRequestForm({
+  onSuccess,
+  isAuthenticated = true,
+  userEmail,
+}: MeetingRequestFormProps) {
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [email, setEmail] = useState('')
@@ -39,7 +44,7 @@ export function MeetingRequestForm({ onSuccess, isAuthenticated = true }: Meetin
         body: JSON.stringify({
           topic: topic.trim(),
           description: description.trim(),
-          ...(!isAuthenticated && { email: email.trim() }),
+          email: userEmail || email.trim(),
         }),
       })
 

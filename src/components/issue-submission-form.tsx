@@ -6,11 +6,13 @@ import { Upload, X, Loader2 } from 'lucide-react'
 interface IssueSubmissionFormProps {
   onSuccess?: () => void
   isAuthenticated?: boolean
+  userEmail?: string
 }
 
 export function IssueSubmissionForm({
   onSuccess,
   isAuthenticated = true,
+  userEmail,
 }: IssueSubmissionFormProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -115,7 +117,7 @@ export function IssueSubmissionForm({
           title,
           description,
           attachments: uploadedFileIds,
-          ...(!isAuthenticated && { email: email.trim() }),
+          email: userEmail || email.trim(),
         }),
       })
 
