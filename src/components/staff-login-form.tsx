@@ -60,6 +60,10 @@ export function StaffLoginForm() {
         setTimeout(() => {
           window.location.href = '/'
         }, 100)
+      } else if (data.user?.role === 'technical') {
+        setTimeout(() => {
+          window.location.href = '/technical'
+        }, 100)
       } else {
         throw new Error('Invalid user role')
       }

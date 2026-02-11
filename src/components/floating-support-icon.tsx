@@ -92,7 +92,7 @@ export function FloatingSupportIcon() {
                         Report an Issue
                       </h3>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Submit a technical issue or problem you're experiencing
+                        Submit a technical issue or problem you&apos;re experiencing
                       </p>
                     </button>
                     <button

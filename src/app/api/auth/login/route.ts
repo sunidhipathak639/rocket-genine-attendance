@@ -28,12 +28,11 @@ export async function POST(request: NextRequest) {
       } as any,
     })
 
-    // Only allow staff to login through this endpoint
-    if (result.user.role !== 'staff') {
+    // Allow staff and technical staff to login through this endpoint
+    if (result.user.role !== 'staff' && result.user.role !== 'technical') {
       return NextResponse.json(
         {
-          message:
-            'This login is for staff members only. Technical Staff should use /technical/login',
+          message: 'This login is for staff and technical staff members only.',
         },
         { status: 403 },
       )

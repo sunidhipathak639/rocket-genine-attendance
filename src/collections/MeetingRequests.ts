@@ -17,14 +17,16 @@ export const MeetingRequests: CollectionConfig = {
       // Admins can read all requests
       if (user.role === 'admin') return true
       if (user.role === 'technical') {
-        return {
+        const where: { technicalStaff: { equals: number | string } } = {
           technicalStaff: { equals: user.id },
         }
+        return where
       }
       if (user.role === 'staff') {
-        return {
+        const where: { staff: { equals: number | string } } = {
           staff: { equals: user.id },
         }
+        return where
       }
       return false
     },
@@ -38,9 +40,10 @@ export const MeetingRequests: CollectionConfig = {
       // Admins can update all requests
       if (user.role === 'admin') return true
       if (user.role === 'technical') {
-        return {
+        const where: { technicalStaff: { equals: number | string } } = {
           technicalStaff: { equals: user.id },
         }
+        return where
       }
       return false
     },

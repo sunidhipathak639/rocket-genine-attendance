@@ -57,9 +57,14 @@ export default function AdminLoginForm() {
         return
       }
 
+      // Redirect based on role
       if (data.user?.role === 'admin') {
         setTimeout(() => {
           window.location.href = '/admin'
+        }, 100)
+      } else if (data.user?.role === 'technical') {
+        setTimeout(() => {
+          window.location.href = '/technical'
         }, 100)
       } else {
         throw new Error('Invalid user role')

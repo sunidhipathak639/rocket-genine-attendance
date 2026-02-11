@@ -28,11 +28,11 @@ export async function POST(request: NextRequest) {
       } as any,
     })
 
-    // Check if user is admin
-    if (result.user.role !== 'admin') {
+    // Allow admin and technical staff to login through this endpoint
+    if (result.user.role !== 'admin' && result.user.role !== 'technical') {
       return NextResponse.json(
         {
-          message: 'This login is for admin members only. Please use the appropriate login portal.',
+          message: 'This login is for admin and technical staff members only.',
         },
         { status: 403 },
       )

@@ -76,6 +76,7 @@ export interface Config {
     meetings: Meeting;
     notifications: Notification;
     tasks: Task;
+    'meeting-requests': MeetingRequest;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -92,6 +93,7 @@ export interface Config {
     meetings: MeetingsSelect<false> | MeetingsSelect<true>;
     notifications: NotificationsSelect<false> | NotificationsSelect<true>;
     tasks: TasksSelect<false> | TasksSelect<true>;
+    'meeting-requests': MeetingRequestsSelect<false> | MeetingRequestsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -560,6 +562,44 @@ export interface Task {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meeting-requests".
+ */
+export interface MeetingRequest {
+  id: number;
+  /**
+   * Staff member requesting the meeting
+   */
+  staff: number | User;
+  /**
+   * Technical Staff member assigned to handle this request
+   */
+  technicalStaff?: (number | null) | User;
+  /**
+   * Meeting topic or reason
+   */
+  topic: string;
+  /**
+   * Additional details about the meeting request
+   */
+  description?: string | null;
+  status: 'pending' | 'scheduled' | 'completed' | 'cancelled';
+  /**
+   * Scheduled meeting date and time
+   */
+  scheduledDate?: string | null;
+  /**
+   * Meeting link (Zoom, Google Meet, etc.)
+   */
+  meetingLink?: string | null;
+  /**
+   * Additional notes from technical staff
+   */
+  notes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -617,6 +657,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'tasks';
         value: number | Task;
+      } | null)
+    | ({
+        relationTo: 'meeting-requests';
+        value: number | MeetingRequest;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -915,6 +959,22 @@ export interface TasksSelect<T extends boolean = true> {
         details?: T;
         id?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meeting-requests_select".
+ */
+export interface MeetingRequestsSelect<T extends boolean = true> {
+  staff?: T;
+  technicalStaff?: T;
+  topic?: T;
+  description?: T;
+  status?: T;
+  scheduledDate?: T;
+  meetingLink?: T;
+  notes?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -20,6 +20,8 @@ export default async function StaffLoginPage() {
   if (user) {
     if (user.role === 'admin') {
       redirect('/admin')
+    } else if (user.role === 'technical') {
+      redirect('/technical')
     } else {
       redirect('/')
     }
