@@ -5,7 +5,7 @@ import { APIError } from 'payload'
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await getPayload({ config: configPromise })
+    const payload = await getPayload({ config: await configPromise })
     const { email, password } = await request.json()
 
     if (!email || !password) {
@@ -28,12 +28,12 @@ export async function POST(request: NextRequest) {
       } as any,
     })
 
-    // Only allow staff to login through this endpoint
-    if (result.user.role !== 'staff') {
+    // Check if user is technical staff
+    if (result.user.role !== 'technical') {
       return NextResponse.json(
         {
           message:
-            'This login is for staff members only. Technical Staff should use /technical/login',
+            'This login is for Technical Staff only. Please use the appropriate login portal.',
         },
         { status: 403 },
       )
@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
     })
 
     // Set the authentication cookie
-    // Payload uses 'payload-token' cookie name by default
     if (result.token) {
       response.cookies.set('payload-token', result.token, {
         httpOnly: true,
@@ -73,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle other errors
-    console.error('Login error:', error)
+    console.error('Technical login error:', error)
     return NextResponse.json(
       { message: error.message || 'An error occurred during login' },
       { status: 500 },

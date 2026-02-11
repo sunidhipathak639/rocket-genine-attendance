@@ -614,6 +614,56 @@ export function getLeaveStatusEmail({
 }
 
 /**
+ * Task Created Confirmation Email Template (for Staff who reported the issue)
+ */
+export function getTaskCreatedConfirmationEmail({
+  taskTitle,
+  taskDescription,
+  staffName,
+  taskId,
+}: {
+  taskTitle: string
+  taskDescription: string
+  staffName: string
+  taskId: number | string
+}): string {
+  const content = `
+    <h1>✅ Issue Reported Successfully</h1>
+    <p>Hello ${staffName},</p>
+    <p>Thank you for reporting an issue. Your request has been received and assigned to our Technical Support team.</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Issue Title:</span>
+        <span class="info-value"><strong>${taskTitle}</strong></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Description:</span>
+        <span class="info-value">${taskDescription.substring(0, 200)}${taskDescription.length > 200 ? '...' : ''}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status:</span>
+        <span class="info-value" style="color: #3b82f6; font-weight: bold;">Open</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center;">
+      <a href="${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'}" class="button" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);">
+        View Dashboard →
+      </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
+      Our Technical Support team will review your issue and update you on the progress. You will receive email notifications when the status changes.
+    </p>
+  `
+
+  return getEmailTemplate(content)
+}
+
+/**
  * Meeting Invitation Email Template
  */
 export function getMeetingInvitationEmail({
@@ -662,6 +712,142 @@ export function getMeetingInvitationEmail({
 
     <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 10px;">
       Please be on time and ensure your microphone and camera are working.
+    </p>
+  `
+
+  return getEmailTemplate(content)
+}
+
+/**
+ * Task Assigned Email Template (for Technical Staff)
+ */
+export function getTaskAssignedEmail({
+  taskTitle,
+  taskDescription,
+  createdBy,
+  taskId,
+  technicalStaffName,
+}: {
+  taskTitle: string
+  taskDescription: string
+  createdBy: string
+  taskId: number | string
+  technicalStaffName: string
+}): string {
+  const content = `
+    <h1>🔧 New Task Assigned</h1>
+    <p>Hello ${technicalStaffName},</p>
+    <p>A new support task has been assigned to you. Please review and take action:</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Task Title:</span>
+        <span class="info-value"><strong>${taskTitle}</strong></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Created By:</span>
+        <span class="info-value">${createdBy}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Description:</span>
+        <span class="info-value">${taskDescription.substring(0, 200)}${taskDescription.length > 200 ? '...' : ''}</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center;">
+      <a href="${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'}/technical" class="button" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);">
+        View Task →
+      </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
+      Please review the task and update its status as you work on it.
+    </p>
+  `
+
+  return getEmailTemplate(content)
+}
+
+/**
+ * Task Status Updated Email Template (for Staff)
+ */
+export function getTaskStatusUpdatedEmail({
+  taskTitle,
+  newStatus,
+  staffName,
+  technicalStaffName,
+  comment,
+}: {
+  taskTitle: string
+  newStatus: string
+  staffName: string
+  technicalStaffName: string
+  comment?: string
+}): string {
+  const statusLabels: Record<string, string> = {
+    open: 'Open',
+    in_progress: 'In Progress',
+    completed: 'Completed',
+    rejected: 'Rejected',
+  }
+
+  const statusColors: Record<string, string> = {
+    open: '#3b82f6',
+    in_progress: '#f59e0b',
+    completed: '#10b981',
+    rejected: '#ef4444',
+  }
+
+  const content = `
+    <h1>📋 Task Status Updated</h1>
+    <p>Hello ${staffName},</p>
+    <p>Your support task has been updated by Technical Staff:</p>
+    
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Task Title:</span>
+        <span class="info-value"><strong>${taskTitle}</strong></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">New Status:</span>
+        <span class="info-value" style="color: ${statusColors[newStatus] || '#6b7280'}; font-weight: bold;">
+          ${statusLabels[newStatus] || newStatus}
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Updated By:</span>
+        <span class="info-value">${technicalStaffName}</span>
+      </div>
+      ${
+        comment
+          ? `
+      <div class="info-row">
+        <span class="info-label">Comment:</span>
+        <span class="info-value">${comment}</span>
+      </div>
+      `
+          : ''
+      }
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center;">
+      <a href="${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'}" class="button" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);">
+        View Dashboard →
+      </a>
+    </p>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center; margin-top: 20px;">
+      ${
+        newStatus === 'completed'
+          ? 'Your issue has been resolved. Thank you for your patience!'
+          : newStatus === 'rejected'
+            ? 'If you have questions about this decision, please contact Technical Support.'
+            : "The Technical Staff is working on your issue. You will be notified when it's completed."
+      }
     </p>
   `
 

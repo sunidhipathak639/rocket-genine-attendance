@@ -32,8 +32,7 @@ export async function POST(request: NextRequest) {
     if (result.user.role !== 'admin') {
       return NextResponse.json(
         {
-          message:
-            'This login is for admin members only. Please use the staff login for staff accounts.',
+          message: 'This login is for admin members only. Please use the appropriate login portal.',
         },
         { status: 403 },
       )

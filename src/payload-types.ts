@@ -75,6 +75,7 @@ export interface Config {
     holidays: Holiday;
     meetings: Meeting;
     notifications: Notification;
+    tasks: Task;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -90,6 +91,7 @@ export interface Config {
     holidays: HolidaysSelect<false> | HolidaysSelect<true>;
     meetings: MeetingsSelect<false> | MeetingsSelect<true>;
     notifications: NotificationsSelect<false> | NotificationsSelect<true>;
+    tasks: TasksSelect<false> | TasksSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -139,7 +141,7 @@ export interface UserAuthOperations {
 export interface User {
   id: number;
   name: string;
-  role: 'admin' | 'staff';
+  role: 'admin' | 'staff' | 'technical';
   /**
    * Monthly base salary (INR)
    */
@@ -465,7 +467,7 @@ export interface Notification {
    * User who receives this notification
    */
   user: number | User;
-  type: 'meeting' | 'general';
+  type: 'meeting' | 'general' | 'task_assigned' | 'task_created' | 'task_status_changed' | 'task_reassigned';
   title: string;
   body?: string | null;
   /**
@@ -477,6 +479,82 @@ export interface Notification {
    * Related meeting if type is meeting
    */
   meeting?: (number | null) | Meeting;
+  /**
+   * Related task if type is task-related
+   */
+  relatedTask?: (number | null) | Task;
+  /**
+   * Short notification message
+   */
+  message?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tasks".
+ */
+export interface Task {
+  id: number;
+  /**
+   * Brief title describing the issue
+   */
+  title: string;
+  /**
+   * Detailed description of the issue
+   */
+  description: string;
+  /**
+   * Current status of the task
+   */
+  status: 'open' | 'in_progress' | 'completed' | 'rejected';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  /**
+   * Technical Staff member assigned to this task
+   */
+  assignedTo: number | User;
+  /**
+   * Staff member who created this task
+   */
+  createdBy: number | User;
+  /**
+   * Supporting files (images or documents, max 3MB each)
+   */
+  attachments?:
+    | {
+        file: number | Media;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Comments and updates on this task
+   */
+  comments?:
+    | {
+        comment: string;
+        /**
+         * User who wrote the comment (optional - allows anonymous comments)
+         */
+        author?: (number | null) | User;
+        createdAt: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Audit log of all actions performed on this task
+   */
+  auditLog?:
+    | {
+        action: string;
+        /**
+         * User who performed this action (auto-populated)
+         */
+        performedBy?: (number | null) | User;
+        timestamp: string;
+        details?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -535,6 +613,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'notifications';
         value: number | Notification;
+      } | null)
+    | ({
+        relationTo: 'tasks';
+        value: number | Task;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -794,6 +876,45 @@ export interface NotificationsSelect<T extends boolean = true> {
   link?: T;
   read?: T;
   meeting?: T;
+  relatedTask?: T;
+  message?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tasks_select".
+ */
+export interface TasksSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  status?: T;
+  priority?: T;
+  assignedTo?: T;
+  createdBy?: T;
+  attachments?:
+    | T
+    | {
+        file?: T;
+        id?: T;
+      };
+  comments?:
+    | T
+    | {
+        comment?: T;
+        author?: T;
+        createdAt?: T;
+        id?: T;
+      };
+  auditLog?:
+    | T
+    | {
+        action?: T;
+        performedBy?: T;
+        timestamp?: T;
+        details?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }

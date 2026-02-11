@@ -35,6 +35,10 @@ export const Notifications: CollectionConfig = {
       options: [
         { label: 'Meeting', value: 'meeting' },
         { label: 'General', value: 'general' },
+        { label: 'Task Assigned', value: 'task_assigned' },
+        { label: 'Task Created', value: 'task_created' },
+        { label: 'Task Status Changed', value: 'task_status_changed' },
+        { label: 'Task Reassigned', value: 'task_reassigned' },
       ],
       defaultValue: 'general',
       required: true,
@@ -64,6 +68,17 @@ export const Notifications: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meetings',
       admin: { description: 'Related meeting if type is meeting' },
+    },
+    {
+      name: 'relatedTask',
+      type: 'relationship',
+      relationTo: 'tasks',
+      admin: { description: 'Related task if type is task-related' },
+    },
+    {
+      name: 'message',
+      type: 'text',
+      admin: { description: 'Short notification message' },
     },
   ],
   timestamps: true,

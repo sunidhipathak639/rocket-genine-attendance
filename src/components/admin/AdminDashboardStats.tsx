@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import LiveIndianClock from './LiveIndianClock'
 import FrontendDashboardButton from './FrontendDashboardButton'
+import TaskAnalytics from './TaskAnalytics'
 
 const cardStyle: React.CSSProperties = {
   padding: '24px',
@@ -198,6 +199,9 @@ export default function AdminDashboardStats() {
         {/* Live Indian clock */}
         <LiveIndianClock />
       </div>
+
+      {/* Task Analytics Section */}
+      <TaskAnalytics />
     </div>
   )
 }

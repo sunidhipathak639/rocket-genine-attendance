@@ -46,6 +46,13 @@ export const Users: CollectionConfig = {
             where: { user: { equals: id } },
           })
 
+          await req.payload.delete({
+            collection: 'tasks',
+            where: {
+              or: [{ assignedTo: { equals: id } }, { createdBy: { equals: id } }],
+            },
+          })
+
           console.log(`[Users Hook] Cleanup complete for User ${id}`)
         } catch (err) {
           console.error(`[Users Hook] Error during user cleanup:`, err)
@@ -75,6 +82,7 @@ export const Users: CollectionConfig = {
       options: [
         { label: 'Admin', value: 'admin' },
         { label: 'Staff', value: 'staff' },
+        { label: 'Technical Staff', value: 'technical' },
       ],
       defaultValue: 'staff',
       required: true,

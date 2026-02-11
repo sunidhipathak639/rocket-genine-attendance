@@ -5,7 +5,7 @@ import configPromise from '@payload-config'
 export async function POST(request: NextRequest) {
   try {
     const payload = await getPayload({ config: configPromise })
-    
+
     // Get current user before logout
     const { user } = await payload.auth({ headers: request.headers })
     const userRole = user?.role
@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     // Redirect based on user role
     if (userRole === 'staff') {
       response.headers.set('Location', '/login')
+    } else if (userRole === 'technical') {
+      response.headers.set('Location', '/technical/login')
     } else {
       response.headers.set('Location', '/admin/login')
     }

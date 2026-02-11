@@ -58,6 +58,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import TaskManagement from '@/components/admin/TaskManagement'
 
 interface AdminDashboardViewEnhancedProps {
   allUsers: User[]
@@ -957,6 +958,9 @@ export function AdminDashboardViewEnhanced({
           </CardContent>
         </Card>
       </div>
+
+      {/* Task Management Section */}
+      <TaskManagement />
 
       {/* Employee Attendance Table */}
       <Card className="border-border shadow-sm overflow-hidden">

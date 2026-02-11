@@ -213,13 +213,25 @@ export default function AdminLoginForm() {
               </Button>
             </motion.div>
 
-            <div className="text-center pt-6 border-t border-white/10 flex flex-col gap-4">
-              <Link
-                href="/login"
-                className="text-sm text-white/70 font-black hover:text-white transition-colors uppercase tracking-[0.2em]"
-              >
-                Login as Staff
-              </Link>
+            <div className="text-center pt-6 border-t border-white/10 flex flex-col gap-3">
+              <p className="text-xs text-white/50 uppercase tracking-wider mb-1">
+                Other Login Portals
+              </p>
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <Link
+                  href="/login"
+                  className="text-sm text-white/70 font-black hover:text-white transition-colors uppercase tracking-[0.2em]"
+                >
+                  Staff Portal
+                </Link>
+                <span className="text-white/30">•</span>
+                <Link
+                  href="/technical/login"
+                  className="text-sm text-white/70 font-black hover:text-white transition-colors uppercase tracking-[0.2em]"
+                >
+                  Technical Portal
+                </Link>
+              </div>
             </div>
           </form>
         </motion.div>

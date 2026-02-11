@@ -70,7 +70,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    cursor: url('/favicon.ico'), auto;
+    cursor: auto;
   }
   body {
     @apply bg-background text-foreground font-sans;
@@ -81,7 +81,7 @@
   input[type='submit'],
   input[type='button'],
   label {
-    cursor: url('/favicon.ico'), pointer !important;
+    cursor: pointer !important;
   }
 }
 

@@ -2,6 +2,7 @@ import React from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import { FluidBackground } from '@/components/fluid-background'
 import { ThemeProvider } from '@/components/theme-provider'
+import { FloatingSupportIcon } from '@/components/floating-support-icon'
 
 import './styles.css'
 
@@ -18,6 +19,7 @@ export default function FrontendLayout({ children }: { children: React.ReactNode
         {/* Animated fluid blue blobs – Framer Motion */}
         <FluidBackground />
         <main className="relative z-10">{children}</main>
+        <FloatingSupportIcon />
         <Toaster />
       </div>
     </ThemeProvider>

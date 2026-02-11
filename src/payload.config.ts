@@ -14,6 +14,7 @@ import { Payroll } from './collections/Payroll'
 import { Holidays } from './collections/Holidays'
 import { Meetings } from './collections/Meetings'
 import { Notifications } from './collections/Notifications'
+import { Tasks } from './collections/Tasks'
 import { WorkSettings } from './globals/WorkSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -60,7 +61,17 @@ export default buildConfig({
       },
     },
   },
-  collections: [Users, Media, Attendance, Leaves, Payroll, Holidays, Meetings, Notifications],
+  collections: [
+    Users,
+    Media,
+    Attendance,
+    Leaves,
+    Payroll,
+    Holidays,
+    Meetings,
+    Notifications,
+    Tasks,
+  ],
   globals: [WorkSettings],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
