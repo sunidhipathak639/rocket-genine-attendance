@@ -13,6 +13,7 @@ import {
   Menu,
   Bell,
   Coffee,
+  Video,
 } from 'lucide-react'
 import { HolidaysCalendar } from './holidays-calendar'
 import Link from 'next/link'
@@ -139,6 +140,7 @@ export function DashboardClient({
     link?: string
     read?: boolean
     createdAt: string
+    type?: string
   }
   const [notifications, setNotifications] = useState<NotificationDoc[]>([])
   const [notificationsUnread, setNotificationsUnread] = useState(0)
@@ -1123,40 +1125,56 @@ export function DashboardClient({
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`w-full text-left px-4 py-3 border-b border-border/60 last:border-0 transition-colors hover:bg-slate-50 dark:hover:bg-muted/50 ${!n.read ? 'bg-indigo-50/80 dark:bg-primary/10' : ''}`}
+                      className={`relative group w-full text-left p-4 border-b border-border/50 last:border-0 hover:bg-slate-50 dark:hover:bg-muted/30 transition-all duration-200 ${!n.read ? 'bg-indigo-50/40 dark:bg-indigo-900/10' : ''}`}
                     >
-                      <div onClick={() => handleNotificationClick(n)} className="cursor-pointer">
-                        <p className="font-semibold text-sm text-slate-900 dark:text-foreground line-clamp-1">
-                          {n.title || 'Notification'}
-                        </p>
-                        {n.body && (
-                          <p className="text-xs text-slate-500 dark:text-muted-foreground mt-0.5">
-                            {n.body}
-                          </p>
-                        )}
-                        <p className="text-[10px] text-slate-400 dark:text-muted-foreground mt-1">
-                          {n.createdAt
-                            ? new Date(n.createdAt).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
-                            : ''}
-                        </p>
-                      </div>
-                      {n.link && (
-                        <Button
-                          size="sm"
-                          className="w-full mt-2 h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            window.open(n.link, '_blank')
-                            markNotificationRead(n.id)
-                          }}
+                      <div
+                        onClick={() => handleNotificationClick(n)}
+                        className="cursor-pointer flex gap-3"
+                      >
+                        <div
+                          className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${n.type === 'meeting' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}
                         >
-                          Join Meeting
-                        </Button>
+                          {n.type === 'meeting' ? (
+                            <Video className="w-4 h-4" />
+                          ) : (
+                            <Bell className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <h4 className="text-sm font-semibold text-slate-900 dark:text-foreground truncate">
+                              {n.title || 'Notification'}
+                            </h4>
+                            <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                              {n.createdAt && format(new Date(n.createdAt), 'h:mm a')}
+                            </span>
+                          </div>
+
+                          {n.body && (
+                            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-2">
+                              {n.body}
+                            </p>
+                          )}
+
+                          {n.link && n.type === 'meeting' && (
+                            <Button
+                              size="sm"
+                              className="w-full h-8 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                window.open(n.link, '_blank')
+                                markNotificationRead(n.id)
+                              }}
+                            >
+                              <Video className="w-3.5 h-3.5" />
+                              Join Meeting
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {!n.read && (
+                        <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50 dark:ring-indigo-900/20" />
                       )}
                     </div>
                   ))
