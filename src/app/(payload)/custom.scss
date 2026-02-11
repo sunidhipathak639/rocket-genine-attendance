@@ -1,8 +1,15 @@
-:root,
+/* 
+ * ADMIN PANEL: ALWAYS FORCE LIGHT THEME
+ * Regardless of user selection (light/dark/auto), admin panel always uses light theme.
+ * This applies to ALL elements in the Payload admin panel.
+ */
+
+/* Force Light Theme Colors - ALWAYS apply in admin panel */
 html,
-body,
-[data-theme='dark'] {
-  /* Force Light Theme Colors */
+html[data-theme='dark'],
+html[data-theme='light'],
+html[data-theme='auto'] {
+  /* Light Theme Colors */
   --theme-bg-html: #ffffff !important;
   --theme-bg-body: #ffffff !important;
   --theme-bg-app: #ffffff !important;
@@ -36,31 +43,46 @@ body,
   --theme-error-100: #fee2e2;
   --theme-error-500: #ef4444;
   --theme-error-700: #b91c1c;
-  --theme-elevation-200: #e5e5e5;
+  --theme-elevation-200: #e5e7e5;
   --theme-elevation-600: #525252;
   --theme-elevation-800: #262626;
   --theme-elevation-900: #171717;
 }
 
-html,
-body {
+/* Force light theme body styles - ALWAYS */
+html body,
+html[data-theme='dark'] body,
+html[data-theme='light'] body,
+html[data-theme='auto'] body {
   background-color: #ffffff !important;
   color: #000000 !important;
 }
 
-/* Ensure labels and other text are black */
-label,
-p,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  color: #000000;
+/* Force light theme text colors - ALWAYS */
+html label,
+html p,
+html h1,
+html h2,
+html h3,
+html h4,
+html h5,
+html h6,
+html[data-theme='dark'] label,
+html[data-theme='dark'] p,
+html[data-theme='dark'] h1,
+html[data-theme='dark'] h2,
+html[data-theme='dark'] h3,
+html[data-theme='dark'] h4,
+html[data-theme='dark'] h5,
+html[data-theme='dark'] h6 {
+  color: #000000 !important;
 }
 
-html body #app {
+/* Force light theme app background - ALWAYS */
+html body #app,
+html[data-theme='dark'] body #app,
+html[data-theme='light'] body #app,
+html[data-theme='auto'] body #app {
   background-color: #ffffff !important;
 }
 

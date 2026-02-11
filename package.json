@@ -18,6 +18,8 @@
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
     "list-users": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/list-users.ts",
     "seed-staff": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/seed-staff-users.ts",
+    "seed-attendance": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/seed-attendance-data.ts",
+    "fix-media-duplicates": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/fix-duplicate-media-sql.ts",
     "clear-blob": "cross-env NODE_OPTIONS=--no-deprecation npx tsx scripts/clear-blob-storage.ts"
   },
   "dependencies": {
