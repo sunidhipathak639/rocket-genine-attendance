@@ -67,12 +67,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create meeting request
-    const reqWithUser = {
-      ...request,
-      user,
-      payload,
-    } as any
-
     const meetingRequest = await payload.create({
       collection: 'meeting-requests',
       data: {
@@ -81,7 +75,11 @@ export async function POST(request: NextRequest) {
         description: description?.trim() || '',
         status: 'pending',
       },
-      req: reqWithUser,
+      overrideAccess: true,
+      req: {
+        user,
+        payload,
+      } as any,
     })
 
     return NextResponse.json({

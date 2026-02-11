@@ -1121,31 +1121,44 @@ export function DashboardClient({
                   </div>
                 ) : (
                   notifications.map((n) => (
-                    <button
+                    <div
                       key={n.id}
-                      type="button"
-                      onClick={() => handleNotificationClick(n)}
                       className={`w-full text-left px-4 py-3 border-b border-border/60 last:border-0 transition-colors hover:bg-slate-50 dark:hover:bg-muted/50 ${!n.read ? 'bg-indigo-50/80 dark:bg-primary/10' : ''}`}
                     >
-                      <p className="font-semibold text-sm text-slate-900 dark:text-foreground line-clamp-1">
-                        {n.title || 'Notification'}
-                      </p>
-                      {n.body && (
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground mt-0.5 line-clamp-2">
-                          {n.body}
+                      <div onClick={() => handleNotificationClick(n)} className="cursor-pointer">
+                        <p className="font-semibold text-sm text-slate-900 dark:text-foreground line-clamp-1">
+                          {n.title || 'Notification'}
                         </p>
+                        {n.body && (
+                          <p className="text-xs text-slate-500 dark:text-muted-foreground mt-0.5">
+                            {n.body}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-slate-400 dark:text-muted-foreground mt-1">
+                          {n.createdAt
+                            ? new Date(n.createdAt).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : ''}
+                        </p>
+                      </div>
+                      {n.link && (
+                        <Button
+                          size="sm"
+                          className="w-full mt-2 h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.open(n.link, '_blank')
+                            markNotificationRead(n.id)
+                          }}
+                        >
+                          Join Meeting
+                        </Button>
                       )}
-                      <p className="text-[10px] text-slate-400 dark:text-muted-foreground mt-1">
-                        {n.createdAt
-                          ? new Date(n.createdAt).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : ''}
-                      </p>
-                    </button>
+                    </div>
                   ))
                 )}
               </div>

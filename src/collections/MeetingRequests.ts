@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { format } from 'date-fns'
 import { sendEmail } from '@/lib/email'
 import { getMeetingRequestEmail, getMeetingScheduledEmail } from '@/lib/email-templates'
 
@@ -30,7 +31,10 @@ export const MeetingRequests: CollectionConfig = {
       }
       return false
     },
-    create: () => true,
+    create: ({ req: { user } }) => {
+      // Staff can create meeting requests
+      return user?.role === 'staff' || Boolean(user)
+    },
     update: ({ req: { user } }) => {
       if (!user) return false
       // Technical staff can update requests assigned to them
@@ -272,6 +276,8 @@ export const MeetingRequests: CollectionConfig = {
                   user: doc.staff,
                   title: 'Meeting Scheduled',
                   message: `Your meeting "${doc.topic}" has been scheduled`,
+                  body: `Meeting with ${(technicalStaff as any)?.name || 'Technical Staff'} on ${format(new Date(doc.scheduledDate), 'PPP p')}`,
+                  link: doc.meetingLink,
                   type: 'meeting',
                   read: false,
                 },
@@ -286,6 +292,8 @@ export const MeetingRequests: CollectionConfig = {
                     user: doc.technicalStaff,
                     title: 'Meeting Scheduled',
                     message: `Meeting "${doc.topic}" has been scheduled`,
+                    body: `Meeting with ${(staffMember as any)?.name || 'Staff Member'} on ${format(new Date(doc.scheduledDate), 'PPP p')}`,
+                    link: doc.meetingLink,
                     type: 'meeting',
                     read: false,
                   },
@@ -307,6 +315,8 @@ export const MeetingRequests: CollectionConfig = {
                     user: admin.id,
                     title: 'Meeting Scheduled',
                     message: `Meeting "${doc.topic}" has been scheduled`,
+                    body: `Meeting between ${(staffMember as any)?.name} and ${(technicalStaff as any)?.name} on ${format(new Date(doc.scheduledDate), 'PPP p')}`,
+                    link: doc.meetingLink,
                     type: 'meeting',
                     read: false,
                   },
