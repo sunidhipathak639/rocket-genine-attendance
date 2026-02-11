@@ -145,6 +145,7 @@ export function DashboardClient({
   const [notifications, setNotifications] = useState<NotificationDoc[]>([])
   const [notificationsUnread, setNotificationsUnread] = useState(0)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [selectedNotification, setSelectedNotification] = useState<NotificationDoc | null>(null)
   const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] = useState<
     { startDate: string; endDate: string; type?: string }[]
   >([])
@@ -1128,7 +1129,14 @@ export function DashboardClient({
                       className={`relative group w-full text-left p-4 border-b border-border/50 last:border-0 hover:bg-slate-50 dark:hover:bg-muted/30 transition-all duration-200 ${!n.read ? 'bg-indigo-50/40 dark:bg-indigo-900/10' : ''}`}
                     >
                       <div
-                        onClick={() => handleNotificationClick(n)}
+                        onClick={() => {
+                          if (n.type === 'meeting') {
+                            setSelectedNotification(n)
+                            setNotificationsOpen(false)
+                          } else {
+                            handleNotificationClick(n)
+                          }
+                        }}
                         className="cursor-pointer flex gap-3"
                       >
                         <div
@@ -1687,6 +1695,76 @@ export function DashboardClient({
           </div>
         </div>
       </main>
+
+      {/* Meeting Details Dialog */}
+      <Dialog
+        open={!!selectedNotification}
+        onOpenChange={(open) => !open && setSelectedNotification(null)}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl border-0 shadow-2xl bg-white dark:bg-slate-900 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-10" />
+
+          <div className="relative pt-6 px-6 pb-2">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm flex-shrink-0">
+                <Video className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <DialogTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+                  {selectedNotification?.title || 'Meeting Details'}
+                </DialogTitle>
+                <div className="flex items-center gap-2 mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {selectedNotification?.createdAt &&
+                      format(new Date(selectedNotification.createdAt), 'PPPP p')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Details
+                </h4>
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                  {selectedNotification?.body}
+                </p>
+              </div>
+
+              {selectedNotification?.link && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30 text-xs text-indigo-600 dark:text-indigo-400">
+                  <Video className="w-4 h-4" />
+                  <span className="truncate flex-1">{selectedNotification.link}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-11 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+                onClick={() => setSelectedNotification(null)}
+              >
+                Close
+              </Button>
+              {selectedNotification?.link && (
+                <Button
+                  className="flex-1 rounded-xl h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/20"
+                  onClick={() => {
+                    window.open(selectedNotification.link, '_blank')
+                    markNotificationRead(selectedNotification.id)
+                    setSelectedNotification(null)
+                  }}
+                >
+                  Join Meeting Now
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
