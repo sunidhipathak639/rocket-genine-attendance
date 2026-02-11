@@ -9,7 +9,8 @@ import '@/app/(frontend)/styles.css'
 export default async function TechnicalLayout({ children }: { children: React.ReactNode }) {
   // This layout applies to all routes under /technical except /technical/login
   // Login page handles its own auth check
-  const pathname = headers().get('x-pathname') || ''
+  const headersList = await headers()
+  const pathname = headersList.get('x-pathname') || ''
 
   // Don't apply auth check to login page
   if (pathname === '/technical/login') {

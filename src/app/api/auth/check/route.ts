@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         role: user.role,
       },
     })
-  } catch (error: any) {
+  } catch {
     return NextResponse.json({ authenticated: false, user: null })
   }
 }

@@ -7,11 +7,12 @@ import { APIError } from 'payload'
  * POST: Add a comment to a task
  * Anyone can add comments - no authentication required
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const payload = await getPayload({ config: await configPromise })
+    const { id } = await params
 
-    const taskId = parseInt(params.id, 10)
+    const taskId = parseInt(id, 10)
     if (isNaN(taskId)) {
       return NextResponse.json({ message: 'Invalid task ID' }, { status: 400 })
     }
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     })
 
     const body = await request.json()
-    const { comment, authorName, authorEmail } = body
+    const { comment } = body
 
     if (!comment || !comment.trim()) {
       return NextResponse.json({ message: 'Comment is required' }, { status: 400 })

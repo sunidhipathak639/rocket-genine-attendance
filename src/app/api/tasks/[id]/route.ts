@@ -7,11 +7,12 @@ import { APIError } from 'payload'
  * PATCH: Update task status
  * Anyone can update task status - no authentication required
  */
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const payload = await getPayload({ config: await configPromise })
+    const { id } = await params
 
-    const taskId = parseInt(params.id, 10)
+    const taskId = parseInt(id, 10)
     if (isNaN(taskId)) {
       return NextResponse.json({ message: 'Invalid task ID' }, { status: 400 })
     }

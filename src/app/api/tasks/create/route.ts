@@ -53,6 +53,15 @@ export async function POST(request: NextRequest) {
       }
 
       user = staffUsers.docs[0] as any
+      if (!user) {
+        return NextResponse.json(
+          {
+            message:
+              'No staff account found with this email. Please check your email or contact admin.',
+          },
+          { status: 404 },
+        )
+      }
       createdByUserId = user.id
     } else {
       // Authenticated user - verify they are staff

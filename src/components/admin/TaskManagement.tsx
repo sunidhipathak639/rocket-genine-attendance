@@ -3,20 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import {
-  Download,
-  Wrench,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  AlertCircle,
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  FileText,
-  TrendingUp,
-} from 'lucide-react'
+import { Download, CheckCircle2, Clock, XCircle, User, FileText } from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -29,8 +16,6 @@ import {
   Tooltip,
   Legend,
   CartesianGrid,
-  LineChart,
-  Line,
 } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { format } from 'date-fns'
@@ -70,7 +55,6 @@ const COLORS = {
 export default function TaskManagement() {
   const [data, setData] = useState<TaskAnalyticsData | null>(null)
   const [allTasks, setAllTasks] = useState<Task[]>([])
-  const [technicalStaff, setTechnicalStaff] = useState<UserType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedStaff, setSelectedStaff] = useState<TasksPerStaff | null>(null)
@@ -102,14 +86,14 @@ export default function TaskManagement() {
         setAllTasks(tasksData.docs || tasksData || [])
       }
 
-      // Fetch technical staff
-      const staffRes = await fetch(`${base}/api/users?role=technical&limit=100`, {
-        credentials: 'include',
-      })
-      if (staffRes.ok) {
-        const staffData = await staffRes.json()
-        setTechnicalStaff(staffData.docs || staffData || [])
-      }
+      // Fetch technical staff (for future use if needed)
+      // const staffRes = await fetch(`${base}/api/users?role=technical&limit=100`, {
+      //   credentials: 'include',
+      // })
+      // if (staffRes.ok) {
+      //   const staffData = await staffRes.json()
+      //   // setTechnicalStaff(staffData.docs || staffData || [])
+      // }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load task data')
     } finally {
@@ -351,10 +335,13 @@ export default function TaskManagement() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) =>
+                    `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`
+                  }
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
+                  isAnimationActive={false}
                 >
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />

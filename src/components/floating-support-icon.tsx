@@ -26,7 +26,7 @@ export function FloatingSupportIcon() {
         } else {
           setIsAuthenticated(false)
         }
-      } catch (error) {
+      } catch {
         setIsAuthenticated(false)
       } finally {
         setIsChecking(false)
@@ -101,7 +101,7 @@ export function FloatingSupportIcon() {
               ) : (
                 <IssueSubmissionForm
                   onSuccess={() => setIsOpen(false)}
-                  isAuthenticated={isAuthenticated && userRole === 'staff'}
+                  isAuthenticated={Boolean(isAuthenticated && userRole === 'staff')}
                 />
               )}
             </div>

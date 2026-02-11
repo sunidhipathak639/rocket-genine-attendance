@@ -205,7 +205,6 @@ export function AdminDashboardViewEnhanced({
   )
   const [customDownloadStart, setCustomDownloadStart] = useState('')
   const [customDownloadEnd, setCustomDownloadEnd] = useState('')
-  const todayStr = format(new Date(), 'yyyy-MM-dd')
 
   // Fetch leaves when staff is selected
   useEffect(() => {

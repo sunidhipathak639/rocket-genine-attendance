@@ -24,14 +24,16 @@ export const Tasks: CollectionConfig = {
       // Admins can read all tasks
       if (user.role === 'admin') return true
       if (user.role === 'technical') {
-        return {
+        const where: { assignedTo: { equals: number | string } } = {
           assignedTo: { equals: user.id },
         }
+        return where
       }
       if (user.role === 'staff') {
-        return {
+        const where: { createdBy: { equals: number | string } } = {
           createdBy: { equals: user.id },
         }
+        return where
       }
       return false
     },
@@ -103,9 +105,6 @@ export const Tasks: CollectionConfig = {
       required: true,
       admin: {
         description: 'Technical Staff member assigned to this task',
-        filterOptions: {
-          role: { equals: 'technical' },
-        },
       },
     },
     {
@@ -115,9 +114,6 @@ export const Tasks: CollectionConfig = {
       required: true,
       admin: {
         description: 'Staff member who created this task',
-        filterOptions: {
-          role: { equals: 'staff' },
-        },
       },
     },
     {
@@ -322,7 +318,6 @@ export const Tasks: CollectionConfig = {
                     taskTitle: doc.title,
                     taskDescription: doc.description || '',
                     staffName: (creator as any).name || 'Staff Member',
-                    taskId: doc.id,
                   }),
                 })
               } catch (emailError) {

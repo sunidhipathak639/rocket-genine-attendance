@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Loader2, Wrench } from 'lucide-react'
 
 export function TechnicalLoginForm() {
@@ -31,9 +32,7 @@ export function TechnicalLoginForm() {
 
       // Redirect to technical dashboard
       if (data.user?.role === 'technical') {
-        setTimeout(() => {
-          window.location.href = '/technical'
-        }, 100)
+        router.push('/technical')
       } else {
         throw new Error('Invalid user role')
       }
@@ -125,19 +124,19 @@ export function TechnicalLoginForm() {
           <div className="text-center text-sm text-slate-500 mt-6 space-y-2">
             <p>Need a different login portal?</p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
-              <a
+              <Link
                 href="/login"
                 className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
               >
                 Staff Portal
-              </a>
+              </Link>
               <span className="text-slate-400">•</span>
-              <a
+              <Link
                 href="/admin/login"
                 className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
               >
                 Admin Portal
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -46,12 +46,10 @@ export const Payroll: CollectionConfig = {
           const workSettings = await req.payload.findGlobal({
             slug: 'work-settings',
           })
-          const saturdayIsWorkingDay = workSettings?.saturdayWorkingDay || false
           const leavesArePaid = workSettings?.leavesArePaid || false
 
           // Calculate total days in the month (all days including weekends are paid)
           // This is used for daily salary calculation (base salary / days in month)
-          const monthStartDate = new Date(year, month - 1, 1)
           const monthEndDate = new Date(year, month, 0) // Last day of month
           const totalDaysInMonth = monthEndDate.getDate() // Total days in the month (e.g., 31 for January)
 
@@ -235,8 +233,6 @@ export const Payroll: CollectionConfig = {
           approvedLeaves.docs.forEach((leave: any) => {
             const leaveStart = new Date(leave.startDate)
             const leaveEnd = new Date(leave.endDate)
-            const leaveStartMonth = leaveStart.getMonth() + 1
-            const leaveEndMonth = leaveEnd.getMonth() + 1
 
             // Only count leaves that overlap with the payroll period
             const actualStart = leaveStart < startDate ? startDate : leaveStart
@@ -258,7 +254,7 @@ export const Payroll: CollectionConfig = {
 
           // Count ALL holidays for reference (all holidays are paid, included in total days)
           let holidayDays = 0
-          holidays.docs.forEach((holiday: any) => {
+          holidays.docs.forEach((_holiday: any) => {
             holidayDays++
           })
 
@@ -291,7 +287,6 @@ export const Payroll: CollectionConfig = {
 
           // Extract calculated values
           const {
-            dailySalary,
             absentDays,
             payableDays,
             absentDeduction,

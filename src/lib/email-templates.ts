@@ -620,12 +620,10 @@ export function getTaskCreatedConfirmationEmail({
   taskTitle,
   taskDescription,
   staffName,
-  taskId,
 }: {
   taskTitle: string
   taskDescription: string
   staffName: string
-  taskId: number | string
 }): string {
   const content = `
     <h1>✅ Issue Reported Successfully</h1>

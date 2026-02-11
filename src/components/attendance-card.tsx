@@ -502,16 +502,11 @@ export function AttendanceCard({
   })()
 
   // Calculate current break duration if on break
-  const currentBreakMs = (() => {
-    if (!isOnBreak || !breakEndsAt) return 0
-    // Find the most recent break start time from breaks array
-    // If break is active but not yet recorded, estimate from breakEndsAt
-    const now = Date.now()
-    // For active break, we need to track when it started
-    // Since we don't have breakStartTime in props, we'll calculate from breakEndsAt
-    // This is approximate - ideally we'd pass breakStartTime too
-    return 0 // Will be handled by excluding current time period
-  })()
+  // Note: Break duration is calculated elsewhere, this is kept for future use
+  // const currentBreakMs = (() => {
+  //   if (!isOnBreak || !breakEndsAt) return 0
+  //   return 0 // Will be handled by excluding current time period
+  // })()
 
   // Calculate duration worked (excluding break time)
   const durationWorked = (() => {
