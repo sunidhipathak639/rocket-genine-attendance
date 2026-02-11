@@ -4,8 +4,12 @@ import configPromise from '@payload-config'
 
 /**
  * Admin-only: generate payroll for one user for a given month (default: current month).
+ * Supports custom date ranges for partial period payroll (e.g., 3 days, 1 week).
  * POST /api/admin/generate-payroll
- * Body: { userId: string, month?: string }  month = YYYY-MM
+ * Body: { userId: string, month?: string, startDate?: string, endDate?: string }
+ *   - month = YYYY-MM (required for salary calculation base)
+ *   - startDate = YYYY-MM-DD (optional, defaults to first day of month)
+ *   - endDate = YYYY-MM-DD (optional, defaults to last day of month)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +24,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const userIdRaw = body.userId
     let month = body.month
+    const startDate = body.startDate // Optional: YYYY-MM-DD
+    const endDate = body.endDate // Optional: YYYY-MM-DD
 
     if (userIdRaw == null || userIdRaw === '') {
       return NextResponse.json({ error: 'User is required to generate payroll.' }, { status: 400 })
@@ -74,19 +80,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const payrollData: any = {
+      user: targetUser.id,
+      month,
+      baseSalary: Number(baseSalary),
+      finalAmount: 0,
+    }
+
+    // Add custom date range if provided
+    if (startDate) {
+      payrollData.startDate = startDate
+    }
+    if (endDate) {
+      payrollData.endDate = endDate
+    }
+
     const doc = await payload.create({
       collection: 'payroll',
-      data: {
-        user: targetUser.id,
-        month,
-        baseSalary: Number(baseSalary),
-        finalAmount: 0,
-      } as any,
+      data: payrollData,
       req: { user, payload, headers: request.headers, url: request.url, method: 'POST' } as any,
       overrideAccess: true,
     })
 
-    return NextResponse.json({ doc, message: `Payroll for ${month} created.` })
+    const periodInfo = startDate && endDate ? ` (${startDate} to ${endDate})` : ''
+    return NextResponse.json({ doc, message: `Payroll for ${month}${periodInfo} created.` })
   } catch (error: any) {
     console.error('Admin generate-payroll error:', error)
     const message =

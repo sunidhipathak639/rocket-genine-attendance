@@ -99,5 +99,15 @@ export const WorkSettings: GlobalConfig = {
           'Maximum number of breaks (10–25 min each) a staff member can take per day. Applies to all users including admin when they use the dashboard.',
       },
     },
+    {
+      name: 'leavesArePaid',
+      type: 'checkbox',
+      label: 'Leaves are Paid',
+      defaultValue: false,
+      admin: {
+        description:
+          'Enable if approved leaves should be paid (included in salary). If disabled, leaves result in salary deduction.',
+      },
+    },
   ],
 }

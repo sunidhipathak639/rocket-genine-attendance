@@ -1,5 +1,10 @@
 import type { CollectionConfig } from 'payload'
 import { APIError } from 'payload'
+import {
+  calculatePayroll,
+  type PayrollCalculationInput,
+  roundToTwoDecimals,
+} from '@/lib/payroll-calculator'
 
 export const Payroll: CollectionConfig = {
   slug: 'payroll',
@@ -42,31 +47,46 @@ export const Payroll: CollectionConfig = {
             slug: 'work-settings',
           })
           const saturdayIsWorkingDay = workSettings?.saturdayWorkingDay || false
+          const leavesArePaid = workSettings?.leavesArePaid || false
 
-          // Calculate total working days in the month
-          const startDate = new Date(year, month - 1, 1)
-          const endDate = new Date(year, month, 0) // Last day of month
-          let totalWorkingDays = 0
+          // Calculate total days in the month (all days including weekends are paid)
+          // This is used for daily salary calculation (base salary / days in month)
+          const monthStartDate = new Date(year, month - 1, 1)
+          const monthEndDate = new Date(year, month, 0) // Last day of month
+          const totalDaysInMonth = monthEndDate.getDate() // Total days in the month (e.g., 31 for January)
 
-          const currentDate = new Date(startDate)
-          while (currentDate <= endDate) {
-            const dayOfWeek = currentDate.getDay()
-            // Count weekdays (Monday-Friday) and Saturday if it's a working day
-            if (dayOfWeek !== 0 && (dayOfWeek !== 6 || saturdayIsWorkingDay)) {
-              totalWorkingDays++
-            }
-            currentDate.setDate(currentDate.getDate() + 1)
+          // Determine actual payroll period (custom dates or full month)
+          const startDate = data.startDate ? new Date(data.startDate) : new Date(year, month - 1, 1)
+          const endDate = data.endDate ? new Date(data.endDate) : new Date(year, month, 0)
+
+          // Validate date range
+          if (startDate > endDate) {
+            throw new APIError('Start date must be before or equal to end date.', 400)
           }
 
-          // Fetch holidays for the month (internal hook; bypass access)
+          // Calculate total days in the selected period (all days including weekends are paid)
+          const periodStart = new Date(startDate)
+          periodStart.setHours(0, 0, 0, 0)
+          const periodEnd = new Date(endDate)
+          periodEnd.setHours(23, 59, 59, 999)
+
+          // Count total days in the period (inclusive)
+          let totalDaysInPeriod = 0
+          const checkDate = new Date(periodStart)
+          while (checkDate <= periodEnd) {
+            totalDaysInPeriod++
+            checkDate.setDate(checkDate.getDate() + 1)
+          }
+
+          // Fetch holidays for the period (internal hook; bypass access)
           const holidays = await req.payload.find({
             collection: 'holidays',
             where: {
               and: [
                 {
                   date: {
-                    greater_than_equal: `${year}-${String(month).padStart(2, '0')}-01`,
-                    less_than_equal: `${year}-${String(month).padStart(2, '0')}-31`,
+                    greater_than_equal: startDate.toISOString().split('T')[0],
+                    less_than_equal: endDate.toISOString().split('T')[0],
                   },
                 },
               ],
@@ -76,17 +96,10 @@ export const Payroll: CollectionConfig = {
             overrideAccess: true,
           })
 
-          // Subtract holidays from total working days
-          holidays.docs.forEach((holiday: any) => {
-            const holidayDate = new Date(holiday.date)
-            const holidayDayOfWeek = holidayDate.getDay()
-            // Only subtract if it's a working day
-            if (holidayDayOfWeek !== 0 && (holidayDayOfWeek !== 6 || saturdayIsWorkingDay)) {
-              totalWorkingDays--
-            }
-          })
+          // Note: We don't subtract holidays from total days because holidays are also paid days
+          // All days in the month (including weekends and holidays) are considered paid days
 
-          // Fetch attendance records for the month (internal hook; bypass access)
+          // Fetch attendance records for the period (internal hook; bypass access)
           const attendanceRecords = await req.payload.find({
             collection: 'attendance',
             where: {
@@ -94,8 +107,8 @@ export const Payroll: CollectionConfig = {
                 { user: { equals: userIdNum } },
                 {
                   date: {
-                    greater_than_equal: `${year}-${String(month).padStart(2, '0')}-01`,
-                    less_than_equal: `${year}-${String(month).padStart(2, '0')}-31`,
+                    greater_than_equal: startDate.toISOString().split('T')[0],
+                    less_than_equal: endDate.toISOString().split('T')[0],
                   },
                 },
               ],
@@ -105,7 +118,9 @@ export const Payroll: CollectionConfig = {
             overrideAccess: true,
           })
 
-          // Calculate stats
+          // Calculate attendance stats from attendance records
+          // Note: Absent days are NOT counted here - they will be calculated using the formula:
+          // Absent Days = Total Days - (Present Days + Leave Days)
           let presentDays = 0
           let lateCount = 0
           let halfDayCount = 0
@@ -118,11 +133,12 @@ export const Payroll: CollectionConfig = {
               presentDays++ // Late still counts as present
             } else if (record.status === 'half-day') {
               halfDayCount++
-              presentDays += 0.5 // Half day counts as 0.5
+              presentDays += 0.5 // Half day counts as 0.5 present (penalty will be deducted separately)
             }
+            // Absent days are NOT counted here - they will be calculated from the formula
           })
 
-          // Fetch approved leaves for the month (internal hook; bypass access)
+          // Fetch approved leaves for the period (internal hook; bypass access)
           const approvedLeaves = await req.payload.find({
             collection: 'leaves',
             where: {
@@ -131,12 +147,12 @@ export const Payroll: CollectionConfig = {
                 { bookingStatus: { equals: 'approved' } },
                 {
                   startDate: {
-                    less_than_equal: `${year}-${String(month).padStart(2, '0')}-31`,
+                    less_than_equal: endDate.toISOString().split('T')[0],
                   },
                 },
                 {
                   endDate: {
-                    greater_than_equal: `${year}-${String(month).padStart(2, '0')}-01`,
+                    greater_than_equal: startDate.toISOString().split('T')[0],
                   },
                 },
               ],
@@ -146,7 +162,8 @@ export const Payroll: CollectionConfig = {
             overrideAccess: true,
           })
 
-          // Calculate leave days (only count working days in leave range)
+          // Calculate leave days (count ALL days in leave range - weekends and holidays are also deducted)
+          // Since all days are paid, all leave days result in deduction
           let leavesTaken = 0
           approvedLeaves.docs.forEach((leave: any) => {
             const leaveStart = new Date(leave.startDate)
@@ -154,74 +171,93 @@ export const Payroll: CollectionConfig = {
             const leaveStartMonth = leaveStart.getMonth() + 1
             const leaveEndMonth = leaveEnd.getMonth() + 1
 
-            // Only count leaves that overlap with the payroll month
-            if (
-              leaveStartMonth === month ||
-              leaveEndMonth === month ||
-              (leaveStartMonth < month && leaveEndMonth > month)
-            ) {
-              const actualStart = leaveStart < startDate ? startDate : leaveStart
-              const actualEnd = leaveEnd > endDate ? endDate : leaveEnd
+            // Only count leaves that overlap with the payroll period
+            const actualStart = leaveStart < startDate ? startDate : leaveStart
+            const actualEnd = leaveEnd > endDate ? endDate : leaveEnd
 
+            if (actualStart <= actualEnd) {
               const checkDate = new Date(actualStart)
               while (checkDate <= actualEnd) {
-                const dayOfWeek = checkDate.getDay()
-                // Count only working days
-                if (dayOfWeek !== 0 && (dayOfWeek !== 6 || saturdayIsWorkingDay)) {
-                  // Check if it's not a holiday
-                  const isHoliday = holidays.docs.some((hol: any) => {
-                    const holidayDate = new Date(hol.date)
-                    return holidayDate.toDateString() === checkDate.toDateString()
-                  })
-
-                  if (!isHoliday) {
-                    if (leave.type === 'half_day') {
-                      leavesTaken += 0.5
-                    } else {
-                      leavesTaken += 1
-                    }
-                  }
+                // Count ALL days (including weekends and holidays) - all leave days result in deduction
+                if (leave.type === 'half_day') {
+                  leavesTaken += 0.5
+                } else {
+                  leavesTaken += 1
                 }
                 checkDate.setDate(checkDate.getDate() + 1)
               }
             }
           })
 
-          // Calculate payable days (half days count as 0.5 days, but no extra penalty)
-          // Calculate payable days
-          const payableDays = presentDays
+          // Count ALL holidays for reference (all holidays are paid, included in total days)
+          let holidayDays = 0
+          holidays.docs.forEach((holiday: any) => {
+            holidayDays++
+          })
 
-          // Calculate daily salary
-          const dailySalary = data.baseSalary / totalWorkingDays
+          // Use the payroll calculator utility for clean, validated calculations
+          const payrollInput: PayrollCalculationInput = {
+            baseSalary: data.baseSalary,
+            totalDays: totalDaysInPeriod,
+            totalDaysInMonth: totalDaysInMonth,
+            presentDays: presentDays,
+            leaveDays: leavesTaken,
+            halfDayPenalties: halfDayCount,
+            leavesArePaid: leavesArePaid,
+          }
 
-          // Calculate deductions (Visual only, relative to full attendance)
-          const halfDayDeduction = halfDayCount * 0.5
-          const leaveDeduction = leavesTaken * dailySalary
-          const halfDayDeductionAmount = halfDayDeduction * dailySalary
+          // Calculate payroll using the utility function
+          // This handles:
+          // - Absent days calculation: Total Days - (Present Days + Leave Days)
+          // - Payable days calculation based on paid/unpaid leave setting
+          // - All deductions (absent, penalty, unpaid leave)
+          // - Final salary calculation with proper rounding
+          let payrollResult
+          try {
+            payrollResult = calculatePayroll(payrollInput)
+          } catch (error: any) {
+            throw new APIError(
+              `Payroll calculation error: ${error.message || 'Invalid payroll data'}`,
+              400,
+            )
+          }
 
-          // Calculate final amount based on payable days
-          const finalAmount = Math.max(0, payableDays * dailySalary)
+          // Extract calculated values
+          const {
+            dailySalary,
+            absentDays,
+            payableDays,
+            absentDeduction,
+            penaltyDeduction,
+            leaveDeduction,
+            finalSalary,
+          } = payrollResult
 
           // Update stats
           if (!data.stats) {
             data.stats = {}
           }
-          data.stats.totalDays = totalWorkingDays
+          data.stats.totalDays = totalDaysInPeriod // Total days in selected period (all are paid)
+          ;(data.stats as any).totalDaysInMonth = totalDaysInMonth // Total days in month (for reference)
           data.stats.presentDays = presentDays
           data.stats.leavesTaken = leavesTaken
           data.stats.lateCount = lateCount
-          data.stats.penaltyDays = halfDayDeduction // Renamed for clarity - this is half-day deduction, not extra penalty
-          data.stats.payableDays = payableDays
+          data.stats.penaltyDays = roundToTwoDecimals(halfDayCount * 0.5) // Half-day deduction days
+          data.stats.payableDays = roundToTwoDecimals(payableDays)
+          // Add holiday days and absent days to stats for transparency
+          ;(data.stats as any).holidayDays = holidayDays
+          ;(data.stats as any).absentDays = roundToTwoDecimals(absentDays)
 
           // Update deductions
           if (!data.deductions) {
             data.deductions = {}
           }
           data.deductions.leaveDeduction = leaveDeduction
-          data.deductions.halfDayDeduction = halfDayDeductionAmount // Renamed from latePenalty
+          data.deductions.halfDayDeduction = penaltyDeduction
+          data.deductions.absentDeduction = absentDeduction
 
-          // Update final amount
-          data.finalAmount = finalAmount
+          // Update final amount (rounded to 2 decimal places)
+          data.finalAmount = finalSalary
         }
 
         return data
@@ -240,7 +276,23 @@ export const Payroll: CollectionConfig = {
       type: 'text', // Format YYYY-MM
       required: true,
       admin: {
-        description: 'Format: YYYY-MM (e.g. 2026-01)',
+        description: 'Format: YYYY-MM (e.g. 2026-01). Used for monthly salary calculation.',
+      },
+    },
+    {
+      name: 'startDate',
+      type: 'date',
+      admin: {
+        description:
+          'Optional: Start date for payroll period. If not set, uses first day of the month.',
+      },
+    },
+    {
+      name: 'endDate',
+      type: 'date',
+      admin: {
+        description:
+          'Optional: End date for payroll period. If not set, uses last day of the month.',
       },
     },
     {
@@ -259,7 +311,8 @@ export const Payroll: CollectionConfig = {
           name: 'totalDays',
           type: 'number',
           admin: {
-            description: 'Auto-calculated: Total working days in the month',
+            description:
+              'Auto-calculated: Total days in the selected period (all days including weekends and holidays are paid). If custom dates not set, this equals total days in month.',
             readOnly: true,
           },
         },
@@ -299,7 +352,16 @@ export const Payroll: CollectionConfig = {
           name: 'payableDays',
           type: 'number',
           admin: {
-            description: 'Auto-calculated: Payable days = Total days - Leaves - Penalties',
+            description:
+              'Auto-calculated: Payable days = (Present days + Leave days if paid, or Present days if unpaid) - Penalty deductions. Absent days are calculated as: Total days - (Present days + Leave days).',
+            readOnly: true,
+          },
+        },
+        {
+          name: 'holidayDays',
+          type: 'number',
+          admin: {
+            description: 'Auto-calculated: Number of holidays in the month (paid days)',
             readOnly: true,
           },
         },
@@ -313,7 +375,8 @@ export const Payroll: CollectionConfig = {
           name: 'leaveDeduction',
           type: 'number',
           admin: {
-            description: 'Auto-calculated: Deduction for approved leaves',
+            description:
+              'Auto-calculated: Deduction for approved leaves (only if leaves are unpaid in Work Settings). If leaves are paid, this will be 0.',
             readOnly: true,
           },
         },
@@ -322,6 +385,14 @@ export const Payroll: CollectionConfig = {
           type: 'number',
           admin: {
             description: 'Auto-calculated: Deduction for half days (consecutive late days)',
+            readOnly: true,
+          },
+        },
+        {
+          name: 'absentDeduction',
+          type: 'number',
+          admin: {
+            description: 'Auto-calculated: Deduction for absent days',
             readOnly: true,
           },
         },

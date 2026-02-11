@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       html = getLeaveRequestEmail({
         employeeName: 'Test Employee',
         employeeEmail: to,
-        leaveType: 'paid',
+        leaveType: 'full_day',
         startDate: 'Feb 10, 2026',
         endDate: 'Feb 12, 2026',
         reason: 'This is a test leave request to verify the modern template.',
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       subject = '✅ TEST: Leave Request Approved'
       html = getLeaveStatusEmail({
         employeeName: 'Test Employee',
-        leaveType: 'unpaid',
+        leaveType: 'full_day',
         startDate: 'Feb 15, 2026',
         endDate: 'Feb 16, 2026',
         status: 'approved',

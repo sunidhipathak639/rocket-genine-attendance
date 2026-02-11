@@ -23,8 +23,6 @@ interface MyLeaveStatusListProps {
 const typeLabels: Record<string, string> = {
   full_day: 'Full Day',
   half_day: 'Half Day',
-  paid: 'Paid Leave',
-  unpaid: 'Unpaid Leave',
 }
 
 const container = {

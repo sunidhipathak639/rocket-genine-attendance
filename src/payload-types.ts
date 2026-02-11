@@ -334,7 +334,10 @@ export interface Attendance {
 export interface Leaf {
   id: number;
   user: number | User;
-  type: 'full_day' | 'half_day' | 'paid' | 'unpaid';
+  /**
+   * All leaves result in salary deduction. Paid/Unpaid distinction removed.
+   */
+  type: 'full_day' | 'half_day';
   startDate: string;
   endDate: string;
   reason?: string | null;
@@ -354,16 +357,24 @@ export interface Payroll {
   id: number;
   user: number | User;
   /**
-   * Format: YYYY-MM (e.g. 2026-01)
+   * Format: YYYY-MM (e.g. 2026-01). Used for monthly salary calculation.
    */
   month: string;
+  /**
+   * Optional: Start date for payroll period. If not set, uses first day of the month.
+   */
+  startDate?: string | null;
+  /**
+   * Optional: End date for payroll period. If not set, uses last day of the month.
+   */
+  endDate?: string | null;
   /**
    * Base salary in INR
    */
   baseSalary: number;
   stats?: {
     /**
-     * Auto-calculated: Total working days in the month
+     * Auto-calculated: Total days in the selected period (all days including weekends and holidays are paid). If custom dates not set, this equals total days in month.
      */
     totalDays?: number | null;
     /**
@@ -383,19 +394,27 @@ export interface Payroll {
      */
     penaltyDays?: number | null;
     /**
-     * Auto-calculated: Payable days = Total days - Leaves - Penalties
+     * Auto-calculated: Payable days = (Present days + Leave days if paid, or Present days if unpaid) - Penalty deductions. Absent days are calculated as: Total days - (Present days + Leave days).
      */
     payableDays?: number | null;
+    /**
+     * Auto-calculated: Number of holidays in the month (paid days)
+     */
+    holidayDays?: number | null;
   };
   deductions?: {
     /**
-     * Auto-calculated: Deduction for approved leaves
+     * Auto-calculated: Deduction for approved leaves (only if leaves are unpaid in Work Settings). If leaves are paid, this will be 0.
      */
     leaveDeduction?: number | null;
     /**
      * Auto-calculated: Deduction for half days (consecutive late days)
      */
     halfDayDeduction?: number | null;
+    /**
+     * Auto-calculated: Deduction for absent days
+     */
+    absentDeduction?: number | null;
   };
   /**
    * Final payment amount in INR
@@ -708,6 +727,8 @@ export interface LeavesSelect<T extends boolean = true> {
 export interface PayrollSelect<T extends boolean = true> {
   user?: T;
   month?: T;
+  startDate?: T;
+  endDate?: T;
   baseSalary?: T;
   stats?:
     | T
@@ -718,12 +739,14 @@ export interface PayrollSelect<T extends boolean = true> {
         lateCount?: T;
         penaltyDays?: T;
         payableDays?: T;
+        holidayDays?: T;
       };
   deductions?:
     | T
     | {
         leaveDeduction?: T;
         halfDayDeduction?: T;
+        absentDeduction?: T;
       };
   finalAmount?: T;
   paymentStatus?: T;
@@ -851,6 +874,10 @@ export interface WorkSetting {
    * Maximum number of breaks (10–25 min each) a staff member can take per day. Applies to all users including admin when they use the dashboard.
    */
   maxBreaksPerDay: number;
+  /**
+   * Enable if approved leaves should be paid (included in salary). If disabled, leaves result in salary deduction.
+   */
+  leavesArePaid?: boolean | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -870,6 +897,7 @@ export interface WorkSettingsSelect<T extends boolean = true> {
       };
   activityCheckInterval?: T;
   maxBreaksPerDay?: T;
+  leavesArePaid?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

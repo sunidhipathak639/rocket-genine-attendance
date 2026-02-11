@@ -289,10 +289,11 @@ export const Leaves: CollectionConfig = {
       options: [
         { label: 'Full Day', value: 'full_day' },
         { label: 'Half Day', value: 'half_day' },
-        { label: 'Paid Leave', value: 'paid' },
-        { label: 'Unpaid Leave', value: 'unpaid' },
       ],
       required: true,
+      admin: {
+        description: 'All leaves result in salary deduction. Paid/Unpaid distinction removed.',
+      },
     },
     {
       name: 'startDate',

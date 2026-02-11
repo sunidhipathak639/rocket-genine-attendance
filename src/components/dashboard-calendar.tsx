@@ -51,7 +51,7 @@ interface LeaveRecord {
   startDate: string
   endDate: string
   bookingStatus: 'pending' | 'approved' | 'rejected'
-  type: 'full_day' | 'half_day' | 'paid' | 'unpaid'
+  type: 'full_day' | 'half_day'
 }
 
 const RenderHolidayIcon = ({
@@ -609,18 +609,6 @@ export function DashboardCalendar({
                         className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700"
                       >
                         Half Day (4 hrs)
-                      </SelectItem>
-                      <SelectItem
-                        value="paid"
-                        className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700 font-bold"
-                      >
-                        Paid Leave
-                      </SelectItem>
-                      <SelectItem
-                        value="unpaid"
-                        className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700"
-                      >
-                        Unpaid / LWP
                       </SelectItem>
                     </SelectContent>
                   </Select>
