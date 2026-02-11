@@ -71,6 +71,12 @@ interface AttendanceCardProps {
   onCheckInSuccess?: () => void
   /** Called after successful check-out so the dashboard can disable the activity popup timer */
   onCheckOutSuccess?: () => void
+  /** Timestamp when current break ends (null if not on break) */
+  breakEndsAt?: number | null
+  /** Timestamp when current break started (null if not on break) */
+  breakStartTime?: number | null
+  /** List of completed breaks from attendance record */
+  breaks?: Array<{ startTime: string; endTime: string; durationMinutes: number }>
 }
 
 export function AttendanceCard({
@@ -80,6 +86,9 @@ export function AttendanceCard({
   workEndTime,
   onCheckInSuccess,
   onCheckOutSuccess,
+  breakEndsAt,
+  breakStartTime,
+  breaks = [],
 }: AttendanceCardProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
@@ -481,23 +490,81 @@ export function AttendanceCard({
     return expectedMs / (60 * 60 * 1000)
   })()
 
-  // Calculate remaining working hours based on actual duration worked
+  // Check if currently on break
+  const isOnBreak = breakEndsAt != null && Date.now() < breakEndsAt
+
+  // Calculate total break duration in milliseconds (from completed breaks)
+  const totalBreakMs = (() => {
+    if (!breaks || breaks.length === 0) return 0
+    return breaks.reduce((total, breakItem) => {
+      return total + breakItem.durationMinutes * 60 * 1000
+    }, 0)
+  })()
+
+  // Calculate current break duration if on break
+  const currentBreakMs = (() => {
+    if (!isOnBreak || !breakEndsAt) return 0
+    // Find the most recent break start time from breaks array
+    // If break is active but not yet recorded, estimate from breakEndsAt
+    const now = Date.now()
+    // For active break, we need to track when it started
+    // Since we don't have breakStartTime in props, we'll calculate from breakEndsAt
+    // This is approximate - ideally we'd pass breakStartTime too
+    return 0 // Will be handled by excluding current time period
+  })()
+
+  // Calculate duration worked (excluding break time)
+  const durationWorked = (() => {
+    if (!isCheckedIn || !checkInTime || !currentTime) return null
+
+    const checkInDate = new Date(checkInTime).getTime()
+    const now = currentTime.getTime()
+
+    // If on break, use break start time instead of now
+    let effectiveEndTime = now
+    if (isOnBreak && breakStartTime) {
+      // Use the break start time as the effective end time (time stops during break)
+      effectiveEndTime = breakStartTime
+    }
+
+    // Total time from check-in to effective end time
+    const totalMs = Math.max(0, effectiveEndTime - checkInDate)
+
+    // Subtract completed break durations
+    const workedMs = Math.max(0, totalMs - totalBreakMs)
+
+    const mins = Math.floor(workedMs / 60000)
+    return { h: Math.floor(mins / 60), m: mins % 60, isPaused: isOnBreak }
+  })()
+
+  // Calculate remaining working hours based on actual duration worked (excluding breaks)
   const remainingHours = (() => {
     if (!isCheckedIn || !checkInTime || !currentTime) return null
 
-    // Calculate duration already worked (from check-in to now)
-    const checkInDate = new Date(checkInTime)
-    const now = new Date()
-    const workedMs = Math.max(0, now.getTime() - checkInDate.getTime())
+    const checkInDate = new Date(checkInTime).getTime()
+    const now = currentTime.getTime()
+
+    // If on break, use break start time instead of now
+    let effectiveEndTime = now
+    if (isOnBreak && breakStartTime) {
+      // Use the break start time as the effective end time (time stops during break)
+      effectiveEndTime = breakStartTime
+    }
+
+    // Total time from check-in to effective end time
+    const totalMs = Math.max(0, effectiveEndTime - checkInDate)
+
+    // Subtract completed break durations
+    const workedMs = Math.max(0, totalMs - totalBreakMs)
     const workedHours = workedMs / (60 * 60 * 1000)
 
     // Calculate remaining hours: expected hours - hours already worked
     const remaining = expectedWorkingHours - workedHours
 
-    return remaining > 0 ? remaining : 0
+    return { hours: remaining > 0 ? remaining : 0, isPaused: isOnBreak }
   })()
 
-  const hasCompletedHours = remainingHours !== null && remainingHours <= 0
+  const hasCompletedHours = remainingHours !== null && remainingHours.hours <= 0
 
   useEffect(() => {
     if (!isCheckedIn || !location) return
@@ -715,7 +782,7 @@ export function AttendanceCard({
     }
 
     // Check if user hasn't completed working hours
-    if (!hasCompletedHours && remainingHours !== null && remainingHours > 0) {
+    if (!hasCompletedHours && remainingHours !== null && remainingHours.hours > 0) {
       // Show warning first
       setShowEarlyCheckoutWarning(true)
       return
@@ -743,13 +810,6 @@ export function AttendanceCard({
     minute: '2-digit',
   })
   const formattedSeconds = currentTime.toLocaleTimeString([], { second: '2-digit' })
-  const durationWorked = (() => {
-    if (!isCheckedIn || !checkInTime || !currentTime) return null
-    const start = new Date(checkInTime).getTime()
-    const end = currentTime.getTime()
-    const mins = Math.floor((end - start) / 60000)
-    return { h: Math.floor(mins / 60), m: mins % 60 }
-  })()
 
   // Calculate total hours worked and attendance status for checked out sessions
   const sessionSummary = (() => {
@@ -855,11 +915,26 @@ export function AttendanceCard({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mt-8 px-6 py-2 bg-indigo-50 dark:bg-primary/20 rounded-full border border-indigo-100 dark:border-primary/30 flex items-center gap-2"
+                    className={`mt-8 px-6 py-2 rounded-full border flex items-center gap-2 ${
+                      durationWorked.isPaused
+                        ? 'bg-orange-50 dark:bg-orange-500/20 border-orange-200 dark:border-orange-500/40'
+                        : 'bg-indigo-50 dark:bg-primary/20 border-indigo-100 dark:border-primary/30'
+                    }`}
                   >
-                    <span className="text-xs md:text-sm font-black text-indigo-600 dark:text-primary">
+                    <span
+                      className={`text-xs md:text-sm font-black ${
+                        durationWorked.isPaused
+                          ? 'text-orange-600 dark:text-orange-300'
+                          : 'text-indigo-600 dark:text-primary'
+                      }`}
+                    >
                       Duration: {durationWorked.h > 0 ? `${durationWorked.h}h ` : ''}
                       {durationWorked.m}m
+                      {durationWorked.isPaused && (
+                        <span className="ml-2 text-[10px] uppercase tracking-wider opacity-75">
+                          (Paused)
+                        </span>
+                      )}
                     </span>
                   </motion.div>
                 )}
@@ -1088,11 +1163,22 @@ export function AttendanceCard({
                     exit={{ opacity: 0 }}
                     className="w-full space-y-2"
                   >
-                    {remainingHours !== null && remainingHours > 0 && (
-                      <p className="text-center text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2">
-                        {remainingHours >= 1
-                          ? `${Math.floor(remainingHours)}h ${Math.round((remainingHours % 1) * 60)}m remaining`
-                          : `${Math.round(remainingHours * 60)}m remaining`}
+                    {remainingHours !== null && remainingHours.hours > 0 && (
+                      <p
+                        className={`text-center text-xs font-semibold mb-2 ${
+                          remainingHours.isPaused
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
+                        {remainingHours.hours >= 1
+                          ? `${Math.floor(remainingHours.hours)}h ${Math.round((remainingHours.hours % 1) * 60)}m remaining`
+                          : `${Math.round(remainingHours.hours * 60)}m remaining`}
+                        {remainingHours.isPaused && (
+                          <span className="ml-2 text-[10px] uppercase tracking-wider opacity-75">
+                            (Paused)
+                          </span>
+                        )}
                       </p>
                     )}
                     {hasCompletedHours && (
@@ -1388,7 +1474,7 @@ export function AttendanceCard({
             </div>
 
             {/* Early Checkout Reason - Show only if checking out early */}
-            {!hasCompletedHours && remainingHours !== null && remainingHours > 0 && (
+            {!hasCompletedHours && remainingHours !== null && remainingHours.hours > 0 && (
               <div className="space-y-3">
                 <label className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" /> Early Checkout Reason (Required)
@@ -1482,7 +1568,7 @@ export function AttendanceCard({
                   uploading ||
                   (!hasCompletedHours &&
                     remainingHours !== null &&
-                    remainingHours > 0 &&
+                    remainingHours.hours > 0 &&
                     !earlyCheckoutReason.trim())
                 }
                 className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white py-7 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100"
@@ -1518,9 +1604,12 @@ export function AttendanceCard({
             </p>
             {remainingHours !== null && (
               <p className="text-white/80 text-sm">
-                {remainingHours >= 1
-                  ? `You still have ${Math.floor(remainingHours)}h ${Math.round((remainingHours % 1) * 60)}m remaining.`
-                  : `You still have ${Math.round(remainingHours * 60)}m remaining.`}
+                {remainingHours.hours >= 1
+                  ? `You still have ${Math.floor(remainingHours.hours)}h ${Math.round((remainingHours.hours % 1) * 60)}m remaining.`
+                  : `You still have ${Math.round(remainingHours.hours * 60)}m remaining.`}
+                {remainingHours.isPaused && (
+                  <span className="ml-2 text-xs uppercase tracking-wider opacity-75">(Paused)</span>
+                )}
               </p>
             )}
             <div className="mt-4 p-4 bg-white/10 rounded-xl border border-white/20">

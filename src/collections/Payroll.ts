@@ -121,19 +121,86 @@ export const Payroll: CollectionConfig = {
           // Calculate attendance stats from attendance records
           // Note: Absent days are NOT counted here - they will be calculated using the formula:
           // Absent Days = Total Days - (Present Days + Leave Days)
+
+          // Sort attendance records by date to detect consecutive late days
+          const sortedRecords = [...attendanceRecords.docs].sort((a: any, b: any) => {
+            const dateA = new Date(a.date).getTime()
+            const dateB = new Date(b.date).getTime()
+            return dateA - dateB
+          })
+
+          // Create a map of dates to records for easier lookup
+          const dateToRecord = new Map<string, any>()
+          sortedRecords.forEach((record: any) => {
+            const dateStr =
+              typeof record.date === 'string'
+                ? record.date.split('T')[0]
+                : new Date(record.date).toISOString().split('T')[0]
+            dateToRecord.set(dateStr, record)
+          })
+
+          // Identify which late days are part of consecutive pairs
+          const consecutiveLateDays = new Set<string>() // Dates that are part of consecutive late pairs
+
+          sortedRecords.forEach((record: any) => {
+            if (record.status === 'late') {
+              const recordDate = new Date(record.date)
+              const dateStr =
+                typeof record.date === 'string'
+                  ? record.date.split('T')[0]
+                  : recordDate.toISOString().split('T')[0]
+
+              // Check if next day is also late
+              const nextDay = new Date(recordDate)
+              nextDay.setDate(nextDay.getDate() + 1)
+              const nextDayStr = nextDay.toISOString().split('T')[0]
+              const nextDayRecord = dateToRecord.get(nextDayStr)
+
+              // Check if previous day was late
+              const prevDay = new Date(recordDate)
+              prevDay.setDate(prevDay.getDate() - 1)
+              const prevDayStr = prevDay.toISOString().split('T')[0]
+              const prevDayRecord = dateToRecord.get(prevDayStr)
+
+              // If this late day is followed by another late day OR preceded by a late day, it's consecutive
+              if (
+                (nextDayRecord &&
+                  (nextDayRecord.status === 'late' || nextDayRecord.status === 'half-day')) ||
+                (prevDayRecord &&
+                  (prevDayRecord.status === 'late' || prevDayRecord.status === 'half-day'))
+              ) {
+                consecutiveLateDays.add(dateStr)
+              }
+            }
+          })
+
           let presentDays = 0
           let lateCount = 0
           let halfDayCount = 0
 
-          attendanceRecords.docs.forEach((record: any) => {
+          // Count attendance with consecutive late penalty
+          sortedRecords.forEach((record: any) => {
+            const dateStr =
+              typeof record.date === 'string'
+                ? record.date.split('T')[0]
+                : new Date(record.date).toISOString().split('T')[0]
+
             if (record.status === 'present') {
               presentDays++
             } else if (record.status === 'late') {
-              lateCount++
-              presentDays++ // Late still counts as present
+              if (consecutiveLateDays.has(dateStr)) {
+                // This late day is part of consecutive late days - count as half-day penalty
+                halfDayCount++
+                presentDays += 0.5
+              } else {
+                // Normal late day - counts as full present
+                lateCount++
+                presentDays++
+              }
             } else if (record.status === 'half-day') {
+              // Half-day status (could be from consecutive late or from working < 9 hours)
               halfDayCount++
-              presentDays += 0.5 // Half day counts as 0.5 present (penalty will be deducted separately)
+              presentDays += 0.5
             }
             // Absent days are NOT counted here - they will be calculated from the formula
           })
@@ -242,7 +309,7 @@ export const Payroll: CollectionConfig = {
           data.stats.presentDays = presentDays
           data.stats.leavesTaken = leavesTaken
           data.stats.lateCount = lateCount
-          data.stats.penaltyDays = roundToTwoDecimals(halfDayCount * 0.5) // Half-day deduction days
+          data.stats.penaltyDays = roundToTwoDecimals(halfDayCount * 0.5) // Half-day deduction days (includes consecutive late penalties)
           data.stats.payableDays = roundToTwoDecimals(payableDays)
           // Add holiday days and absent days to stats for transparency
           ;(data.stats as any).holidayDays = holidayDays

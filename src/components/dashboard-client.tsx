@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select'
 import { usePathname, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
+import { calculatePayroll } from '@/lib/payroll-calculator'
 
 import type { Attendance, User, Leaf, Holiday } from '@/payload-types'
 import { AdminDashboardViewEnhanced } from './admin-dashboard-view-enhanced'
@@ -268,30 +269,121 @@ export function DashboardClient({
     return () => ctx.revert()
   }, [])
 
-  // Monthly earnings: base salary minus approved leave days (live)
+  // Monthly earnings: using new payroll calculation system
   const baseSalary = user.salary || 0
+
+  // Extract leavesArePaid setting safely
+  const leavesArePaid = useMemo(() => {
+    if (!workSettings) return false
+    return 'leavesArePaid' in workSettings
+      ? Boolean((workSettings as { leavesArePaid?: boolean }).leavesArePaid)
+      : false
+  }, [workSettings])
+
   const { estimatedSalary, dailyRate, payableDays, totalWorkingDays } = useMemo(() => {
+    if (!baseSalary || baseSalary <= 0) {
+      return {
+        estimatedSalary: 0,
+        dailyRate: 0,
+        payableDays: 0,
+        totalWorkingDays: 0,
+      }
+    }
+
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth() + 1
-    const saturdayWorking = !!workSettings?.saturdayWorkingDay
-    const total = totalWorkingDaysInMonth(year, month, saturdayWorking)
-    const leaveDays = approvedLeaveDaysInMonth(
-      approvedLeavesThisMonth ?? [],
-      year,
-      month,
-      saturdayWorking,
-    )
-    const payable = Math.max(0, total - leaveDays)
-    const daily = total > 0 ? baseSalary / total : baseSalary / 30
-    const estimated = total > 0 ? baseSalary * (payable / total) : daily * 22
-    return {
-      estimatedSalary: estimated,
-      dailyRate: total > 0 ? baseSalary / total : baseSalary / 30,
-      payableDays: payable,
-      totalWorkingDays: total,
+
+    // Calculate total days in month (all days including weekends)
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd = new Date(year, month, 0)
+    const totalDaysInMonth = monthEnd.getDate()
+
+    // Get attendance records for current month
+    const monthStartStr = `${year}-${String(month).padStart(2, '0')}-01`
+    const monthEndStr = `${year}-${String(month).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`
+
+    const monthAttendance = (userAttendance || []).filter((att) => {
+      const attDate = typeof att.date === 'string' ? att.date.split('T')[0] : ''
+      return attDate >= monthStartStr && attDate <= monthEndStr
+    })
+
+    // Calculate present days (including late) and half-day penalties
+    let presentDays = 0
+    let halfDayPenalties = 0
+
+    monthAttendance.forEach((att) => {
+      if (att.status === 'present' || att.status === 'late') {
+        presentDays++
+      } else if (att.status === 'half-day') {
+        presentDays += 0.5
+        halfDayPenalties++
+      }
+      // Absent days are calculated later using the formula
+    })
+
+    // Calculate leave days (count ALL days in leave range, not just working days)
+    let leaveDays = 0
+    if (approvedLeavesThisMonth && approvedLeavesThisMonth.length > 0) {
+      approvedLeavesThisMonth.forEach((leave) => {
+        const leaveStart = new Date(leave.startDate)
+        const leaveEnd = new Date(leave.endDate)
+        const actualStart = leaveStart < monthStart ? monthStart : leaveStart
+        const actualEnd = leaveEnd > monthEnd ? monthEnd : leaveEnd
+
+        const checkDate = new Date(actualStart)
+        while (checkDate <= actualEnd) {
+          // Count ALL days (including weekends and holidays)
+          if (leave.type === 'half_day') {
+            leaveDays += 0.5
+          } else {
+            leaveDays += 1
+          }
+          checkDate.setDate(checkDate.getDate() + 1)
+        }
+      })
     }
-  }, [baseSalary, workSettings?.saturdayWorkingDay, approvedLeavesThisMonth])
+
+    // Use the new payroll calculator
+    try {
+      const payrollResult = calculatePayroll({
+        baseSalary,
+        totalDays: totalDaysInMonth,
+        totalDaysInMonth,
+        presentDays,
+        leaveDays,
+        halfDayPenalties,
+        leavesArePaid,
+      })
+
+      return {
+        estimatedSalary: payrollResult.finalSalary,
+        dailyRate: payrollResult.dailySalary,
+        payableDays: Math.round(payrollResult.payableDays * 10) / 10, // Round to 1 decimal
+        totalWorkingDays: totalDaysInMonth,
+      }
+    } catch (error) {
+      console.error('Payroll calculation error:', error)
+      // Fallback to old calculation if error
+      const saturdayWorking = !!workSettings?.saturdayWorkingDay
+      const total = totalWorkingDaysInMonth(year, month, saturdayWorking)
+      const leaveDaysOld = approvedLeaveDaysInMonth(
+        approvedLeavesThisMonth ?? [],
+        year,
+        month,
+        saturdayWorking,
+      )
+      const payable = Math.max(0, total - leaveDaysOld)
+      const daily = total > 0 ? baseSalary / total : baseSalary / 30
+      const estimated = total > 0 ? baseSalary * (payable / total) : daily * 22
+      return {
+        estimatedSalary: estimated,
+        dailyRate: total > 0 ? baseSalary / total : baseSalary / 30,
+        payableDays: payable,
+        totalWorkingDays: total,
+      }
+    }
+  }, [baseSalary, workSettings, approvedLeavesThisMonth, userAttendance, leavesArePaid])
 
   // Shift Status: labels from work settings (memoized); percent computed in render for live updates
   const shiftLabels = useMemo(() => {
@@ -404,6 +496,7 @@ export function DashboardClient({
   const [clientFetchedCheckedIn, setClientFetchedCheckedIn] = useState<boolean | null>(null)
   // Break: staff can take 10/15/20/25 min break; activity popup is suppressed during break
   const [breakEndsAt, setBreakEndsAt] = useState<number | null>(null)
+  const [breakStartTime, setBreakStartTime] = useState<number | null>(null)
   const [breakDurationMins, setBreakDurationMins] = useState<number>(15)
   const [breaksTakenToday, setBreaksTakenToday] = useState<number>(0)
   const [, setBreakTimerTick] = useState(0)
@@ -521,6 +614,7 @@ export function DashboardClient({
         }
         breakStartedAtRef.current = null
         setBreakEndsAt(null)
+        setBreakStartTime(null)
       } else {
         setBreakTimerTick((t) => t + 1)
       }
@@ -1185,6 +1279,9 @@ export function DashboardClient({
                       timeFormat={timeFormat}
                       workStartTime={workSettings?.workStartTime ?? undefined}
                       workEndTime={workSettings?.workEndTime ?? undefined}
+                      breakEndsAt={breakEndsAt}
+                      breakStartTime={breakStartTime}
+                      breaks={todayBreaksList}
                       onCheckInSuccess={() => {
                         setLocalCheckedInToday(true)
                         lastActivityCheckAtRef.current = Date.now()
@@ -1234,6 +1331,7 @@ export function DashboardClient({
                                 }
                                 breakStartedAtRef.current = null
                                 setBreakEndsAt(null)
+                                setBreakStartTime(null)
                               }}
                               className="rounded-xl"
                               aria-label="End break early (one of two ways to end break)"
@@ -1271,8 +1369,10 @@ export function DashboardClient({
                                     window.localStorage.setItem(key, String(next))
                                   } catch {}
                                   setBreaksTakenToday(next)
-                                  breakStartedAtRef.current = Date.now()
-                                  setBreakEndsAt(Date.now() + breakDurationMins * 60 * 1000)
+                                  const startTime = Date.now()
+                                  breakStartedAtRef.current = startTime
+                                  setBreakStartTime(startTime)
+                                  setBreakEndsAt(startTime + breakDurationMins * 60 * 1000)
                                 }}
                                 className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-60 disabled:pointer-events-none"
                               >
