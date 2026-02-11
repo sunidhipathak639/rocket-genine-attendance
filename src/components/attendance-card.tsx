@@ -45,8 +45,6 @@ const LottiePlayer = dynamic(
 
 type FaceApiModule = typeof import('@vladmandic/face-api')
 
-const COMPANY_TZ = 'Asia/Kolkata'
-
 // Parse work-settings time (ISO string) to today's date at that local time
 function getTodayAtTime(isoTime: string | null | undefined): Date | null {
   if (!isoTime) return null
@@ -73,21 +71,6 @@ interface AttendanceCardProps {
   onCheckInSuccess?: () => void
   /** Called after successful check-out so the dashboard can disable the activity popup timer */
   onCheckOutSuccess?: () => void
-}
-
-/** Format work end time for display using user's time format preference */
-function formatWorkEndTime(
-  workEndTime: string | null | undefined,
-  timeFormat: '12h' | '24h' = '12h',
-): string {
-  if (!workEndTime) return ''
-  const d = getTodayAtTime(workEndTime)
-  if (!d) return ''
-  return d.toLocaleTimeString('en-IN', {
-    hour12: timeFormat === '12h',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 export function AttendanceCard({
@@ -1418,8 +1401,8 @@ export function AttendanceCard({
                   required
                 />
                 <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
-                  ⚠️ You haven't completed your {expectedWorkingHours.toFixed(1)} working hours.
-                  This may affect your attendance status and pay.
+                  ⚠️ You haven&apos;t completed your {expectedWorkingHours.toFixed(1)} working
+                  hours. This may affect your attendance status and pay.
                 </p>
               </div>
             )}
