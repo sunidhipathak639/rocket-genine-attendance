@@ -20,7 +20,7 @@ import {
   CalendarRange,
   XCircle,
   CheckCircle2,
-  User,
+  User as UserIcon,
 } from 'lucide-react'
 import {
   format,
@@ -373,10 +373,11 @@ export function AdminDashboardViewEnhanced({
     })
   }, [allAttendance, rangeStart, rangeEnd])
 
-  const todayAttendance = useMemo(
-    () => allAttendance.filter((a) => getDateStr(a.date) === todayStr),
-    [allAttendance, todayStr],
-  )
+  // Removed unused todayAttendance - kept for potential future use
+  // const todayAttendance = useMemo(
+  //   () => allAttendance.filter((a) => getDateStr(a.date) === todayStr),
+  //   [allAttendance, todayStr],
+  // )
 
   const stats = useMemo(() => {
     const present = attendanceInRange.filter((a) => a.status === 'present').length
@@ -1217,7 +1218,7 @@ export function AdminDashboardViewEnhanced({
         <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black flex items-center gap-3">
-              <User className="w-6 h-6" />
+              <UserIcon className="w-6 h-6" />
               Staff Details
             </DialogTitle>
           </DialogHeader>

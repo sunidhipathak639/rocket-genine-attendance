@@ -4,7 +4,6 @@ import configPromise from '@payload-config'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { ProfilePageClient } from '@/components/profile-page-client'
-import type { User } from '@/payload-types'
 
 export const dynamic = 'force-dynamic'
 
