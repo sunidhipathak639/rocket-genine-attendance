@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { FluidBackground } from '@/components/fluid-background'
 import { ThemeProvider } from '@/components/theme-provider'
 import { FloatingSupportIcon } from '@/components/floating-support-icon'
+import { CustomImageCursor } from '@/components/custom-image-cursor'
 
 import './styles.css'
 
@@ -18,6 +19,7 @@ export default function FrontendLayout({ children }: { children: React.ReactNode
         />
         {/* Animated fluid blue blobs – Framer Motion */}
         <FluidBackground />
+        <CustomImageCursor imageSrc="/favicon.ico" size={32} />
         <main className="relative z-10">{children}</main>
         <FloatingSupportIcon />
         <Toaster />
