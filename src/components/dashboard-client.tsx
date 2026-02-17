@@ -16,6 +16,7 @@ import {
   Video,
 } from 'lucide-react'
 import { HolidaysCalendar } from './holidays-calendar'
+// import { ExtensionStats } from './extension-stats'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -131,7 +132,6 @@ export function DashboardClient({
 }: DashboardClientProps) {
   const timeFormat = user.timeFormat ?? '12h'
   const { effectiveDark } = useTheme()
-  const [, setShiftTick] = useState(0)
   const [logoutLoading, setLogoutLoading] = useState(false)
   type NotificationDoc = {
     id: string
@@ -146,12 +146,15 @@ export function DashboardClient({
   const [notificationsUnread, setNotificationsUnread] = useState(0)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<NotificationDoc | null>(null)
-  const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] = useState<
-    { startDate: string; endDate: string; type?: string }[]
-  >([])
-  const [workSettingsLocal, setWorkSettingsLocal] = useState<typeof workSettingsProp>(undefined)
+  const [approvedLeavesThisMonth, setApprovedLeavesThisMonth] =
+    useState<{ startDate: string; endDate: string; type?: string }[]>()
+  const [_tabActivities, setTabActivities] = useState<unknown[]>([])
+  const [extensionConnected, setExtensionConnected] = useState(false)
+  const [extensionDetected, setExtensionDetected] = useState(false)
   const pathname = usePathname()
 
+  const [workSettingsLocal, setWorkSettingsLocal] =
+    useState<DashboardClientProps['workSettings']>(undefined)
   const workSettings = workSettingsProp ?? workSettingsLocal
   const profileImageUrl = getProfileImageUrl(user.profileImage)
   const router = useRouter()
@@ -175,6 +178,23 @@ export function DashboardClient({
       })
       .catch(() => {})
   }, [user?.id, user?.role, pathname])
+
+  // Fetch today's tab activities
+  useEffect(() => {
+    if (!user?.id) return
+    const today = new Date().toISOString().split('T')[0]
+    fetch(
+      `/api/tab-activity?where[user][equals]=${user.id}&where[startedAt][greater_than_equal]=${today}&limit=1000`,
+      {
+        credentials: 'include',
+      },
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.docs) setTabActivities(data.docs)
+      })
+      .catch(() => {})
+  }, [user?.id, pathname])
 
   useEffect(() => {
     if (workSettingsProp != null) return
@@ -223,10 +243,29 @@ export function DashboardClient({
     [markNotificationRead],
   )
 
-  // Re-render every minute so Shift Status circle updates
+  // Listen for extension heartbeat
   useEffect(() => {
-    const id = setInterval(() => setShiftTick((t) => t + 1), 60 * 1000)
-    return () => clearInterval(id)
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'ROCKET_GENIE_EXTENSION_PONG') {
+        setExtensionDetected(true)
+        setExtensionConnected(event.data.connected)
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+
+    // Initial ping to check for extension
+    window.postMessage({ type: 'ROCKET_GENIE_EXTENSION_PING' }, '*')
+
+    // Periodically re-ping if not detected
+    const pingInterval = setInterval(() => {
+      window.postMessage({ type: 'ROCKET_GENIE_EXTENSION_PING' }, '*')
+    }, 5000)
+
+    return () => {
+      window.removeEventListener('message', handleMessage)
+      clearInterval(pingInterval)
+    }
   }, [])
 
   const bgRef = useRef<HTMLDivElement>(null)
@@ -1321,6 +1360,8 @@ export function DashboardClient({
                       breakEndsAt={breakEndsAt}
                       breakStartTime={breakStartTime}
                       breaks={todayBreaksList}
+                      extensionConnected={extensionConnected}
+                      _extensionDetected={extensionDetected}
                       onCheckInSuccess={() => {
                         setLocalCheckedInToday(true)
                         lastActivityCheckAtRef.current = Date.now()
@@ -1328,6 +1369,43 @@ export function DashboardClient({
                       }}
                       onCheckOutSuccess={() => setLocalCheckedInToday(false)}
                     />
+
+                    {/* Minimal Work Session Status (Replacing bulky stats) */}
+                    {user.role === 'staff' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-6 flex items-center justify-center sm:justify-start gap-4 px-6 py-3 rounded-2xl bg-white/50 dark:bg-card/50 border border-slate-100 dark:border-border backdrop-blur-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <Image
+                              src="/extension-icon.png"
+                              alt="Extension"
+                              width={20}
+                              height={20}
+                              className={`rounded-md ${!extensionConnected ? 'grayscale opacity-50' : ''} transition-all duration-500`}
+                            />
+                            <div
+                              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                                extensionConnected
+                                  ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                                  : 'bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'
+                              } transition-all duration-500`}
+                            />
+                          </div>
+                          <span className="text-xs font-semibold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
+                            Sync Status
+                          </span>
+                        </div>
+                        <div className="h-4 w-px bg-slate-200 dark:bg-border" />
+                        <span className="text-xs text-slate-500 dark:text-muted-foreground italic">
+                          {extensionConnected
+                            ? 'Your session is secured and validating via Work Sync.'
+                            : 'Work Sync extension required to validate your arrival.'}
+                        </span>
+                      </motion.div>
+                    )}
 
                     {/* Take a break: 10/15/20/25 min — activity popup suppressed during break (staff when checked in, or admin) */}
                     {((user.role === 'staff' && isCheckedInToday) || user.role === 'admin') && (

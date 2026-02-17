@@ -16,6 +16,7 @@ import { Meetings } from './collections/Meetings'
 import { Notifications } from './collections/Notifications'
 import { Tasks } from './collections/Tasks'
 import { MeetingRequests } from './collections/MeetingRequests'
+import { TabActivity } from './collections/TabActivity'
 import { WorkSettings } from './globals/WorkSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -73,11 +74,16 @@ export default buildConfig({
     Notifications,
     Tasks,
     MeetingRequests,
+    TabActivity,
   ],
   globals: [WorkSettings],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
-  cors: [process.env.NEXT_PUBLIC_SERVER_URL || '', process.env.CORS_ORIGINS || ''].filter(Boolean),
+  cors: [
+    process.env.NEXT_PUBLIC_SERVER_URL || '',
+    process.env.CORS_ORIGINS || '',
+    'chrome-extension://*',
+  ].filter(Boolean),
   csrf: [process.env.NEXT_PUBLIC_SERVER_URL || '', process.env.CORS_ORIGINS || ''].filter(Boolean),
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),

@@ -1,0 +1,60 @@
+# Employee Credentials - Rocket Genie (Updated Roles)
+
+| #   | Name                      | Email ID                            | Password               | Role            |
+| --- | ------------------------- | ----------------------------------- | ---------------------- | --------------- |
+| -   | Admin User                | admin@gmail.com                     | Admin1@#               | Admin           |
+| -   | Sunidhi Pathak            | sunidhipathak639@gmail.com          | password               | Technical Staff |
+| 1   | DUPAKUNTLA SAI PRANEETHA  | praneethachikki05@gmail.com         | dupakuntlarocketi05    | Staff           |
+| 2   | VADDE SHARATH             | sharathvadde0305@gmail.com          | rocketshar16de         | Staff           |
+| 3   | Akash Ramugalla           | akashramugalla@gmail.com            | akas14rocketla         | Staff           |
+| 4   | kummetha Niveditha        | nivedithakummetha@gmail.com         | kummetharockettha      | Staff           |
+| 5   | Kotipalli Bhavya Sri Sai  | bhavyasrisai535@gmail.com           | rocketsai15li          | Staff           |
+| 6   | Kommareddy Diana Mary     | diana.kommareddy04@gmail.com        | dian19rocketry         | Staff           |
+| 7   | Swapnika Tanguturi        | swapnikatanguturi@gmail.com         | swapnikarocketuri      | Staff           |
+| 8   | Nekkanti Vishnu Vardhan   | vishnunekkanti.1245@gmail.com       | rocketvard18ti         | Staff           |
+| 9   | Akshitha Bavisetti        | bavisettiakshitha1304@gmail.com     | bavi17rocketti         | Staff           |
+| 10  | Kukkala Karthik Siva Sai  | kkarthik3162@gmail.com              | kukkalarocket162       | Staff           |
+| 11  | Dattaswaraj Devarakonda   | dattaswaraj10@gmail.com             | rocketdeva13aj         | Staff           |
+| 12  | Abhaya Aditya.Ch          | 2210080038aids@gmail.com            | 221015rocketch         | Staff           |
+| 13  | Renee Sharon Gaddam       | reneesharon2004@gmail.com           | reneerocket004         | Staff           |
+| 14  | Sai Lukka                 | sailukka7@gmail.com                 | rocketlukk9ai          | Staff           |
+| 15  | Sai Praneeth              | 2210030204cse@gmail.com             | 221011rocketth         | Staff           |
+| 16  | Y. MANIDEEP               | 2210030224cse@gmail.com             | yrocketcse             | Staff           |
+| 17  | Kunden Tharakaram         | 2210030023cse@gmail.com             | rocketthar13en         | Staff           |
+| 18  | Y.Umesh Chandra Reddy     | yumeshr19@gmail.com                 | yume19rocketdy         | Staff           |
+| 19  | Priyadarshini Padhi       | ppadhi325@gmail.com                 | priyadarshinirocket325 | Staff           |
+| 20  | Tatikonda Yeshwanth       | tatikondayashwanth2005@gmail.com    | rocketyesh22da         | Staff           |
+| 21  | MAY REDDY ADITHYA REDDY   | mayreddyadithyareddy@gmail.com      | mayr20rocketdy         | Staff           |
+| 22  | M.Amruta Laxmi            | amruta.mummaneni@gmail.com          | mamrutarocketeni       | Staff           |
+| 23  | M Koushik Manohar         | m.koushikmanohar@gmail.com          | rocketmano15m          | Staff           |
+| 24  | Girish kandukuri          | kandukurigirish666@gmail.com        | kand15rocketri         | Staff           |
+| 25  | G jaswanth                | jaswanthsiva1@gmail.com             | grocketva1             | Staff           |
+| 26  | L Mohan Rama Swami        | mohanramaswami02@gmail.com          | rocketswam16l          | Staff           |
+| 27  | K. Saikrishna Reddy       | saikrishnareddy.skreddy@gmail.com   | saik17rocketdy         | Staff           |
+| 28  | Vikram Reddy              | vikramreddymasannagari@gmail.com    | vikramrocketari        | Staff           |
+| 29  | V.Bhargavarjun            | vbhargavarjun@gmail.com             | rocketvbha13un         | Staff           |
+| 30  | Nitish Prasad Shukla      | nitishshukla1911@gmail.com          | niti18rocketla         | Staff           |
+| 31  | Lankalapalli Satya Lokesh | lankalapallisatyalokesh18@gmail.com | lankalapallirocketh18  | Staff           |
+| 32  | Gattepelly Pravallika     | pravallika.12104@gmail.com          | rocketprav15ly         | Staff           |
+| 33  | Shaik Shahna Amrilly      | shaikshahna31@gmail.com             | shai18rocketly         | Staff           |
+| 34  | Madhava Gungi             | gunjimadhav2004@gmail.com           | madhavarocket004       | Staff           |
+| 35  | Durgampudi Leena Reddy    | leenu003@gmail.com                  | rocketredd8di          | Staff           |
+| 36  | Patlolla Sai Shritha      | saishrithapatlollaa@gmail.com       | sais18rocketha         | Staff           |
+| 37  | Medhaswi Aramati          | medhaswiaramati28@gmail.com         | medhaswirocketi28      | Staff           |
+| 38  | Pravallika Poola          | poolapravallika777@gmail.com        | rocketpool18ka         | Staff           |
+| 39  | Katta Vaishnavi           | kattavaishnavi47@gmail.com          | katt14rocketvi         | Staff           |
+| 40  | Kondapani Neha Krishna    | nehakrishna0525@gmail.com           | kondapanirocket525     | Staff           |
+| 41  | Chelikani Nidhi usha sri  | chelikaninidhi@gmail.com            | rocketsri14ni          | Staff           |
+| 42  | MUNNURU UMAKANTH          | munnuruumakanth29@gmail.com         | munn15rocketth         | Staff           |
+
+**Organization Structure:**
+
+- **Technical Staff**: Sunidhi Pathak (Senior/Lead Role)
+- **Staff (Externs)**: All 42 bulk-added staff members.
+- **Admin**: System Administrator.
+
+**Security:**
+
+- Unique rotating password patterns for all staff.
+- Role-based access control enabled in the system.
+- Company: **Rocket Genie**

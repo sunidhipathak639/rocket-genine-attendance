@@ -77,6 +77,8 @@ interface AttendanceCardProps {
   breakStartTime?: number | null
   /** List of completed breaks from attendance record */
   breaks?: Array<{ startTime: string; endTime: string; durationMinutes: number }>
+  extensionConnected?: boolean
+  _extensionDetected?: boolean
 }
 
 export function AttendanceCard({
@@ -89,6 +91,8 @@ export function AttendanceCard({
   breakEndsAt,
   breakStartTime,
   breaks = [],
+  extensionConnected = false,
+  _extensionDetected = false,
 }: AttendanceCardProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
@@ -1198,32 +1202,80 @@ export function AttendanceCard({
                     exit={{ opacity: 0 }}
                     className="w-full"
                   >
-                    <div className="relative w-full h-24 bg-indigo-50/50 dark:bg-primary/10 rounded-[3rem] p-2 border border-indigo-100 dark:border-primary/20 shadow-inner overflow-hidden select-none">
+                    <div
+                      className={`relative w-full h-24 rounded-[3rem] p-2 border shadow-inner overflow-hidden select-none transition-all duration-500 ${
+                        user.role === 'staff' && !extensionConnected
+                          ? 'bg-rose-50/50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 grayscale'
+                          : 'bg-indigo-50/50 dark:bg-primary/10 border-indigo-100 dark:border-primary/20'
+                      }`}
+                    >
                       {/* Slider Track Text */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <span className="text-indigo-400 dark:text-primary font-black text-sm md:text-base uppercase tracking-widest animate-pulse whitespace-nowrap pl-16">
-                          Slide to Check In
+                        <span
+                          className={`font-black text-xs md:text-sm uppercase tracking-widest animate-pulse whitespace-nowrap pl-16 ${
+                            user.role === 'staff' && !extensionConnected
+                              ? 'text-rose-400 dark:text-rose-500'
+                              : 'text-indigo-400 dark:text-primary'
+                          }`}
+                        >
+                          {user.role === 'staff' && !extensionConnected
+                            ? 'Enable Work Sync to Check In'
+                            : 'Slide to Check In'}
                         </span>
-                        <div className="absolute left-0 top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/40 dark:via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                        {(user.role !== 'staff' || extensionConnected) && (
+                          <div className="absolute left-0 top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/40 dark:via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                        )}
                       </div>
 
                       {/* Draggable Button */}
                       <motion.div
-                        drag="x"
+                        drag={user.role !== 'staff' || extensionConnected ? 'x' : false}
                         dragConstraints={{ left: 0, right: 240 }}
                         dragElastic={0.1}
                         dragMomentum={false}
                         onDragEnd={(e, info) => {
                           if (info.offset.x > 150) {
+                            if (user.role === 'staff' && !extensionConnected) {
+                              toast.custom((_t) => (
+                                <div className="bg-white dark:bg-slate-900 border-2 border-rose-500 p-4 rounded-2xl shadow-2xl flex items-center gap-4">
+                                  <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-xl">
+                                    <AlertCircle className="text-rose-600 dark:text-rose-400" />
+                                  </div>
+                                  <div>
+                                    <p className="font-black text-slate-900 dark:text-white uppercase text-xs">
+                                      Access Denied
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                      Please enable the Work Sync extension to start your session.
+                                    </p>
+                                  </div>
+                                </div>
+                              ))
+                              return
+                            }
                             handleModalOpenChange(true)
                           }
                         }}
-                        className="w-20 h-20 bg-indigo-600 dark:bg-primary rounded-full flex items-center justify-center shadow-xl shadow-indigo-200 dark:shadow-primary/30 cursor-grab active:cursor-grabbing relative z-10"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
+                        className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl relative z-10 transition-all duration-500 ${
+                          user.role === 'staff' && !extensionConnected
+                            ? 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed opacity-50'
+                            : 'bg-indigo-600 dark:bg-primary cursor-grab active:cursor-grabbing shadow-indigo-200 dark:shadow-primary/30'
+                        }`}
+                        whileHover={
+                          user.role !== 'staff' || extensionConnected
+                            ? { scale: 1.1 }
+                            : { x: [0, -5, 5, -5, 5, 0] }
+                        }
+                        whileTap={
+                          user.role !== 'staff' || extensionConnected ? { scale: 0.95 } : {}
+                        }
                       >
                         <div className="bg-white/20 p-3 rounded-full">
-                          <LogIn className="w-8 h-8 text-white" />
+                          {user.role === 'staff' && !extensionConnected ? (
+                            <X className="w-8 h-8 text-white" />
+                          ) : (
+                            <LogIn className="w-8 h-8 text-white" />
+                          )}
                         </div>
                       </motion.div>
                     </div>

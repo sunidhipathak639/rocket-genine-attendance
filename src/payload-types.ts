@@ -77,6 +77,7 @@ export interface Config {
     notifications: Notification;
     tasks: Task;
     'meeting-requests': MeetingRequest;
+    'tab-activity': TabActivity;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -94,6 +95,7 @@ export interface Config {
     notifications: NotificationsSelect<false> | NotificationsSelect<true>;
     tasks: TasksSelect<false> | TasksSelect<true>;
     'meeting-requests': MeetingRequestsSelect<false> | MeetingRequestsSelect<true>;
+    'tab-activity': TabActivitySelect<false> | TabActivitySelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -600,6 +602,38 @@ export interface MeetingRequest {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tab-activity".
+ */
+export interface TabActivity {
+  id: number;
+  user: number | User;
+  url: string;
+  tabId: number;
+  startedAt: string;
+  endedAt?: string | null;
+  /**
+   * Duration in seconds
+   */
+  duration?: number | null;
+  attendanceSession?: (number | null) | Attendance;
+  isWorkRelated?: boolean | null;
+  /**
+   * Additional metadata from the browser
+   */
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -661,6 +695,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'meeting-requests';
         value: number | MeetingRequest;
+      } | null)
+    | ({
+        relationTo: 'tab-activity';
+        value: number | TabActivity;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -975,6 +1013,23 @@ export interface MeetingRequestsSelect<T extends boolean = true> {
   scheduledDate?: T;
   meetingLink?: T;
   notes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tab-activity_select".
+ */
+export interface TabActivitySelect<T extends boolean = true> {
+  user?: T;
+  url?: T;
+  tabId?: T;
+  startedAt?: T;
+  endedAt?: T;
+  duration?: T;
+  attendanceSession?: T;
+  isWorkRelated?: T;
+  metadata?: T;
   updatedAt?: T;
   createdAt?: T;
 }
