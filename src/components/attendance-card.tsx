@@ -55,6 +55,21 @@ function getTodayAtTime(isoTime: string | null | undefined): Date | null {
   return t
 }
 
+// Haversine formula to calculate distance between two points in km
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Radius of the Earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180)
+  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 interface AttendanceCardProps {
   user: {
     id: string | number
@@ -131,6 +146,7 @@ export function AttendanceCard({
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const detectionInterval = useRef<NodeJS.Timeout | null>(null)
   const faceApiRef = useRef<FaceApiModule | null>(null)
+  const lastLoggedLocationRef = useRef<{ lat: number; lng: number } | null>(null)
 
   const fetchTodayAttendance = useCallback(async () => {
     if (!user?.id) return
@@ -478,13 +494,13 @@ export function AttendanceCard({
 
   // Calculate expected working hours from work start and end times (must be defined first)
   const expectedWorkingHours = (() => {
-    if (!workStartTime || !workEndTime) return 9 // Default fallback
+    if (!workStartTime || !workEndTime) return 8 // Default fallback
 
     // Get today's dates at work start and end times
     const startToday = getTodayAtTime(workStartTime)
     const endToday = getTodayAtTime(workEndTime)
 
-    if (!startToday || !endToday) return 9 // Default fallback
+    if (!startToday || !endToday) return 8 // Default fallback
 
     const expectedMs = endToday.getTime() - startToday.getTime()
     return expectedMs / (60 * 60 * 1000)
@@ -553,8 +569,12 @@ export function AttendanceCard({
     const workedMs = Math.max(0, totalMs - totalBreakMs)
     const workedHours = workedMs / (60 * 60 * 1000)
 
-    // Calculate remaining hours: expected hours - hours already worked
-    const remaining = expectedWorkingHours - workedHours
+    // Apply a 30-minute buffer (0.5 hours) for "completion"
+    const BUFFER_HOURS = 0.5
+    const effectiveTargetHours = expectedWorkingHours - BUFFER_HOURS
+
+    // Calculate remaining hours based on the buffered target
+    const remaining = effectiveTargetHours - workedHours
 
     return { hours: remaining > 0 ? remaining : 0, isPaused: isOnBreak }
   })()
@@ -568,12 +588,25 @@ export function AttendanceCard({
         if ('geolocation' in navigator) {
           navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords
+
+            // Only log if moved more than 1km from last recorded location
+            if (lastLoggedLocationRef.current) {
+              const distance = calculateDistanceKm(
+                lastLoggedLocationRef.current.lat,
+                lastLoggedLocationRef.current.lng,
+                latitude,
+                longitude,
+              )
+              if (distance < 1) return // Skip logging if less than 1km
+            }
+
             try {
               await fetch('/api/location-history', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ latitude, longitude }),
               })
+              lastLoggedLocationRef.current = { lat: latitude, lng: longitude }
             } catch (err) {
               console.error('Failed to log live location:', err)
             }

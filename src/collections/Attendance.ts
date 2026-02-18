@@ -165,15 +165,17 @@ export const Attendance: CollectionConfig = {
           }
         }
 
-        // When timeOut is set: full working day = 9 hours. If worked < 4.5h → absent; if >= 4.5h but < 9h → half-day
+        // When timeOut is set: full working day = 8 hours. If worked < 4h → absent; if >= 4h but < 8h → half-day
         const doc = originalDoc as { timeIn?: string; timeOut?: string; date?: string } | undefined
         const timeIn = data.timeIn ?? doc?.timeIn
         const timeOut = data.timeOut ?? doc?.timeOut
 
         if (timeIn && timeOut) {
-          const FULL_WORKING_HOURS = 9
+          const FULL_WORKING_HOURS = 8
+          const BUFFER_HOURS = 0.5 // 30 mins buffer
           const fullWorkingMs = FULL_WORKING_HOURS * 60 * 60 * 1000
-          const halfWorkingMs = fullWorkingMs / 2 // 4.5 hours
+          const bufferWorkingMs = (FULL_WORKING_HOURS - BUFFER_HOURS) * 60 * 60 * 1000
+          const halfWorkingMs = fullWorkingMs / 2 // 4 hours
 
           const timeInDate = new Date(timeIn)
           const timeOutDate = new Date(timeOut)
@@ -181,10 +183,12 @@ export const Attendance: CollectionConfig = {
 
           if (workedMs < halfWorkingMs) {
             data.status = 'absent'
-          } else if (workedMs < fullWorkingMs) {
+          } else if (workedMs < bufferWorkingMs) {
             data.status = 'half-day'
+          } else {
+            // Worked >= 7.5 hours → Mark as Present (even if they were late initially)
+            data.status = 'present'
           }
-          // else: worked >= 9 hours → keep current status (present/late)
         }
 
         return data
@@ -448,12 +452,13 @@ export const Attendance: CollectionConfig = {
         condition: (data) => {
           // Show this field only if timeOut exists and working hours are less than required
           if (!data.timeIn || !data.timeOut) return false
-          const FULL_WORKING_HOURS = 9
-          const fullWorkingMs = FULL_WORKING_HOURS * 60 * 60 * 1000
+          const FULL_WORKING_HOURS = 8
+          const BUFFER_HOURS = 0.5
+          const bufferWorkingMs = (FULL_WORKING_HOURS - BUFFER_HOURS) * 60 * 60 * 1000
           const timeInDate = new Date(data.timeIn)
           const timeOutDate = new Date(data.timeOut)
           const workedMs = Math.max(0, timeOutDate.getTime() - timeInDate.getTime())
-          return workedMs < fullWorkingMs
+          return workedMs < bufferWorkingMs
         },
       },
     },

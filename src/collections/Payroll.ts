@@ -196,7 +196,7 @@ export const Payroll: CollectionConfig = {
                 presentDays++
               }
             } else if (record.status === 'half-day') {
-              // Half-day status (could be from consecutive late or from working < 9 hours)
+              // Half-day status (could be from consecutive late or from working < 8 hours)
               halfDayCount++
               presentDays += 0.5
             }
