@@ -1245,23 +1245,31 @@ export function AdminDashboardViewEnhanced({
                         <td className="py-6 px-4">
                           <div className="max-h-[120px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                             {att.locationHistory && att.locationHistory.length > 0 ? (
-                              att.locationHistory.map((lh, i) => (
-                                <div
-                                  key={i}
-                                  className="flex flex-col border-l-2 border-indigo-200 dark:border-indigo-800 pl-3 py-0.5"
-                                >
-                                  <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
-                                    {format(new Date(lh.timestamp), 'h:mm a')}
-                                  </span>
-                                  <span
-                                    className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[220px]"
-                                    title={lh.address || ''}
-                                  >
-                                    {lh.address ||
-                                      `${lh.latitude.toFixed(4)}, ${lh.longitude.toFixed(4)}`}
+                              <>
+                                <div className="flex items-center gap-2 mb-2 pb-1 border-b border-indigo-100 dark:border-indigo-900">
+                                  <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                                  <span className="text-sm font-black text-indigo-700 dark:text-indigo-400">
+                                    {att.locationHistory.length} Changes
                                   </span>
                                 </div>
-                              ))
+                                {att.locationHistory.map((lh, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex flex-col border-l-2 border-indigo-200 dark:border-indigo-800 pl-3 py-0.5"
+                                  >
+                                    <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                                      {format(new Date(lh.timestamp), 'h:mm a')}
+                                    </span>
+                                    <span
+                                      className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[220px]"
+                                      title={lh.address || ''}
+                                    >
+                                      {lh.address ||
+                                        `${lh.latitude.toFixed(4)}, ${lh.longitude.toFixed(4)}`}
+                                    </span>
+                                  </div>
+                                ))}
+                              </>
                             ) : (
                               <span className="text-xs text-slate-400 italic">
                                 No movement tracked
