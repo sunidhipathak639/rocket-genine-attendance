@@ -547,12 +547,15 @@ export function AdminDashboardViewEnhanced({
         formatWorkingHours(att.timeIn as string, att.timeOut as string),
         breaksStr || '–',
         att.status || 'pending',
-        (att.locationHistory || [])
-          .map(
-            (l) =>
-              `${format(new Date(l.timestamp), 'h:mm a')}: ${l.address || `${l.latitude}, ${l.longitude}`}`,
-          )
-          .join('; ') || '–',
+        att.locationHistory && att.locationHistory.length > 0
+          ? `[${att.locationHistory.length} Changes] ` +
+            att.locationHistory
+              .map(
+                (l) =>
+                  `${format(new Date(l.timestamp), 'h:mm a')}: ${l.address || `${l.latitude}, ${l.longitude}`}`,
+              )
+              .join('; ')
+          : '–',
         att.inactiveDuration || 0,
         (att.activityLogs || [])
           .filter((l) => l.status === 'inactive')
