@@ -108,3 +108,25 @@ body.admin-login-page {
     padding: 2rem !important;
   }
 }
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #e2e8f0;
+    border-radius: 20px;
+  }
+
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+  }
+}

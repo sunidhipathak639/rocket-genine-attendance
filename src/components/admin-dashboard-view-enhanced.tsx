@@ -192,7 +192,7 @@ export function AdminDashboardViewEnhanced({
 }: AdminDashboardViewEnhancedProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<
-    'all' | 'present' | 'late' | 'absent' | 'pending'
+    'all' | 'present' | 'late' | 'absent' | 'pending' | 'location-changed' | 'missed-popups'
   >('all')
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('today')
   const [customStart, setCustomStart] = useState('')
@@ -328,7 +328,7 @@ export function AdminDashboardViewEnhanced({
           ? att.location.address || `${att.location.latitude}, ${att.location.longitude}`
           : '–'
       const status = att.status || 'pending'
-      const earlyCheckoutReason = (att as any).earlyCheckoutReason || '–'
+      const earlyCheckoutReason = (att as Attendance).earlyCheckoutReason || '–'
 
       return [
         format(parseISO(getDateStr(att.date)), 'dd MMM yyyy'),
@@ -389,6 +389,15 @@ export function AdminDashboardViewEnhanced({
     ).size
     const pending = Math.max(0, staffUsers.length - distinctUsersInRange)
 
+    const locationChanged = attendanceInRange.filter(
+      (a) => a.locationHistory && a.locationHistory.length > 0,
+    ).length
+    const missedPopups = attendanceInRange.filter(
+      (a) =>
+        (a.inactiveDuration && a.inactiveDuration > 0) ||
+        (a.activityLogs && a.activityLogs.some((l) => l.status === 'inactive')),
+    ).length
+
     return {
       total: staffUsers.length,
       present,
@@ -396,6 +405,8 @@ export function AdminDashboardViewEnhanced({
       absent,
       halfDay,
       pending,
+      locationChanged,
+      missedPopups,
       recordsInRange: attendanceInRange.length,
     }
   }, [attendanceInRange, staffUsers.length])
@@ -463,6 +474,15 @@ export function AdminDashboardViewEnhanced({
     if (statusFilter !== 'all') {
       list = list.filter((r) => {
         if (statusFilter === 'pending') return !r.att.status
+        if (statusFilter === 'location-changed') {
+          return r.att.locationHistory && r.att.locationHistory.length > 0
+        }
+        if (statusFilter === 'missed-popups') {
+          return (
+            (r.att.inactiveDuration && r.att.inactiveDuration > 0) ||
+            (r.att.activityLogs && r.att.activityLogs.some((log) => log.status === 'inactive'))
+          )
+        }
         return r.att.status === statusFilter
       })
     }
@@ -498,8 +518,11 @@ export function AdminDashboardViewEnhanced({
       'Working Hours',
       'Breaks',
       'Status',
+      'Location History',
+      'Inactive Duration (min)',
+      'Missed Popups',
     ]
-    const escape = (v: string) => {
+    const escape = (v: string | number) => {
       const s = String(v ?? '')
       if (/[,"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
       return s
@@ -524,6 +547,17 @@ export function AdminDashboardViewEnhanced({
         formatWorkingHours(att.timeIn as string, att.timeOut as string),
         breaksStr || '–',
         att.status || 'pending',
+        (att.locationHistory || [])
+          .map(
+            (l) =>
+              `${format(new Date(l.timestamp), 'h:mm a')}: ${l.address || `${l.latitude}, ${l.longitude}`}`,
+          )
+          .join('; ') || '–',
+        att.inactiveDuration || 0,
+        (att.activityLogs || [])
+          .filter((l) => l.status === 'inactive')
+          .map((l) => format(new Date(l.timestamp), 'h:mm a'))
+          .join('; ') || '–',
       ].map(escape)
     })
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
@@ -598,7 +632,7 @@ export function AdminDashboardViewEnhanced({
       </Card>
 
       {/* KPI Cards + Live Clock */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4">
         <motion.div variants={item}>
           <Card className="border-border overflow-hidden transition-all hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800/50">
             <CardContent className="p-5">
@@ -700,6 +734,52 @@ export function AdminDashboardViewEnhanced({
         </motion.div>
 
         <motion.div variants={item}>
+          <Card
+            className={`border-border overflow-hidden transition-all hover:shadow-lg cursor-pointer ${statusFilter === 'location-changed' ? 'ring-2 ring-violet-500' : ''}`}
+            onClick={() => setStatusFilter('location-changed')}
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+                    Location Changes
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-violet-600 dark:text-violet-400">
+                    {stats.locationChanged}
+                  </p>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400">
+                  <ExternalLink className="h-5 w-5" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <Card
+            className={`border-border overflow-hidden transition-all hover:shadow-lg cursor-pointer ${statusFilter === 'missed-popups' ? 'ring-2 ring-rose-500' : ''}`}
+            onClick={() => setStatusFilter('missed-popups')}
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+                    Missed Popups
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-rose-600 dark:text-rose-400">
+                    {stats.missedPopups}
+                  </p>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={item} className="lg:col-span-1">
           <LiveIndianClock />
         </motion.div>
       </div>
@@ -993,6 +1073,8 @@ export function AdminDashboardViewEnhanced({
                   ['late', 'Late'],
                   ['absent', 'Absent'],
                   ['pending', 'Pending'],
+                  ['location-changed', 'Location Changed'],
+                  ['missed-popups', 'Missed Popups'],
                 ] as const
               ).map(([val, label]) => (
                 <button
@@ -1030,26 +1112,21 @@ export function AdminDashboardViewEnhanced({
               <thead>
                 <tr className="border-b border-border bg-slate-50/80 dark:bg-slate-900/50">
                   <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
-                    Date
+                    Employee Details
                   </th>
-                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
-                    Employee
+                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                    Shift & Duration
                   </th>
-                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
-                    Department
-                  </th>
-                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
-                    Check In
-                  </th>
-                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
-                    Check Out
-                  </th>
-                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
-                    Working Hours
-                  </th>
-                  <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
-                    Breaks
-                  </th>
+                  {(statusFilter === 'location-changed' || statusFilter === 'all') && (
+                    <th className="text-left py-4 px-4 min-w-[250px] text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
+                      Location Tracking
+                    </th>
+                  )}
+                  {(statusFilter === 'missed-popups' || statusFilter === 'all') && (
+                    <th className="text-left py-4 px-4 min-w-[180px] text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
+                      Activity Logs
+                    </th>
+                  )}
                   <th className="text-left py-4 px-4 text-xs font-bold text-slate-600 dark:text-muted-foreground uppercase tracking-wider">
                     Status
                   </th>
@@ -1075,21 +1152,18 @@ export function AdminDashboardViewEnhanced({
                     <tr
                       key={String(att.id)}
                       onClick={() => setSelectedStaffId(userId as number)}
-                      className="border-b border-border/60 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30 cursor-pointer"
+                      className="group border-b border-border/60 transition-all hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer"
                     >
-                      <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
-                        {format(parseISO(getDateStr(att.date)), 'dd MMM yyyy')}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-indigo-100 dark:bg-indigo-500/20">
+                      <td className="py-6 px-4">
+                        <div className="flex items-center gap-4">
+                          <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 shadow-sm ring-1 ring-border">
                             {profileUrl ? (
                               <Image
                                 src={profileUrl}
                                 alt=""
                                 fill
                                 className="object-cover"
-                                sizes="40px"
+                                sizes="48px"
                                 unoptimized={profileUrl.startsWith('http')}
                               />
                             ) : (
@@ -1099,56 +1173,141 @@ export function AdminDashboardViewEnhanced({
                             )}
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900 dark:text-foreground">
+                            <p className="font-bold text-slate-900 dark:text-foreground group-hover:text-indigo-600 transition-colors">
                               {user.name || 'N/A'}
                             </p>
-                            <p className="text-xs text-slate-500">{user.email}</p>
+                            <div className="flex flex-col gap-0.5 mt-0.5">
+                              <p className="text-xs text-slate-500">{user.email}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400 uppercase tracking-tighter">
+                                  {user.department || 'Staff'}
+                                </span>
+                                <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-tighter">
+                                  {format(parseISO(getDateStr(att.date)), 'dd MMM yyyy')}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-sm text-slate-600 dark:text-muted-foreground">
-                        {user.department || '–'}
-                      </td>
-                      <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
-                        {timeIn}
-                      </td>
-                      <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
-                        {timeOut}
-                      </td>
-                      <td className="py-4 px-4 text-sm font-medium tabular-nums text-slate-700 dark:text-foreground">
-                        {formatWorkingHours(
-                          att.timeIn as string | undefined,
-                          att.timeOut as string | undefined,
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-sm text-slate-600 dark:text-muted-foreground max-w-[200px]">
-                        {(() => {
-                          const breaksList =
-                            (
-                              att as {
-                                breaks?: {
-                                  startTime: string
-                                  endTime: string
-                                  durationMinutes: number
-                                }[]
+                      <td className="py-6 px-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+                                Check In
+                              </span>
+                              <span className="text-sm font-black tabular-nums text-slate-800 dark:text-slate-200">
+                                {timeIn}
+                              </span>
+                            </div>
+                            <div className="h-6 w-[1px] bg-border mt-2" />
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">
+                                Check Out
+                              </span>
+                              <span className="text-sm font-black tabular-nums text-slate-800 dark:text-slate-200">
+                                {timeOut}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                              <Clock className="h-3 w-3" />
+                              {formatWorkingHours(
+                                att.timeIn as string | undefined,
+                                att.timeOut as string | undefined,
+                              )}
+                            </span>
+                            {(() => {
+                              const bList = (att as Attendance).breaks ?? []
+                              if (bList.length > 0) {
+                                const totalMins = bList.reduce(
+                                  (acc: number, b) => acc + (b.durationMinutes || 0),
+                                  0,
+                                )
+                                return (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                                    title={`${bList.length} breaks`}
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    {totalMins}m break
+                                  </span>
+                                )
                               }
-                            )?.breaks ?? []
-                          if (breaksList.length === 0) return '–'
-                          return (
-                            <ul className="space-y-0.5 text-xs">
-                              {breaksList.map((b, i) => (
-                                <li key={i} className="tabular-nums">
-                                  {format(new Date(b.startTime), 'h:mm a')} –{' '}
-                                  {format(new Date(b.endTime), 'h:mm a')} ({b.durationMinutes} min)
-                                </li>
-                              ))}
-                            </ul>
-                          )
-                        })()}
+                              return null
+                            })()}
+                          </div>
+                        </div>
                       </td>
-                      <td className="py-4 px-4">
+                      {(statusFilter === 'location-changed' || statusFilter === 'all') && (
+                        <td className="py-6 px-4">
+                          <div className="max-h-[120px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
+                            {att.locationHistory && att.locationHistory.length > 0 ? (
+                              att.locationHistory.map((lh, i) => (
+                                <div
+                                  key={i}
+                                  className="flex flex-col border-l-2 border-indigo-200 dark:border-indigo-800 pl-3 py-0.5"
+                                >
+                                  <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                                    {format(new Date(lh.timestamp), 'h:mm a')}
+                                  </span>
+                                  <span
+                                    className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[220px]"
+                                    title={lh.address || ''}
+                                  >
+                                    {lh.address ||
+                                      `${lh.latitude.toFixed(4)}, ${lh.longitude.toFixed(4)}`}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">
+                                No movement tracked
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      {(statusFilter === 'missed-popups' || statusFilter === 'all') && (
+                        <td className="py-6 px-4">
+                          <div className="max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">
+                            {att.inactiveDuration && att.inactiveDuration > 0 ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                  <span className="text-sm font-black text-rose-600">
+                                    {att.inactiveDuration}m Inactive
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {att.activityLogs
+                                    ?.filter((l) => l.status === 'inactive')
+                                    .map((l, i) => (
+                                      <span
+                                        key={i}
+                                        className="text-[10px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-md tabular-nums border border-rose-100"
+                                      >
+                                        {format(new Date(l.timestamp), 'h:mm a')}
+                                      </span>
+                                    ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-emerald-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                                <span className="text-xs font-bold uppercase tracking-tight">
+                                  Active All Day
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                      <td className="py-6 px-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-tight shadow-sm ${
                             status === 'present'
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
                               : status === 'late'
@@ -1160,7 +1319,7 @@ export function AdminDashboardViewEnhanced({
                                     : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                           }`}
                         >
-                          <span
+                          <div
                             className={`h-1.5 w-1.5 rounded-full ${
                               status === 'present'
                                 ? 'bg-emerald-500'
@@ -1184,20 +1343,14 @@ export function AdminDashboardViewEnhanced({
                                   : 'Absent'}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
-                        <Link
-                          href={`/admin/collections/attendance?where[user][equals]=${user.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                      <td className="py-6 px-4">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm"
                         >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                          <ChevronRight className="h-5 w-5" />
+                        </Button>
                       </td>
                     </tr>
                   )
