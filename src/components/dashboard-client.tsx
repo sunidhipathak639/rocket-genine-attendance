@@ -4,19 +4,10 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { AttendanceCard } from '@/components/attendance-card'
 import Image from 'next/image'
 import { DashboardCalendar } from '@/components/dashboard-calendar'
-import {
-  LogOut,
-  Calendar as CalendarIcon,
-  Clock,
-  Loader2,
-  Menu,
-  Bell,
-  Coffee,
-  Video,
-} from 'lucide-react'
+import { LogOut, Clock, Loader2, Bell, Coffee, Video } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,

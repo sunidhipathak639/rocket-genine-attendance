@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     const created = await payload.create({
       collection: 'users',
-      data,
+      data: data as any,
       overrideAccess: true,
     })
 
@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest) {
       const updated = await payload.update({
         collection: 'users',
         id: docId as string | number,
-        data,
+        data: data as any,
         overrideAccess: true,
       })
       return NextResponse.json(updated)
@@ -127,10 +127,11 @@ export async function PATCH(request: NextRequest) {
     if (!where) {
       return NextResponse.json({ message: 'Missing id or where param' }, { status: 400 })
     }
+
     const updated = await payload.update({
       collection: 'users',
       where,
-      data,
+      data: data as any,
       overrideAccess: true,
     })
     return NextResponse.json(updated)
