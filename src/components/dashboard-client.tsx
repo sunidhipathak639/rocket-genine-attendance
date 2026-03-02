@@ -6,7 +6,6 @@ import Image from 'next/image'
 import { DashboardCalendar } from '@/components/dashboard-calendar'
 import {
   LogOut,
-  History,
   Calendar as CalendarIcon,
   Clock,
   Loader2,
@@ -15,7 +14,6 @@ import {
   Coffee,
   Video,
 } from 'lucide-react'
-import { HolidaysCalendar } from './holidays-calendar'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -118,6 +116,45 @@ function getTodayAtTime(isoTime: string | null | undefined): Date | null {
   t.setHours(d.getHours(), d.getMinutes(), d.getSeconds(), 0)
   return t
 }
+
+// ─── Unified Calendar Section ────────────────────────────────────────────────
+function UnifiedCalendarSection({
+  user,
+  workSettings,
+}: {
+  user: Parameters<typeof DashboardClient>[0]['user']
+  workSettings?: {
+    saturdayWorkingDay?: boolean | null
+    workStartTime?: string | null
+    workEndTime?: string | null
+    activityCheckInterval?: number | null
+    maxBreaksPerDay?: number | null
+  } | null
+}) {
+  return (
+    <div className="dashboard-card p-6 md:p-8">
+      {/* Single unified calendar — shows attendance, holidays & leaves in one view */}
+      <DashboardCalendar
+        user={user}
+        workSettings={workSettings as Parameters<typeof DashboardCalendar>[0]['workSettings']}
+      />
+
+      {/* Leave Request History — below the calendar */}
+      <div className="mt-8 pt-8 border-t border-border">
+        <div className="mb-5">
+          <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-foreground border-l-4 border-indigo-600 dark:border-primary pl-3">
+            Leave <span className="text-indigo-600 dark:text-primary">Ledger</span>
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-muted-foreground font-medium mt-1 pl-3">
+            Status of your submitted leave requests.
+          </p>
+        </div>
+        <MyLeaveStatusList user={user} />
+      </div>
+    </div>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function DashboardClient({
   user,
@@ -1015,76 +1052,6 @@ export function DashboardClient({
           </span>
         </motion.div>
 
-        <motion.nav
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="hidden lg:flex items-center gap-1 bg-slate-100/50 dark:bg-slate-800/50 p-1 rounded-xl border border-border/80 dark:border-border absolute left-1/2 -translate-x-1/2"
-        >
-          {[
-            { label: 'Dashboard', href: '/', id: 'overview' },
-            { label: 'History', href: '/history', id: 'history' },
-            { label: 'Leaves', href: '/leaves', id: 'leaves' },
-            { label: 'Holidays', href: '/holidays', id: 'holidays' },
-          ].map((item) => (
-            <Link
-              key={item.id}
-              href={item.href}
-              className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${pathname === item.href ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </motion.nav>
-
-        {/* Mobile Navigation Trigger */}
-        <div className="lg:hidden">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-xl border border-border lg:hidden"
-              >
-                <Menu className="w-5 h-5 text-slate-600" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[90vw] w-full left-1/2 -translate-x-1/2 top-4 translate-y-0 rounded-2xl border-none shadow-2xl p-6 lg:hidden bg-white/80 dark:bg-card/90 backdrop-blur-xl border dark:border-border">
-              <DialogTitle className="sr-only">Navigation menu</DialogTitle>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-foreground">
-                    Rocket{' '}
-                    <motion.span
-                      animate={{
-                        color: ['#4f46e5', '#8b5cf6', '#ec4899', '#4f46e5'],
-                      }}
-                      transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                      Genie
-                    </motion.span>
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {[
-                    { label: 'Dashboard', href: '/', id: 'overview' },
-                    { label: 'History', href: '/history', id: 'history' },
-                    { label: 'Leaves', href: '/leaves', id: 'leaves' },
-                    { label: 'Holidays', href: '/holidays', id: 'holidays' },
-                  ].map((item) => (
-                    <Link
-                      key={item.id}
-                      href={item.href}
-                      className={`px-4 py-3 text-base font-bold rounded-xl transition-all ${pathname === item.href ? 'bg-indigo-50 dark:bg-primary/20 text-indigo-600 dark:text-primary' : 'text-slate-500 dark:text-muted-foreground active:bg-slate-50 dark:active:bg-muted'}`}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
         <div className="flex items-center gap-2 md:gap-6">
           <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
             <PopoverTrigger asChild>
@@ -1269,31 +1236,6 @@ export function DashboardClient({
                   })}
                 </p>
               </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button className="w-full sm:w-auto bg-white dark:bg-card border-2 border-indigo-100 dark:border-border text-indigo-600 dark:text-primary hover:bg-indigo-50 dark:hover:bg-muted font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-sm transition-all">
-                        <CalendarIcon className="w-5 h-5 mr-3" />
-                        My Calendar
-                      </Button>
-                    </motion.div>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] md:max-w-5xl rounded-2xl md:rounded-3xl p-0 border-none shadow-2xl bg-white/85 dark:bg-card/90 backdrop-blur-xl border dark:border-border">
-                    <DialogTitle className="sr-only">My Calendar</DialogTitle>
-                    <DashboardCalendar user={user} />
-                  </DialogContent>
-                </Dialog>
-
-                <Link href="/leaves" className="w-full sm:w-auto">
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button className="w-full bg-indigo-600 dark:bg-primary text-white hover:bg-slate-900 dark:hover:bg-primary/90 font-bold px-6 md:px-8 py-5 md:py-6 rounded-2xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all">
-                      Apply Leave
-                    </Button>
-                  </motion.div>
-                </Link>
-              </div>
             </motion.div>
 
             <AnimatePresence mode="wait">
@@ -1306,12 +1248,12 @@ export function DashboardClient({
                   transition={{ duration: 0.3 }}
                   className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
                 >
-                  {/* Attendance Hero Card */}
+                  {/* ── Left column: Attendance + Break + Calendar ── */}
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.1, type: 'spring', damping: 20 }}
-                    className="lg:col-span-8"
+                    className="lg:col-span-8 space-y-6"
                   >
                     <AttendanceCard
                       user={user}
@@ -1329,12 +1271,12 @@ export function DashboardClient({
                       onCheckOutSuccess={() => setLocalCheckedInToday(false)}
                     />
 
-                    {/* Take a break: 10/15/20/25 min — activity popup suppressed during break (staff when checked in, or admin) */}
+                    {/* Take a break */}
                     {((user.role === 'staff' && isCheckedInToday) || user.role === 'admin') && (
                       <motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-6 p-4 md:p-5 rounded-2xl border border-border bg-slate-50/80 dark:bg-slate-900/50"
+                        className="p-4 md:p-5 rounded-2xl border border-border bg-slate-50/80 dark:bg-slate-900/50"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                           <div className="flex items-center gap-2">
@@ -1450,28 +1392,25 @@ export function DashboardClient({
                         )}
                       </motion.div>
                     )}
+
+                    {/* Unified Calendar — History + Leaves + Holidays in one */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 }}
+                    >
+                      <UnifiedCalendarSection user={user} workSettings={workSettings} />
+                    </motion.div>
                   </motion.div>
 
-                  {/* Quick Stats Sidebar */}
+                  {/* ── Right column: sticky sidebar ── */}
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="lg:col-span-4 space-y-6"
+                    className="lg:col-span-4 space-y-6 lg:sticky lg:top-28 lg:self-start"
                   >
-                    {/* Popup duration from backend (Work Settings) */}
-                    {/* {workSettings != null && (
-                      <div className="rounded-xl border border-border bg-slate-50/80 dark:bg-slate-900/50 px-4 py-3">
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Activity popup: after{' '}
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {intervalMinutesFromSettings} min
-                          </span>{' '}
-                          of no activity (from Work Settings)
-                        </p>
-                      </div>
-                    )} */}
-
+                    {/* Shift Status */}
                     <div className="dashboard-card p-8 border border-border relative overflow-hidden">
                       {!workSettings ? (
                         <div className="space-y-6">
@@ -1489,7 +1428,6 @@ export function DashboardClient({
                               <Clock className="w-4 h-4" />
                             </div>
                           </div>
-
                           <div className="flex flex-col items-center">
                             <div className="w-48 h-48 mb-6 relative">
                               <CircularProgressbar
@@ -1509,7 +1447,6 @@ export function DashboardClient({
                                 </span>
                               </div>
                             </div>
-
                             <div className="grid grid-cols-2 gap-4 w-full">
                               <div className="p-4 bg-white/60 dark:bg-muted rounded-2xl border border-border text-center">
                                 <p className="text-[10px] font-black text-slate-400 dark:text-muted-foreground uppercase tracking-widest mb-1">
@@ -1533,6 +1470,7 @@ export function DashboardClient({
                       )}
                     </div>
 
+                    {/* Estimated Salary */}
                     {user.role === 'staff' && (
                       <div className="dashboard-card p-8 bg-indigo-600 text-white relative overflow-hidden group">
                         {!workSettings ? (
@@ -1548,7 +1486,6 @@ export function DashboardClient({
                                 Estimated Salary •{' '}
                                 {new Date().toLocaleDateString('en-US', { month: 'long' })}
                               </h4>
-
                               <div className="w-48 h-48 mb-8 relative">
                                 <CircularProgressbar
                                   value={
@@ -1571,7 +1508,6 @@ export function DashboardClient({
                                   </span>
                                 </div>
                               </div>
-
                               <div className="flex flex-col items-center gap-1 mb-8">
                                 <span className="text-4xl font-black tracking-tighter">
                                   ₹
@@ -1586,7 +1522,6 @@ export function DashboardClient({
                                   Net Payable
                                 </span>
                               </div>
-
                               <div className="grid grid-cols-2 gap-4 w-full">
                                 <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md border border-indigo-400/50 text-center">
                                   <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 mb-1">
@@ -1611,84 +1546,6 @@ export function DashboardClient({
                       </div>
                     )}
                   </motion.div>
-                </motion.div>
-              )}
-
-              {initialTab === 'history' && (
-                <motion.div
-                  key="history"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="dashboard-card p-6 md:p-10 border-white/20 dark:border-border"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                    <div>
-                      <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-foreground border-l-4 border-indigo-600 dark:border-primary pl-4">
-                        Session <span className="text-indigo-600">Archive</span>
-                      </h2>
-                      <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
-                        Detailed log of your presence and activity.
-                      </p>
-                    </div>
-                    <div className="hidden sm:block">
-                      <History className="w-10 h-10 text-slate-200" />
-                    </div>
-                  </div>
-                  <DashboardCalendar user={user} workSettings={workSettings} />
-                </motion.div>
-              )}
-
-              {initialTab === 'leaves' && (
-                <motion.div
-                  key="leaves"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-6 md:space-y-8"
-                >
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
-                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 dark:border-border">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                        <div>
-                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-foreground border-l-4 border-indigo-600 dark:border-primary pl-4">
-                            Leave <span className="text-indigo-600">Ledger</span>
-                          </h2>
-                          <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
-                            Monitor the status of your submitted requests.
-                          </p>
-                        </div>
-                      </div>
-                      <MyLeaveStatusList user={user} />
-                    </div>
-                    <div className="lg:col-span-12 dashboard-card p-6 md:p-10 border-white/20 dark:border-border">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                        <div>
-                          <h2 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-foreground border-l-4 border-indigo-600 dark:border-primary pl-4">
-                            Request <span className="text-indigo-600">Time Off</span>
-                          </h2>
-                          <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">
-                            Select dates on the calendar to begin your application.
-                          </p>
-                        </div>
-                      </div>
-                      <DashboardCalendar user={user} workSettings={workSettings} />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {initialTab === 'holidays' && (
-                <motion.div
-                  key="holidays"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <HolidaysCalendar user={user} />
                 </motion.div>
               )}
             </AnimatePresence>

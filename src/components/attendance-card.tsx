@@ -891,14 +891,14 @@ export function AttendanceCard({
         transitionSpeed={1000}
         className="dashboard-card overflow-hidden transform-gpu"
       >
-        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-border">
-          <div className="flex-1 p-5 md:p-10 bg-gradient-to-br from-white to-slate-200/20 dark:from-card dark:to-muted/30">
-            <div className="flex items-center justify-between mb-8 md:mb-12">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 dark:bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                  <Clock className="w-5 h-5" />
+        <div className="flex flex-col lg:flex-row lg:items-start dark:from-card dark:to-muted/30 bg-gradient-to-br from-white to-slate-200/20 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-border">
+          <div className="flex-1 p-5 md:p-10  ">
+            <div className="flex items-center justify-between space-y-6">
+              <div className="flex items-center gap-1">
+                <div className="w-6 h-6 bg-indigo-600 dark:bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
+                  <Clock className="w-3 h-3" />
                 </div>
-                <h2 className="font-black text-lg md:text-xl tracking-tight text-slate-900 dark:text-foreground uppercase">
+                <h2 className="font-black text-sm tracking-tight text-slate-900 dark:text-foreground uppercase">
                   Session <span className="text-indigo-600 dark:text-primary">Console</span>
                 </h2>
               </div>
@@ -910,15 +910,15 @@ export function AttendanceCard({
               </button>
             </div>
 
-            <div className="flex flex-col items-center justify-center mb-8 md:mb-12 py-10 md:py-16 bg-white/70 dark:bg-muted/50 backdrop-blur-xl rounded-[40px] md:rounded-[48px] border border-border shadow-sm relative overflow-hidden">
+            <div className="flex flex-col items-center justify-center mb-8 py-6 md:py-[44px] bg-white/70 dark:bg-muted/50 backdrop-blur-xl rounded-3xl border border-border shadow-sm relative overflow-hidden">
               <div className="flex items-baseline gap-1 relative z-10">
-                <span className="text-6xl md:text-8xl font-black tracking-tighter text-slate-900 dark:text-foreground">
+                <span className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 dark:text-foreground">
                   {formattedTime.split(' ')[0]}
                 </span>
-                <span className="text-2xl md:text-4xl font-black text-indigo-600 dark:text-primary ml-2">
+                <span className="text-lg md:text-2xl font-black text-indigo-600 dark:text-primary ml-2">
                   {formattedSeconds}
                 </span>
-                <span className="text-sm md:text-xl font-black text-slate-400 dark:text-muted-foreground ml-2 uppercase">
+                <span className="text-xs md:text-sm font-black text-slate-400 dark:text-muted-foreground ml-2 uppercase">
                   {formattedTime.split(' ')[1]}
                 </span>
               </div>
