@@ -75,6 +75,13 @@ export const Users: CollectionConfig = {
       name: 'name',
       type: 'text',
       required: true,
+      hooks: {
+        afterRead: [
+          ({ value, data }) => {
+            return value || data?.email || `User ${data?.id}`
+          },
+        ],
+      },
     },
     {
       name: 'role',
@@ -134,6 +141,20 @@ export const Users: CollectionConfig = {
         description: 'App theme. User can change this in Profile → Settings.',
       },
       saveToJWT: true,
+    },
+    {
+      name: 'title',
+      type: 'text',
+      admin: {
+        hidden: true,
+      },
+      hooks: {
+        afterRead: [
+          ({ data }) => {
+            return data?.name || data?.email || `User ${data?.id}`
+          },
+        ],
+      },
     },
   ],
 }

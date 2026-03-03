@@ -19,7 +19,7 @@ import {
 } from 'recharts'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { format } from 'date-fns'
-import type { Task, User as UserType } from '@/payload-types'
+import type { Task } from '@/payload-types'
 
 interface TaskStats {
   total: number
@@ -231,14 +231,22 @@ export default function TaskManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-foreground">Task Management</h2>
-        <div className="flex gap-2">
-          <Button onClick={() => downloadCSV('tasks')} variant="outline" size="sm">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => downloadCSV('tasks')}
+            variant="outline"
+            className="rounded-xl h-10 px-4 font-semibold border-slate-200"
+          >
             <Download className="w-4 h-4 mr-2" />
             Export Tasks CSV
           </Button>
-          <Button onClick={() => downloadCSV('staff')} variant="outline" size="sm">
+          <Button
+            onClick={() => downloadCSV('staff')}
+            variant="outline"
+            className="rounded-xl h-10 px-4 font-semibold border-slate-200"
+          >
             <Download className="w-4 h-4 mr-2" />
             Export Staff CSV
           </Button>
@@ -334,11 +342,13 @@ export default function TaskManagement() {
                   data={chartData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
+                  labelLine={true}
                   label={({ name, percent }) =>
-                    `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`
+                    percent !== undefined && percent > 0
+                      ? `${name}: ${(percent * 100).toFixed(0)}%`
+                      : null
                   }
-                  outerRadius={100}
+                  outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                   isAnimationActive={false}

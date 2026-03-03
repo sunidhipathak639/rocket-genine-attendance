@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 export const Leaves: CollectionConfig = {
   slug: 'leaves',
   admin: {
-    useAsTitle: 'type',
+    useAsTitle: 'displayTitle',
     defaultColumns: ['user', 'type', 'bookingStatus', 'startDate'],
   },
   access: {
@@ -325,6 +325,40 @@ export const Leaves: CollectionConfig = {
       type: 'textarea',
       admin: {
         description: 'Notes from the administrator (e.g., reason for approval or rejection)',
+      },
+    },
+    {
+      name: 'displayTitle',
+      type: 'text',
+      admin: {
+        hidden: true,
+      },
+      hooks: {
+        afterRead: [
+          async ({ data, req }: any) => {
+            let userName = ''
+            if (typeof data?.user === 'object' && data.user) {
+              userName = data.user.name || data.user.email || `User ${data.user.id}`
+            } else if (data?.user && req?.payload) {
+              try {
+                const user = await req.payload.findByID({
+                  collection: 'users',
+                  id: data.user,
+                  depth: 0,
+                  req,
+                })
+                userName = user?.name || user?.email || `User ${data.user}`
+              } catch (_e) {
+                userName = `User ${data.user}`
+              }
+            } else {
+              userName = data?.user ? `User ${data.user}` : 'New Leave'
+            }
+
+            const dateStr = data?.startDate ? format(new Date(data.startDate), 'dd MMM yyyy') : ''
+            return `${userName} - ${dateStr}`
+          },
+        ],
       },
     },
   ],

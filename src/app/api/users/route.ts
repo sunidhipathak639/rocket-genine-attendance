@@ -53,21 +53,35 @@ export async function POST(request: NextRequest) {
 
     if (ct.includes('multipart/form-data') || ct.includes('application/x-www-form-urlencoded')) {
       const form = await request.formData()
+      const payloadString = form.get('_payload')
+
+      if (typeof payloadString === 'string') {
+        try {
+          Object.assign(data, JSON.parse(payloadString))
+        } catch (e) {
+          console.warn('Failed to parse _payload in POST /api/users:', e)
+        }
+      }
+
+      // Also grab other fields, but don't let them overwrite _payload easily unless it was empty
       form.forEach((value, key) => {
-        // Payload uses _payload as the JSON payload field in multipart forms
-        if (key === '_payload' && typeof value === 'string') {
-          try {
-            Object.assign(data, JSON.parse(value))
-          } catch {
-            // ignore
-          }
-        } else {
-          data[key] = value
+        if (key !== '_payload') {
+          if (!data[key]) data[key] = value
         }
       })
     } else {
-      data = (await request.json()) as Record<string, unknown>
+      try {
+        data = (await request.json()) as Record<string, unknown>
+      } catch {
+        data = {}
+      }
     }
+
+    // Normalize commonly capitalized field names from external/programmatic callers
+    if (data.Name && !data.name) data.name = data.Name
+    if (data.Email && !data.email) data.email = data.Email
+
+    console.log('DEBUG: Creating user with data:', JSON.stringify(data, null, 2))
 
     const created = await payload.create({
       collection: 'users',
@@ -76,10 +90,19 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(created, { status: 201 })
-  } catch (err: unknown) {
+  } catch (err: any) {
     console.error('Users create error:', err)
-    const msg = err instanceof Error ? err.message : 'Error'
-    return NextResponse.json({ message: msg }, { status: 500 })
+    // Extract detailed validation errors if Payload provided them
+    const validationErrors = err?.data?.errors || err?.errors
+    const msg = err instanceof Error ? err.message : 'Error creating user'
+
+    return NextResponse.json(
+      {
+        message: msg,
+        errors: validationErrors,
+      },
+      { status: err.status || 500 },
+    )
   }
 }
 

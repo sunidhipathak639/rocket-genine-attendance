@@ -161,6 +161,7 @@ export interface User {
    * App theme. User can change this in Profile → Settings.
    */
   theme?: ('light' | 'dark' | 'auto') | null;
+  title?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -350,6 +351,7 @@ export interface Leaf {
    * Notes from the administrator (e.g., reason for approval or rejection)
    */
   adminNotes?: string | null;
+  displayTitle?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -716,6 +718,7 @@ export interface UsersSelect<T extends boolean = true> {
   profileImage?: T;
   timeFormat?: T;
   theme?: T;
+  title?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -843,6 +846,7 @@ export interface LeavesSelect<T extends boolean = true> {
   reason?: T;
   bookingStatus?: T;
   adminNotes?: T;
+  displayTitle?: T;
   updatedAt?: T;
   createdAt?: T;
 }

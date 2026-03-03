@@ -100,7 +100,7 @@ function formatWorkingHours(timeIn: string | undefined, timeOut: string | undefi
   }
 }
 
-function LiveIndianClock() {
+export function LiveIndianClock() {
   const [time, setTime] = useState('')
   const [dateStr, setDateStr] = useState('')
 
@@ -132,20 +132,25 @@ function LiveIndianClock() {
   }, [])
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-indigo-500/10 via-slate-50 to-violet-500/10 dark:from-indigo-500/20 dark:via-card dark:to-violet-500/20 p-6">
-      <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-indigo-500/10 blur-2xl" />
-      <div className="relative flex flex-col gap-1">
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-muted-foreground">
-          India (IST)
-        </span>
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-          Live
-        </span>
-        <p className="text-2xl font-black tabular-nums tracking-tight text-slate-900 dark:text-foreground">
-          {time || '--:--:--'}
-        </p>
-        <p className="text-sm text-slate-600 dark:text-muted-foreground">{dateStr}</p>
+    <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-indigo-500/5 via-slate-50/50 to-violet-500/5 dark:from-indigo-500/10 dark:via-card/50 dark:to-violet-500/10 px-4 py-2.5 backdrop-blur-sm">
+      <div className="relative flex items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-muted-foreground">
+              India (IST)
+            </span>
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-500" />
+              Live
+            </span>
+          </div>
+          <p className="text-sm font-medium text-slate-600 dark:text-muted-foreground">{dateStr}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-black tabular-nums tracking-tighter text-slate-900 dark:text-foreground">
+            {time || '--:--:--'}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -576,80 +581,85 @@ export function AdminDashboardViewEnhanced({
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
       {/* Date range filter */}
-      <Card className="border-border shadow-sm">
+      <Card className="border-border shadow-sm bg-white/50 backdrop-blur-sm">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <CalendarRange className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-sm font-semibold text-slate-700 dark:text-foreground">
-                Date range
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 pr-2 border-r border-slate-200 dark:border-slate-800">
+                <CalendarRange className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <span className="text-sm font-bold text-slate-700 dark:text-foreground">
+                  Date range
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['today', 'Today'],
+                    ['this_week', 'This week'],
+                    ['this_month', 'This month'],
+                    ['year_to_date', 'YTD'],
+                    ['custom', 'Custom'],
+                  ] as const
+                ).map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setDateRangePreset(val)}
+                    className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                      dateRangePreset === val
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none translate-y-[-1px]'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {dateRangePreset === 'custom' && (
+                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <input
+                    type="date"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="rounded-xl border border-border px-3 py-1.5 text-xs bg-background font-medium focus:ring-2 ring-indigo-500/20"
+                  />
+                  <span className="text-slate-400 text-xs font-bold">to</span>
+                  <input
+                    type="date"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="rounded-xl border border-border px-3 py-1.5 text-xs bg-background font-medium focus:ring-2 ring-indigo-500/20"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">
+                {rangeStart === rangeEnd
+                  ? format(parseISO(rangeStart), 'EEEE, dd MMM yyyy')
+                  : `${format(parseISO(rangeStart), 'dd MMM yyyy')} – ${format(parseISO(rangeEnd), 'dd MMM yyyy')}`}
               </span>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ['today', 'Today'],
-                  ['this_week', 'This week'],
-                  ['this_month', 'This month'],
-                  ['year_to_date', 'Year to date'],
-                  ['custom', 'Custom'],
-                ] as const
-              ).map(([val, label]) => (
-                <button
-                  key={val}
-                  onClick={() => setDateRangePreset(val)}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-                    dateRangePreset === val
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {dateRangePreset === 'custom' && (
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="rounded-xl border border-border px-3 py-2 text-sm bg-background"
-                />
-                <span className="text-slate-500">to</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="rounded-xl border border-border px-3 py-2 text-sm bg-background"
-                />
-              </div>
-            )}
-            <span className="text-sm text-slate-500 dark:text-muted-foreground">
-              {rangeStart === rangeEnd
-                ? format(parseISO(rangeStart), 'EEEE, dd MMM yyyy')
-                : `${format(parseISO(rangeStart), 'dd MMM yyyy')} – ${format(parseISO(rangeEnd), 'dd MMM yyyy')}`}
-            </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* KPI Cards + Live Clock */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         <motion.div variants={item}>
           <Card className="border-border overflow-hidden transition-all hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800/50">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                     Total Employees
                   </p>
-                  <p className="mt-1 text-2xl font-black text-slate-900 dark:text-foreground">
+                  <p className="mt-1 text-3xl font-black text-slate-900 dark:text-foreground">
                     {stats.total}
                   </p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
-                  <Users className="h-6 w-6" />
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
+                  <Users className="h-5 w-5" />
                 </div>
               </div>
             </CardContent>
@@ -659,17 +669,17 @@ export function AdminDashboardViewEnhanced({
         <motion.div variants={item}>
           <Card className="border-border overflow-hidden transition-all hover:shadow-lg hover:border-emerald-200 dark:hover:border-emerald-800/50">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                     Present Today
                   </p>
-                  <p className="mt-1 text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                  <p className="mt-1 text-3xl font-black text-emerald-600 dark:text-emerald-400">
                     {stats.present}
                   </p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                  <UserCheck className="h-6 w-6" />
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                  <UserCheck className="h-5 w-5" />
                 </div>
               </div>
             </CardContent>
@@ -679,17 +689,17 @@ export function AdminDashboardViewEnhanced({
         <motion.div variants={item}>
           <Card className="border-border overflow-hidden transition-all hover:shadow-lg hover:border-amber-200 dark:hover:border-amber-800/50">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                     Late
                   </p>
-                  <p className="mt-1 text-2xl font-black text-amber-600 dark:text-amber-400">
+                  <p className="mt-1 text-3xl font-black text-amber-600 dark:text-amber-400">
                     {stats.late}
                   </p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                  <Clock className="h-6 w-6" />
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                  <Clock className="h-5 w-5" />
                 </div>
               </div>
             </CardContent>
@@ -699,17 +709,17 @@ export function AdminDashboardViewEnhanced({
         <motion.div variants={item}>
           <Card className="border-border overflow-hidden transition-all hover:shadow-lg hover:border-red-200 dark:hover:border-red-800/50">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                     Absent
                   </p>
-                  <p className="mt-1 text-2xl font-black text-red-600 dark:text-red-400">
+                  <p className="mt-1 text-3xl font-black text-red-600 dark:text-red-400">
                     {stats.absent}
                   </p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400">
-                  <UserX className="h-6 w-6" />
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400">
+                  <UserX className="h-5 w-5" />
                 </div>
               </div>
             </CardContent>
@@ -719,17 +729,17 @@ export function AdminDashboardViewEnhanced({
         <motion.div variants={item}>
           <Card className="border-border overflow-hidden transition-all hover:shadow-lg hover:border-slate-200 dark:hover:border-slate-700">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                     Pending
                   </p>
-                  <p className="mt-1 text-2xl font-black text-slate-600 dark:text-slate-400">
+                  <p className="mt-1 text-3xl font-black text-slate-600 dark:text-slate-400">
                     {stats.pending}
                   </p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                  <Clock className="h-6 w-6" />
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  <Clock className="h-5 w-5" />
                 </div>
               </div>
             </CardContent>
@@ -742,16 +752,16 @@ export function AdminDashboardViewEnhanced({
             onClick={() => setStatusFilter('location-changed')}
           >
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                     Location Changes
                   </p>
-                  <p className="mt-1 text-2xl font-black text-violet-600 dark:text-violet-400">
+                  <p className="mt-1 text-3xl font-black text-violet-600 dark:text-violet-400">
                     {stats.locationChanged}
                   </p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400">
                   <ExternalLink className="h-5 w-5" />
                 </div>
               </div>
@@ -765,25 +775,21 @@ export function AdminDashboardViewEnhanced({
             onClick={() => setStatusFilter('missed-popups')}
           >
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-muted-foreground truncate">
                     Missed Popups
                   </p>
-                  <p className="mt-1 text-2xl font-black text-rose-600 dark:text-rose-400">
+                  <p className="mt-1 text-3xl font-black text-rose-600 dark:text-rose-400">
                     {stats.missedPopups}
                   </p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400">
                   <AlertCircle className="h-5 w-5" />
                 </div>
               </div>
             </CardContent>
           </Card>
-        </motion.div>
-
-        <motion.div variants={item} className="lg:col-span-1">
-          <LiveIndianClock />
         </motion.div>
       </div>
 
@@ -800,38 +806,53 @@ export function AdminDashboardViewEnhanced({
             </p>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={weeklyTrend}>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={weeklyTrend} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }}
+                  axisLine={false}
+                  tickLine={false}
+                  dy={10}
+                />
                 <YAxis
                   domain={[0, 100]}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }}
+                  axisLine={false}
                   tickLine={false}
+                  dx={-5}
                 />
                 <Tooltip
+                  cursor={{ fill: '#f1f5f9' }}
                   contentStyle={{
-                    borderRadius: '12px',
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    borderRadius: '16px',
+                    border: 'none',
+                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                    padding: '12px 16px',
                   }}
-                  formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Attendance']}
+                  formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Attendance Rate']}
                   labelFormatter={(_, payload) =>
                     payload?.[0]?.payload?.fullDate
-                      ? format(new Date(payload[0].payload.fullDate), 'dd MMM yyyy')
+                      ? format(new Date(payload[0].payload.fullDate), 'EEEE, dd MMM yyyy')
                       : ''
                   }
                 />
-                <Bar dataKey="pct" radius={[6, 6, 0, 0]}>
+                <Bar
+                  dataKey="pct"
+                  radius={[8, 8, 0, 0]}
+                  barSize={weeklyTrend.length <= 7 ? 40 : 20}
+                  animationDuration={1500}
+                >
                   {weeklyTrend.map((_, i) => (
                     <Cell
                       key={i}
                       fill={
                         weeklyTrend[i].pct >= 80
-                          ? '#22c55e'
+                          ? '#10b981' // emerald-500
                           : weeklyTrend[i].pct >= 60
-                            ? '#f59e0b'
-                            : '#ef4444'
+                            ? '#f59e0b' // amber-500
+                            : '#ef4444' // red-500
                       }
                     />
                   ))}
@@ -966,10 +987,25 @@ export function AdminDashboardViewEnhanced({
                         <p className="font-semibold text-slate-900 dark:text-foreground">
                           {userName}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          {format(new Date(leave.startDate), 'dd MMM')} –{' '}
-                          {format(new Date(leave.endDate), 'dd MMM')} • {days} day
-                          {days > 1 ? 's' : ''}
+                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                          <span>
+                            {format(new Date(leave.startDate), 'dd MMM')} –{' '}
+                            {format(new Date(leave.endDate), 'dd MMM')}
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="font-medium text-slate-600 dark:text-slate-400">
+                            {days} day{days > 1 ? 's' : ''}
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                              leave.type === 'half_day'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                                : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400'
+                            }`}
+                          >
+                            {leave.type === 'half_day' ? 'Half Day' : 'Full Day'}
+                          </span>
                         </p>
                       </div>
                       <ArrowRight className="h-4 w-4 text-slate-400" />
@@ -1068,7 +1104,7 @@ export function AdminDashboardViewEnhanced({
                 className="pl-9 w-48 md:w-64 rounded-xl"
               />
             </div>
-            <div className="flex gap-1 rounded-lg border border-border p-1">
+            <div className="flex gap-1 rounded-lg border border-border p-1 overflow-x-auto max-w-full custom-scrollbar no-scrollbar whitespace-nowrap">
               {(
                 [
                   ['all', 'All'],
@@ -1083,7 +1119,7 @@ export function AdminDashboardViewEnhanced({
                 <button
                   key={val}
                   onClick={() => setStatusFilter(val)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all flex-shrink-0 ${
                     statusFilter === val
                       ? 'bg-indigo-600 text-white'
                       : 'text-slate-600 hover:bg-slate-100 dark:text-muted-foreground dark:hover:bg-slate-800'

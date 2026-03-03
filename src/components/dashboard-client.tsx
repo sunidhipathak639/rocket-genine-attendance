@@ -4,10 +4,20 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { AttendanceCard } from '@/components/attendance-card'
 import Image from 'next/image'
 import { DashboardCalendar } from '@/components/dashboard-calendar'
-import { LogOut, Clock, Loader2, Bell, Coffee, Video } from 'lucide-react'
+import {
+  LogOut,
+  Clock,
+  Loader2,
+  Bell,
+  Coffee,
+  Video,
+  CalendarPlus,
+  CalendarDays,
+  AlertCircle,
+} from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
@@ -17,11 +27,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { usePathname, useRouter } from 'next/navigation'
-import { format } from 'date-fns'
+import { format, isSameDay } from 'date-fns'
+import { Calendar } from '@/components/ui/calendar'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { toast } from 'sonner'
 import { calculatePayroll } from '@/lib/payroll-calculator'
 
 import type { Attendance, User, Leaf, Holiday } from '@/payload-types'
-import { AdminDashboardViewEnhanced } from './admin-dashboard-view-enhanced'
+import { AdminDashboardViewEnhanced, LiveIndianClock } from './admin-dashboard-view-enhanced'
 import { MyLeaveStatusList } from './my-leave-status-list'
 import { formatTime, getProfileImageUrl } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -161,6 +175,14 @@ export function DashboardClient({
   const { effectiveDark } = useTheme()
   const [, setShiftTick] = useState(0)
   const [logoutLoading, setLogoutLoading] = useState(false)
+  // Apply Leave popup state
+  const [applyLeaveOpen, setApplyLeaveOpen] = useState(false)
+  const [applyLeaveDate, setApplyLeaveDate] = useState<Date | undefined>(undefined)
+  const [applyLeaveType, setApplyLeaveType] = useState('full_day')
+  const [applyLeaveReason, setApplyLeaveReason] = useState('')
+  const [applyLeaveError, setApplyLeaveError] = useState<string | null>(null)
+  const [applyLeaveSubmitting, setApplyLeaveSubmitting] = useState(false)
+  const [applyLeaveHolidays, setApplyLeaveHolidays] = useState<{ date: string; name: string }[]>([])
   type NotificationDoc = {
     id: string
     title?: string
@@ -183,6 +205,118 @@ export function DashboardClient({
   const workSettings = workSettingsProp ?? workSettingsLocal
   const profileImageUrl = getProfileImageUrl(user.profileImage)
   const router = useRouter()
+
+  // Fetch holidays for the apply leave date picker
+  useEffect(() => {
+    fetch('/api/holidays?limit=200', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.docs) {
+          setApplyLeaveHolidays(
+            json.docs.map((h: { date: string; name: string }) => ({ date: h.date, name: h.name })),
+          )
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Check if a date is disabled for leave requests
+  const isApplyLeaveDateDisabled = useCallback(
+    (day: Date) => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const dayOnly = new Date(day)
+      dayOnly.setHours(0, 0, 0, 0)
+      if (dayOnly.getTime() < today.getTime()) return true // past
+      if (day.getDay() === 0) return true // Sunday
+      return applyLeaveHolidays.some((h) => isSameDay(new Date(h.date), day))
+    },
+    [applyLeaveHolidays],
+  )
+
+  /** Extract a user-friendly error message from API response */
+  const getApplyLeaveErrorMessage = (data: unknown): string => {
+    if (!data || typeof data !== 'object') return 'Failed to submit leave request.'
+    const d = data as Record<string, unknown>
+    if (typeof d.message === 'string' && d.message.trim()) return d.message
+    if (Array.isArray(d.errors) && d.errors.length > 0) {
+      const first = d.errors[0]
+      if (
+        first &&
+        typeof first === 'object' &&
+        'message' in first &&
+        typeof (first as { message: unknown }).message === 'string'
+      ) {
+        return (first as { message: string }).message
+      }
+    }
+    if (typeof d.error === 'string' && d.error.trim()) return d.error
+    return 'Failed to submit leave request. Please try again.'
+  }
+
+  const handleApplyLeaveSubmit = async () => {
+    setApplyLeaveError(null)
+    if (!applyLeaveDate) {
+      const msg = 'Please select a date.'
+      toast.error(msg)
+      setApplyLeaveError(msg)
+      return
+    }
+    if (isApplyLeaveDateDisabled(applyLeaveDate)) {
+      let msg: string
+      if (applyLeaveDate.getDay() === 0) {
+        msg = 'Leave cannot be requested for Sundays.'
+      } else {
+        const holiday = applyLeaveHolidays.find((h) => isSameDay(new Date(h.date), applyLeaveDate))
+        msg = holiday
+          ? `"${holiday.name}" is a holiday. Leave cannot be requested on holidays.`
+          : 'This date is not available for leave.'
+      }
+      toast.error(msg)
+      setApplyLeaveError(msg)
+      return
+    }
+    setApplyLeaveSubmitting(true)
+    try {
+      const res = await fetch('/api/request-leave', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: applyLeaveType,
+          startDate: format(applyLeaveDate, 'yyyy-MM-dd'),
+          endDate: format(applyLeaveDate, 'yyyy-MM-dd'),
+          reason: applyLeaveReason || '',
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(`Leave requested for ${format(applyLeaveDate, 'PPP')}`)
+        setApplyLeaveOpen(false)
+        setApplyLeaveReason('')
+        setApplyLeaveType('full_day')
+        setApplyLeaveDate(undefined)
+        setApplyLeaveError(null)
+        window.location.reload()
+      } else {
+        const msg =
+          res.status === 403
+            ? "You don't have permission to request leave. Please contact your admin."
+            : res.status === 401
+              ? 'Please log in again to request leave.'
+              : getApplyLeaveErrorMessage(data)
+        setApplyLeaveError(msg)
+        toast.error(msg)
+      }
+    } catch (error) {
+      console.error('Error submitting leave request:', error)
+      const msg = 'Unable to connect. Please check your connection and try again.'
+      setApplyLeaveError(msg)
+      toast.error(msg)
+    } finally {
+      setApplyLeaveSubmitting(false)
+    }
+  }
 
   // Fetch approved leaves for current month (staff) and work settings when not provided
   useEffect(() => {
@@ -896,19 +1030,34 @@ export function DashboardClient({
         </header>
 
         <main className="container mx-auto px-4 md:px-8 py-6 md:py-10 max-w-[1600px]">
-          <div className="mb-6 md:mb-10 text-center md:text-left">
-            <h1 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-foreground mb-1 md:mb-2 italic">
-              Hello, {user.name?.split(' ')[0] || 'Admin'}
-            </h1>
-            <p className="text-slate-500 font-medium">
-              Its{' '}
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </p>
+          <div className="mb-10 flex flex-col gap-4">
+            <div className="flex justify-center md:justify-start">
+              <div className="w-full max-w-[320px]">
+                <LiveIndianClock />
+              </div>
+            </div>
+            <div className="text-center md:text-left">
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-foreground mb-3">
+                Hello,{' '}
+                <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                  {user.name?.split(' ')[0] || 'Admin'}
+                </span>
+              </h1>
+              <p className="text-slate-500 font-medium text-base md:text-lg">
+                Its{' '}
+                <span className="text-indigo-500 font-bold">
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'long',
+                  })}
+                </span>
+                ,{' '}
+                {new Date().toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </p>
+            </div>
           </div>
 
           <AdminDashboardViewEnhanced
@@ -1227,6 +1376,25 @@ export function DashboardClient({
                   })}
                 </p>
               </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.35, type: 'spring', damping: 20 }}
+              >
+                <Button
+                  onClick={() => {
+                    setApplyLeaveDate(undefined)
+                    setApplyLeaveReason('')
+                    setApplyLeaveType('full_day')
+                    setApplyLeaveError(null)
+                    setApplyLeaveOpen(true)
+                  }}
+                  className="h-12 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 transition-all hover:-translate-y-0.5 active:scale-[0.97] gap-2.5 text-sm"
+                >
+                  <CalendarPlus className="w-5 h-5" />
+                  Apply Leave
+                </Button>
+              </motion.div>
             </motion.div>
 
             <AnimatePresence mode="wait">
@@ -1609,6 +1777,160 @@ export function DashboardClient({
                   Join Meeting Now
                 </Button>
               )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Apply Leave Popup */}
+      <Dialog
+        open={applyLeaveOpen}
+        onOpenChange={(open) => {
+          setApplyLeaveOpen(open)
+          if (!open) {
+            setApplyLeaveError(null)
+            setApplyLeaveDate(undefined)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden border-none shadow-2xl rounded-[32px] bg-white dark:bg-slate-900">
+          <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 p-6 md:p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-400/20 rounded-full translate-y-12 -translate-x-12 blur-xl" />
+            <div className="relative z-10">
+              <DialogTitle className="text-2xl font-black italic mb-2">
+                Request <span className="text-indigo-200">Leave</span>
+              </DialogTitle>
+              <DialogDescription className="text-indigo-100 font-medium opacity-90">
+                Planning some time off? Select a date below.
+                {applyLeaveDate && (
+                  <>
+                    {' '}
+                    Your request for{' '}
+                    <span className="font-bold text-white underline decoration-indigo-300 underline-offset-4">
+                      {format(applyLeaveDate, 'MMM dd, yyyy')}
+                    </span>
+                  </>
+                )}
+              </DialogDescription>
+            </div>
+          </div>
+
+          <div className="p-6 md:p-8 pb-8 space-y-5 max-h-[70vh] overflow-y-auto">
+            {applyLeaveError && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-700 dark:text-red-400">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs font-semibold">{applyLeaveError}</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Date Picker */}
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-muted-foreground ml-1">
+                Select Date
+              </Label>
+              <div className="flex justify-center">
+                <Calendar
+                  mode="single"
+                  selected={applyLeaveDate}
+                  onSelect={(day) => {
+                    if (day && !isApplyLeaveDateDisabled(day)) {
+                      setApplyLeaveDate(day)
+                      setApplyLeaveError(null)
+                    }
+                  }}
+                  disabled={isApplyLeaveDateDisabled}
+                  className="rounded-3xl border border-border shadow-md bg-white dark:bg-slate-800/50 w-full max-w-md p-3 [--cell-size:2.8rem] sm:[--cell-size:3.2rem] mx-auto transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Leave Type */}
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-muted-foreground ml-1">
+                Leave Type
+              </Label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10 pointer-events-none">
+                  <CalendarDays className="w-4 h-4" />
+                </div>
+                <Select value={applyLeaveType} onValueChange={setApplyLeaveType}>
+                  <SelectTrigger className="pl-11 h-14 rounded-2xl border-border focus:ring-indigo-600/20 transition-all font-bold text-slate-700 dark:text-foreground">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl border-border shadow-xl p-1">
+                    <SelectItem
+                      value="full_day"
+                      className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700 dark:focus:bg-indigo-900/30 dark:focus:text-indigo-400"
+                    >
+                      Full Working Day
+                    </SelectItem>
+                    <SelectItem
+                      value="half_day"
+                      className="rounded-xl py-3 font-medium focus:bg-indigo-50 focus:text-indigo-700 dark:focus:bg-indigo-900/30 dark:focus:text-indigo-400"
+                    >
+                      Half Day (4 hrs)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Reason */}
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-muted-foreground ml-1">
+                Reason for Leave
+              </Label>
+              <div className="relative">
+                <Textarea
+                  placeholder="Briefly describe your reason for absence..."
+                  className="min-h-[100px] rounded-2xl border-border focus:ring-indigo-600/20 transition-all p-4 resize-none font-medium text-slate-700 dark:text-foreground dark:bg-slate-800/50"
+                  value={applyLeaveReason}
+                  onChange={(e) => setApplyLeaveReason(e.target.value)}
+                />
+                <div className="absolute right-4 bottom-4 text-slate-300 dark:text-slate-600">
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-14 rounded-2xl border-border font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                onClick={() => {
+                  setApplyLeaveOpen(false)
+                  setApplyLeaveReason('')
+                  setApplyLeaveError(null)
+                  setApplyLeaveDate(undefined)
+                }}
+              >
+                Discard
+              </Button>
+              <Button
+                className="flex-[2] h-14 rounded-2xl bg-indigo-600 hover:bg-slate-900 dark:hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-100 dark:shadow-none transition-all active:scale-[0.98] group disabled:opacity-50"
+                onClick={handleApplyLeaveSubmit}
+                disabled={
+                  !applyLeaveDate ||
+                  isApplyLeaveDateDisabled(applyLeaveDate) ||
+                  applyLeaveSubmitting
+                }
+              >
+                {applyLeaveSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>Submit Request</span>
+                    <CalendarPlus className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>

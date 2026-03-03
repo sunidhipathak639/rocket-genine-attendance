@@ -45,6 +45,7 @@ interface HolidayRecord {
   lucideIcon?: string
   uploadedIcon?: string | { url: string }
   svgCode?: string
+  description?: string
 }
 
 interface LeaveRecord {
@@ -141,6 +142,8 @@ export function DashboardCalendar({
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
   const [leaveType, setLeaveType] = useState('full_day')
   const [reason, setReason] = useState('')
+  const [isHolidayDialogOpen, setIsHolidayDialogOpen] = useState(false)
+  const [selectedHoliday, setSelectedHoliday] = useState<HolidayRecord | null>(null)
 
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
@@ -241,8 +244,8 @@ export function DashboardCalendar({
     leave: 'bg-red-500 text-white hover:bg-red-600 rounded-md font-bold shadow-sm',
     late: 'bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-md',
     halfDay: 'bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-md',
-    holiday: 'bg-blue-50 text-blue-600 border border-blue-200 rounded-md font-bold',
-    disabled: 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400',
+    holiday: 'bg-blue-600 text-white hover:bg-blue-700 rounded-md font-bold shadow-sm',
+    disabled: 'opacity-50 lg:hover:bg-slate-50 text-slate-400',
   }
 
   // Check if a date is disabled for leave (past days, Sunday, or holiday only)
@@ -263,26 +266,26 @@ export function DashboardCalendar({
     const dayOnly = new Date(day)
     dayOnly.setHours(0, 0, 0, 0)
 
+    // Check for Holiday first
+    const hol = holidays.find((h) => isSameDay(new Date(h.date), day))
+    if (hol) {
+      setSelectedHoliday(hol)
+      setIsHolidayDialogOpen(true)
+      return
+    }
+
     if (dayOnly.getTime() < today.getTime()) {
       // Past: show info only
       const att = attendanceData.find((a) => isSameDay(new Date(a.date), day))
-      const hol = holidays.find((h) => isSameDay(new Date(h.date), day))
       if (att) toast.info(`Status: ${att.status.toUpperCase()}`)
-      else if (hol) toast.info(`Holiday: ${hol.name}`)
       else toast.info(`No record for ${format(day, 'MMM dd')}`)
       setDate(day)
       return
     }
+
     if (isDateDisabled(day)) {
       if (day.getDay() === 0) {
         toast.error('Leave cannot be requested for Sundays.')
-      } else {
-        const holiday = holidays.find((h) => isSameDay(new Date(h.date), day))
-        toast.error(
-          holiday
-            ? `"${holiday.name}" is a holiday. Leave cannot be requested on holidays.`
-            : 'This date is a holiday.',
-        )
       }
       return
     }
@@ -449,8 +452,8 @@ export function DashboardCalendar({
             <div className="flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded-full text-orange-600 border border-orange-100">
               <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>Late
             </div>
-            <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-full text-blue-600 border border-blue-100">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>Holiday
+            <div className="flex items-center gap-1.5 bg-blue-600 px-2 py-1 rounded-full text-white border border-blue-700">
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>Holiday
             </div>
             <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-full text-slate-400 border border-border">
               <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>Sunday
@@ -468,7 +471,9 @@ export function DashboardCalendar({
             className="rounded-[24px] border border-border shadow-xl w-full max-w-full bg-white transition-all [&_table]:w-full [&_td]:p-0 [--cell-size:2.5rem] sm:[--cell-size:3rem]"
             modifiers={modifiers}
             modifiersClassNames={modifiersClassNames}
-            disabled={(day) => isDateDisabled(day)}
+            // We handle interaction logic in onDayClick, so we don't physically disable buttons
+            // as it would prevent showing info/holiday modals.
+            disabled={undefined}
             components={{
               DayButton: (props) => {
                 const isHol = holidays.find((h) => isSameDay(new Date(h.date), props.day.date))
@@ -506,7 +511,13 @@ export function DashboardCalendar({
                   <CalendarDayButton {...props}>
                     <div className="relative w-full h-full flex flex-col items-center justify-center">
                       <span
-                        className={`text-xs sm:text-sm font-bold ${isLeave ? 'text-white' : isDisabled ? 'text-slate-300' : 'text-slate-700'}`}
+                        className={`text-xs sm:text-sm font-bold ${
+                          isLeave || props.modifiers.selected
+                            ? 'text-white'
+                            : isDisabled
+                              ? 'text-slate-300'
+                              : 'text-slate-700'
+                        }`}
                       >
                         {props.day.date.getDate()}
                       </span>
@@ -667,6 +678,75 @@ export function DashboardCalendar({
                 )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Holiday Details Popup */}
+      <Dialog open={isHolidayDialogOpen} onOpenChange={setIsHolidayDialogOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-[32px]">
+          <div className="bg-blue-600 p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-400/20 rounded-full translate-y-12 -translate-x-12 blur-xl" />
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+                {selectedHoliday && (
+                  <RenderHolidayIcon
+                    holiday={selectedHoliday}
+                    size={32}
+                    className="text-white drop-shadow-lg"
+                  />
+                )}
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-black italic">
+                  Holiday <span className="text-blue-200">Details</span>
+                </DialogTitle>
+                <div className="text-blue-100 font-medium opacity-90 mt-1">
+                  {selectedHoliday && format(new Date(selectedHoliday.date), 'PPP')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-8 pb-10 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Holiday Name
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tight border border-blue-100">
+                  {selectedHoliday?.type.replace('_', ' ')}
+                </span>
+              </div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                {selectedHoliday?.name}
+              </h3>
+
+              {selectedHoliday?.description && (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Description
+                  </span>
+                  <p className="text-sm font-medium text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 whitespace-pre-wrap">
+                    {selectedHoliday.description}
+                  </p>
+                </div>
+              )}
+
+              {!selectedHoliday?.description && (
+                <p className="text-sm font-bold text-slate-400 italic">
+                  No additional details provided for this holiday.
+                </p>
+              )}
+            </div>
+
+            <Button
+              className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-slate-900 text-white font-bold shadow-lg shadow-blue-100 transition-all active:scale-[0.98]"
+              onClick={() => setIsHolidayDialogOpen(false)}
+            >
+              Great!
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
